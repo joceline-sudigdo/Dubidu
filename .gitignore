@@ -9,14 +9,24 @@ dist/
 web-build/
 expo-env.d.ts
 
-# Native
+# generated native folders
+/ios
+/android
+
+# Native / signing (jangan pernah di-commit)
 .kotlin/
 *.orig.*
 *.jks
 *.p8
 *.p12
 *.key
+*.pem
 *.mobileprovision
+
+# Build output (APK/AAB dari EAS)
+*.apk
+*.aab
+*.ipa
 
 # Metro
 .metro-health-check*
@@ -26,18 +36,28 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 
-# macOS
-.DS_Store
-*.pem
+# env files (JANGAN commit secrets)
+.env
+.env.*
+!.env.example
 
-# local env files
-.env*.local
+# Supabase (local only)
+supabase/.temp/
+supabase/.branches/
+supabase/functions/.env
+supabase/functions/**/.env
 
 # typescript
 *.tsbuildinfo
 
-example
+# OS
+.DS_Store
+Thumbs.db
 
-# generated native folders
-/ios
-/android
+# editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# AI agent (local only)
+.claude/settings.local.json

@@ -1,55 +1,42 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://unistyl.es/), etc.
- */
-
-import '@/global.css';
-
 import { Platform } from 'react-native';
 
 export const Colors = {
-  light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
-  },
-  dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
-  },
+  primary: '#3D7ABD',
+  primaryDark: '#1E528A',
+  primarySoft: '#E8F0F9',
+  background: '#FFFFFF',
+
+  text: '#22324A',
+  textSecondary: '#6B7A90',
+  textMuted: '#A3AEBD',
+  placeholder: '#9AA6B6',
+
+  inputBackground: '#F2F6FB',
+  border: '#E3EAF3',
+  disabled: '#C5D3E4',
+
+  green: '#5B8C6A',
+  greenSoft: '#E6F0E9',
+  yellow: '#FFCB4C',
+  yellowSoft: '#FFF5DC',
+  red: '#C93D35',
+  redSoft: '#FBE9E8',
+  blueSoft: '#E1ECF8',
+  blueMid: '#C9DBF0',
+  surface: '#F5F8FC',
+  yellowDark: '#9A6A00',
+
+  shadow: '#1E528A',
 } as const;
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
-
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: 'var(--font-display)',
-    serif: 'var(--font-serif)',
-    rounded: 'var(--font-rounded)',
-    mono: 'var(--font-mono)',
-  },
-});
+export const Fonts = {
+  logo: 'FredokaOne_400Regular',
+  heading: 'Poppins_700Bold',
+  headingSemiBold: 'Poppins_600SemiBold',
+  body: 'Lato_400Regular',
+  bodyBold: 'Lato_700Bold',
+  bodyLight: 'Lato_300Light',
+} as const;
 
 export const Spacing = {
   half: 2,
@@ -61,5 +48,44 @@ export const Spacing = {
   six: 64,
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
-export const MaxContentWidth = 800;
+export const Radius = {
+  sm: 12,
+  md: 20,
+  lg: 28,
+  pill: 999,
+} as const;
+
+export const Shadow = {
+  soft: Platform.select({
+    web: { boxShadow: '0px 6px 18px rgba(30, 82, 138, 0.10)' },
+    default: {
+      shadowColor: Colors.shadow,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.1,
+      shadowRadius: 12,
+      elevation: 4,
+    },
+  }),
+  clay: Platform.select({
+    web: { boxShadow: '0px 8px 20px rgba(30, 82, 138, 0.12)' },
+    default: {
+      shadowColor: Colors.shadow,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.12,
+      shadowRadius: 14,
+      elevation: 5,
+    },
+  }),
+  button: Platform.select({
+    web: { boxShadow: '0px 10px 20px rgba(61, 122, 189, 0.30)' },
+    default: {
+      shadowColor: Colors.primary,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.3,
+      shadowRadius: 14,
+      elevation: 6,
+    },
+  }),
+};
+
+export const MaxContentWidth = 480;
