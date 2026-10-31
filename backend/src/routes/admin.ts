@@ -3,12 +3,14 @@ import { Router } from "express";
 import { z } from "zod";
 
 import { config } from "../config.js";
-import { prisma } from "../db.js";
+import { prisma, type Skill } from "../db.js";
 import { me, requireAuth, requireRole } from "../lib/auth.js";
 import { HttpError, notFound, param, parse } from "../lib/http.js";
 import { notify } from "../lib/notify.js";
+import { SKILL_KEY } from "../lib/matching.js";
 import { publicUser } from "../lib/present.js";
 import { markPaid } from "./payments.js";
+import { skillLevelsSchema, toSkillLevels } from "./teachers.js";
 
 export const adminRouter = Router();
 adminRouter.use(requireAuth, requireRole("ADMIN"));
@@ -37,17 +39,27 @@ adminRouter.get("/teachers", async (req, res) => {
     : undefined;
   const rows = await prisma.teacherProfile.findMany({
     where: { verificationStatus: status },
-    include: { user: true, documents: true, specializations: { include: { needOption: true } } },
+    include: { user: true, documents: true, specializations: { include: { needOption: true } }, skills: true },
     orderBy: { updatedAt: "desc" },
   });
-  res.json(rows.map((t) => ({ ...t, user: publicUser(t.user) })));
+  res.json(
+    rows.map((t) => ({
+      ...t,
+      user: publicUser(t.user),
+      // level dari teacher (self) vs yang dipakai matching (level) — untuk dicek admin
+      skillLevels: Object.fromEntries(t.skills.map((s) => [SKILL_KEY[s.skill], { self: s.selfLevel, level: s.level, adminAdjusted: s.adminAdjusted }])),
+    })),
+  );
 });
 
 /** PATCH /api/admin/teachers/:userId/verification { status: VERIFIED|REJECTED, note? } */
 adminRouter.patch("/teachers/:userId/verification", async (req, res) => {
   const body = parse(z.object({ status: z.enum(["VERIFIED", "REJECTED"]), note: z.string().optional() }), req.body);
-  const profile = await prisma.teacherProfile.findUnique({ where: { userId: param(req, "userId") } });
+  const profile = await prisma.teacherProfile.findUnique({ where: { userId: param(req, "userId") }, include: { skills: true } });
   if (!profile) throw notFound("Profil teacher");
+  if (body.status === "VERIFIED" && profile.skills.length === 0) {
+    throw new HttpError(400, "Teacher belum mengisi level keahlian. Minta teacher melengkapi profil dulu.");
+  }
   const updated = await prisma.teacherProfile.update({
     where: { id: profile.id },
     data: { verificationStatus: body.status, verifiedAt: body.status === "VERIFIED" ? new Date() : null },
@@ -69,6 +81,25 @@ adminRouter.patch("/teachers/:userId/verification", async (req, res) => {
     tag: "Verifikasi",
   });
   res.json(updated);
+});
+
+/**
+ * PATCH /api/admin/teachers/:userId/skills { skills: { speech: 80, ... } }
+ * Admin menyesuaikan level keahlian setelah cek dokumen / interview. Nilai ini yang dipakai matching.
+ */
+adminRouter.patch("/teachers/:userId/skills", async (req, res) => {
+  const { skills } = parse(z.object({ skills: skillLevelsSchema }), req.body);
+  const profile = await prisma.teacherProfile.findUnique({ where: { userId: param(req, "userId") } });
+  if (!profile) throw notFound("Profil teacher");
+  for (const [skill, level] of Object.entries(toSkillLevels(skills))) {
+    await prisma.teacherSkill.upsert({
+      where: { teacherId_skill: { teacherId: profile.id, skill: skill as Skill } },
+      create: { teacherId: profile.id, skill: skill as Skill, selfLevel: level, level, adminAdjusted: true },
+      update: { level, adminAdjusted: true },
+    });
+  }
+  const rows = await prisma.teacherSkill.findMany({ where: { teacherId: profile.id } });
+  res.json(Object.fromEntries(rows.map((s) => [SKILL_KEY[s.skill], { self: s.selfLevel, level: s.level, adminAdjusted: s.adminAdjusted }])));
 });
 
 const psySchema = z.object({

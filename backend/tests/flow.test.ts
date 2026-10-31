@@ -17,6 +17,8 @@ before(async () => {
   process.env.MAIL_TEST_RETURN_CODE = "true";
   delete process.env.ANTHROPIC_API_KEY; // tes tanpa AI (deck memakai skor aturan)
   delete process.env.DAILY_API_KEY; // video call memakai cadangan Jitsi
+  // bersihkan sisa data uji dari run sebelumnya (hanya akun @test.id) supaya tes bisa diulang
+  await prisma.user.deleteMany({ where: { email: { endsWith: "@test.id" } } });
   server = createApp().listen(0);
   await new Promise((r) => server.once("listening", r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api`;
@@ -123,12 +125,25 @@ describe("DUBIDU API", () => {
     teacherId = reg.data.user.id;
     assert.equal(reg.data.user.isDemo, false);
 
+    const admin0 = await login("admin@dubidu.id", "admin12345");
+    const noSkills = await api(`/admin/teachers/${teacherId}/verification`, { method: "PATCH", token: admin0, body: { status: "VERIFIED" } });
+    assert.equal(noSkills.status, 400); // level keahlian wajib diisi sebelum verifikasi
+
+    const badSkill = await api("/teachers/me", { method: "PATCH", token: teacherToken, body: { skills: { menari: 90 } } });
+    assert.equal(badSkill.status, 400);
     const profile = await api("/teachers/me", {
       method: "PATCH",
       token: teacherToken,
-      body: { title: "S.Pd", headline: "Spesialis Speech Delay", pricePerSession: 150000, specializations: ["Speech delay", "Sulit fokus & konsentrasi"] },
+      body: {
+        title: "S.Pd",
+        headline: "Spesialis Speech Delay",
+        pricePerSession: 150000,
+        specializations: ["Speech delay", "Sulit fokus & konsentrasi"],
+        skills: { speech: 95, communication: 88, adhd: 85, sensory: 60, social: 70, autism: 55, academic: 65 },
+      },
     });
     assert.equal(profile.status, 200, JSON.stringify(profile.data));
+    assert.equal(profile.data.skillLevels.speech, 95);
     const early = await api("/matching/children", { token: teacherToken });
     assert.equal(early.status, 403); // belum terverifikasi
     await api("/teachers/me/documents", { token: teacherToken, body: { type: "IJAZAH", url: "https://example.com/ijazah.pdf" } });
@@ -159,7 +174,7 @@ describe("DUBIDU API", () => {
     // user sungguhan tidak melihat teacher / psikolog / post demo
     const deck = await api(`/matching/teachers?childId=${childId}`, { token: parentToken });
     assert.ok(deck.data.cards.some((c: { id: string }) => c.id === teacherId));
-    assert.ok(deck.data.cards.every((c: { fullName: string }) => !/Prasetyo|Nielsen|Larasati|Siti/.test(c.fullName)));
+    assert.ok(deck.data.cards.every((c: { name: string }) => !/Prasetyo|Nielsen|Larasati|Siti/.test(c.name)));
     const psys = await api("/psychologists", { token: parentToken });
     assert.ok(psys.data.some((p: { name: string }) => p.name === psyName));
     assert.ok(psys.data.every((p: { name: string }) => !p.name.startsWith("Amanda")));
@@ -174,7 +189,8 @@ describe("DUBIDU API", () => {
     assert.equal((await api("/consultations/quote", { token: parentToken, body: { psychologistId: demoPsy.id } })).status, 404);
     const pras = (await api("/home/parent", { token: devi })).data.activeTeachers.find((t: { name: string }) => t.name === "Pras");
     assert.equal((await api(`/teachers/${pras.teacherId}`, { token: parentToken })).status, 404);
-    assert.equal((await api(`/matching/teachers/${pras.teacherId}/swipe`, { token: parentToken, body: { childId, direction: "LIKE" } })).status, 404);
+    assert.equal((await api(`/matching/teachers/${pras.teacherId}/connect`, { token: parentToken, body: { childId } })).status, 404);
+    assert.equal((await api(`/matching/teachers/${pras.teacherId}/skip`, { token: parentToken, body: { childId } })).status, 404);
 
     // akun demo tetap melihat dunia demo (untuk presentasi), bukan user sungguhan
     const deviHome = await api("/home/parent", { token: devi });
@@ -209,24 +225,42 @@ describe("DUBIDU API", () => {
     assert.ok(res.data.activeTeachers.length >= 3);
   });
 
-  it("smart matching: dek teacher urut skor & swipe LIKE membuat pengajuan", async () => {
-    const deck = await api(`/matching/teachers?childId=${childId}`, { token: parentToken });
-    assert.equal(deck.status, 200);
-    assert.ok(deck.data.cards.length > 0);
-    const scores = deck.data.cards.map((c: { matchPercent: number }) => c.matchPercent);
-    assert.deepEqual(scores, [...scores].sort((a, b) => b - a));
-    assert.ok(deck.data.cards.every((c: { fullName: string }) => !c.fullName.startsWith("Bayu"))); // belum terverifikasi
-
-    assert.ok(deck.data.cards.some((c: { id: string }) => c.id === teacherId));
-    const like = await api(`/matching/teachers/${teacherId}/swipe`, {
-      token: parentToken,
-      body: { childId, direction: "LIKE" },
-    });
-    assert.equal(like.status, 201, JSON.stringify(like.data));
-    applicationId = like.data.application.id;
+  it("matching: 5 teacher paling cocok berdasarkan profil anak & level keahlian teacher", async () => {
+    const list = await api(`/matching/teachers?childId=${childId}`, { token: parentToken });
+    assert.equal(list.status, 200);
+    assert.equal(list.data.matchCount, 5);
+    assert.ok(list.data.cards.length >= 1 && list.data.cards.length <= 5);
+    assert.deepEqual(list.data.child.skills.sort(), ["adhd", "speech"]); // Speech delay + Sulit fokus
+    const card = list.data.cards.find((c: { id: string }) => c.id === teacherId);
+    assert.ok(card);
+    assert.equal(card.skills.speech, 95);
+    // 75% keahlian (rata-rata speech 95 & adhd 85 = 90) + 15% rating (teacher baru = 70) + 10% lokasi (kota sama = 100)
+    assert.equal(card.ruleScore, Math.round(90 * 0.75 + 70 * 0.15 + 100 * 0.1));
+    assert.equal(card.connected, false);
   });
 
-  it("teacher menerima pengajuan → chat otomatis terbuka", async () => {
+  it("hubungkan: pengajuan + chat langsung terbuka dengan pesan penawaran", async () => {
+    const res = await api(`/matching/teachers/${teacherId}/connect`, { token: parentToken, body: { childId } });
+    assert.equal(res.status, 201, JSON.stringify(res.data));
+    applicationId = res.data.application.id;
+    assert.ok(res.data.conversationId);
+    const again = await api(`/matching/teachers/${teacherId}/connect`, { token: parentToken, body: { childId } });
+    assert.equal(again.data.alreadyConnected, true); // tidak dobel
+
+    const msgs = await api(`/conversations/${res.data.conversationId}/messages`, { token: parentToken });
+    assert.equal(msgs.data.length, 1);
+    assert.match(msgs.data[0].text, /tertarik dengan pendampingan/);
+
+    const teacherChats = await api("/conversations", { token: teacherToken });
+    const chat = teacherChats.data.find((c: { id: string }) => c.id === res.data.conversationId);
+    assert.equal(chat.unread, 1);
+    assert.equal(chat.child, "B"); // teacher hanya lihat inisial sebelum menerima
+
+    const list = await api(`/matching/teachers?childId=${childId}`, { token: parentToken });
+    assert.equal(list.data.cards.find((c: { id: string }) => c.id === teacherId).connected, true);
+  });
+
+  it("teacher menerima tawaran → pesan balasan otomatis", async () => {
     const list = await api("/applications?status=PENDING", { token: teacherToken });
     const app = list.data.find((a: { id: string }) => a.id === applicationId);
     assert.ok(app);
@@ -237,16 +271,66 @@ describe("DUBIDU API", () => {
 
     const res = await api(`/applications/${applicationId}`, { method: "PATCH", token: teacherToken, body: { status: "ACCEPTED" } });
     assert.equal(res.status, 200);
-    assert.ok(res.data.conversationId);
+    const msgs = await api(`/conversations/${res.data.conversationId}/messages`, { token: parentToken });
+    assert.match(msgs.data.at(-1).text, /menerima tawaran pendampingan untuk Budi/);
 
-    const msg = await api(`/conversations/${res.data.conversationId}/messages`, {
-      token: parentToken,
-      body: { type: "TEXT", text: "Halo Kak, terima kasih sudah menerima!" },
-    });
-    assert.equal(msg.status, 201);
+    await api(`/conversations/${res.data.conversationId}/messages`, { token: parentToken, body: { type: "TEXT", text: "Terima kasih Kak!" } });
     const convos = await api("/conversations", { token: teacherToken });
     const c = convos.data.find((x: { id: string }) => x.id === res.data.conversationId);
     assert.equal(c.unread, 1);
+    assert.equal(c.child, "Budi"); // setelah diterima, nama anak terlihat
+  });
+
+  it("lewati: kandidat diganti, gratis 5× per hari, Plus tanpa batas", async () => {
+    // tes boleh diulang di database yang sama: hapus riwayat "lewati" akun demo ini dulu
+    await prisma.matchSkip.deleteMany({ where: { actor: { email: "parent@dubidu.id" } } });
+    const sari = await login("parent@dubidu.id", "parent123"); // akun demo gratis
+    const nadia = (await api("/home/parent", { token: sari })).data.children[0].id;
+    let list = await api(`/matching/teachers?childId=${nadia}`, { token: sari });
+    assert.equal(list.data.skipsLeft, 5);
+    assert.equal(list.data.cards.length, 5);
+    const seen = new Set<string>();
+    for (let i = 0; i < 5; i++) {
+      const first = list.data.cards[0].id;
+      seen.add(first);
+      list = await api(`/matching/teachers/${first}/skip`, { token: sari, body: { childId: nadia } });
+      assert.equal(list.status, 200, JSON.stringify(list.data));
+      assert.ok(list.data.cards.every((c: { id: string }) => !seen.has(c.id))); // yang dilewati tidak muncul lagi
+    }
+    assert.equal(list.data.skipsLeft, 0);
+    const blocked = await api(`/matching/teachers/${list.data.cards[0].id}/skip`, { token: sari, body: { childId: nadia } });
+    assert.equal(blocked.status, 429);
+
+    const devi = await login("devi@dubidu.id"); // Dubidu Plus
+    const elisya = (await api("/home/parent", { token: devi })).data.children.find((c: { name: string }) => c.name === "Elisya").id;
+    assert.equal((await api(`/matching/teachers?childId=${elisya}`, { token: devi })).data.skipsLeft, null);
+  });
+
+  it("bandingkan 2 teacher & 2 anak", async () => {
+    const devi = await login("devi@dubidu.id");
+    const elisya = (await api("/home/parent", { token: devi })).data.children.find((c: { name: string }) => c.name === "Elisya").id;
+    const list = await api(`/matching/teachers?childId=${elisya}`, { token: devi });
+    const [a, b] = list.data.cards;
+    const cmp = await api(`/matching/teachers/compare?childId=${elisya}&teacherIds=${a.id},${b.id}`, { token: devi });
+    assert.equal(cmp.status, 200, JSON.stringify(cmp.data));
+    assert.equal(cmp.data.teachers.length, 2);
+    assert.ok([a.id, b.id].includes(cmp.data.recommendedId));
+    assert.match(cmp.data.reason, /lebih cocok untuk Elisya dengan kecocokan \d+%, terutama di /);
+    assert.equal((await api(`/matching/teachers/compare?childId=${elisya}&teacherIds=${a.id}`, { token: devi })).status, 400);
+
+    const kevin = await login("kevin@dubidu.id"); // teacher demo
+    const kids = await api("/matching/children", { token: kevin });
+    assert.ok(kids.data.cards.length >= 2);
+    assert.ok(kids.data.cards.every((c: { initials: string; needs: string[] }) => c.initials && Array.isArray(c.needs)));
+    const [x, y] = kids.data.cards;
+    const cmpKids = await api(`/matching/children/compare?childIds=${x.id},${y.id}`, { token: kevin });
+    assert.equal(cmpKids.data.children.length, 2);
+
+    // teacher menawarkan diri → chat terbuka dengan orang tua
+    const offer = await api(`/matching/children/${x.id}/connect`, { token: kevin, body: {} });
+    assert.ok([200, 201].includes(offer.status), JSON.stringify(offer.data)); // 200 = sudah terhubung di run sebelumnya
+    const msgs = await api(`/conversations/${offer.data.conversationId}/messages`, { token: kevin });
+    assert.match(msgs.data[0].text, /tertarik untuk mendampingi/);
   });
 
   it("kontrak → jadwal sesi → report card → orang tua lihat laporan", async () => {
@@ -350,10 +434,32 @@ describe("DUBIDU API", () => {
   });
 
   it("beranda teacher demo Pras (desain gambar 2)", async () => {
-    const res = await api("/home/teacher", { token: await login("pras@dubidu.id") });
+    const pras = await login("pras@dubidu.id");
+    // buat jadwal hari ini (WIB) supaya tes tidak bergantung pada tanggal seed dijalankan
+    const engagements = await api("/engagements?status=ACTIVE", { token: pras });
+    const detail = await api(`/engagements/${engagements.data[0].id}`, { token: pras });
+    const scheduled = detail.data.sessions.find((x: { status: string }) => x.status === "SCHEDULED");
+    const today = new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10);
+    const minute = String(stamp % 60).padStart(2, "0");
+    const moved = await api(`/sessions/${scheduled.id}`, {
+      method: "PATCH",
+      token: pras,
+      body: { startAt: `${today}T23:${minute}:00+07:00`, endAt: `${today}T23:59:00+07:00` },
+    });
+    assert.equal(moved.status, 200, JSON.stringify(moved.data));
+
+    // satu pembayaran fee bulan ini dari orang tua demo (Devi) → kartu Pendapatan terisi
+    const devi = await login("devi@dubidu.id");
+    const withPras = (await api("/engagements?status=ACTIVE", { token: devi })).data.find((x: { teacher: { name: string } }) =>
+      x.teacher.name.startsWith("Prasetyo"),
+    );
+    const fee = await api(`/engagements/${withPras.id}/payments`, { token: devi, body: { sessions: 1 } });
+    await api(`/payments/${fee.data.id}/pay`, { token: devi, body: {} });
+
+    const res = await api("/home/teacher", { token: pras });
     assert.equal(res.status, 200);
     assert.equal(res.data.greeting.name, "Pras");
-    assert.ok(res.data.todaySchedule.some((s: { time: string }) => s.time === "14:00"));
+    assert.ok(res.data.todaySchedule.some((s: { time: string }) => s.time === `23:${minute}`));
     assert.ok(res.data.earnings.month > 0);
     assert.ok(res.data.applications.length > 0);
   });

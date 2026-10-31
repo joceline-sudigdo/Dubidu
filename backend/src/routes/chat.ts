@@ -6,7 +6,7 @@ import { me, requireAuth, requireRole } from "../lib/auth.js";
 import { hhmm, shortDate, wibDate } from "../lib/dates.js";
 import { forbidden, HttpError, notFound, param, parse } from "../lib/http.js";
 import { notify } from "../lib/notify.js";
-import { displayName } from "../lib/present.js";
+import { displayName, initials } from "../lib/present.js";
 import { emitToUser } from "../lib/realtime.js";
 
 export const chatRouter = Router();
@@ -31,6 +31,16 @@ async function loadConversation(id: string, userId: string) {
   if (!convo) throw notFound("Percakapan");
   if (!convo.participants.some((p) => p.userId === userId)) throw forbidden();
   return convo;
+}
+
+/** Teacher hanya melihat inisial anak sampai pengajuan diterima / ada kontrak (privasi anak). */
+async function childLabel(child: { id: string; name: string; fullName: string }, viewerId: string, role: string) {
+  if (role !== "TEACHER") return child.name;
+  const allowed = await prisma.application.findFirst({
+    where: { childId: child.id, teacherUserId: viewerId, status: "ACCEPTED" },
+    select: { id: true },
+  });
+  return allowed ? child.name : initials(child.fullName);
 }
 
 /** GET /api/conversations — daftar chat (tab Chat) */
@@ -65,7 +75,7 @@ chatRouter.get("/", async (req, res) => {
           verified:
             partner.teacherProfile?.verificationStatus === "VERIFIED" || partner.role === "PSYCHOLOGIST",
         },
-        child: c.child?.name ?? null,
+        child: c.child ? await childLabel(c.child, userId, me(req).role) : null,
         preview: last ? (last.type === "TEXT" ? last.text : last.type === "IMAGE" ? "📷 Foto" : "📅 Jadwal sesi") : "",
         time: last ? chatTime(last.createdAt) : chatTime(c.createdAt),
         unread,
@@ -120,11 +130,21 @@ chatRouter.post("/:id/messages", async (req, res) => {
   const sender = me(req);
   const convo = await loadConversation(param(req, "id"), sender.id);
   const body = parse(messageSchema, req.body);
+  const message = await sendMessage(convo.id, sender.id, body);
+  res.status(201).json({ ...message, from: "me", time: hhmm(message.createdAt) });
+});
 
+type OutgoingMessage = z.infer<typeof messageSchema>;
+
+/**
+ * Kirim pesan ke percakapan: simpan, kirim realtime, dan beri notifikasi ke peserta lain.
+ * Dipakai juga oleh tombol "Hubungkan" (pesan penawaran) dan "Terima Tawaran" (pesan balasan).
+ */
+export async function sendMessage(conversationId: string, senderId: string, body: OutgoingMessage) {
   const message = await prisma.message.create({
     data: {
-      conversationId: convo.id,
-      senderId: sender.id,
+      conversationId,
+      senderId,
       type: body.type,
       text: body.type === "TEXT" ? body.text : null,
       imageUrl: body.type === "IMAGE" ? body.imageUrl : null,
@@ -132,17 +152,20 @@ chatRouter.post("/:id/messages", async (req, res) => {
     },
   });
   await prisma.$transaction([
-    prisma.conversation.update({ where: { id: convo.id }, data: { updatedAt: new Date() } }),
+    prisma.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } }),
     prisma.conversationParticipant.update({
-      where: { conversationId_userId: { conversationId: convo.id, userId: sender.id } },
+      where: { conversationId_userId: { conversationId, userId: senderId } },
       data: { lastReadAt: message.createdAt },
     }),
   ]);
 
-  const senderUser = await prisma.user.findUniqueOrThrow({ where: { id: sender.id } });
-  for (const p of convo.participants) {
-    if (p.userId === sender.id) continue;
-    emitToUser(p.userId, "message:new", { conversationId: convo.id, message });
+  const [senderUser, participants] = await Promise.all([
+    prisma.user.findUniqueOrThrow({ where: { id: senderId } }),
+    prisma.conversationParticipant.findMany({ where: { conversationId } }),
+  ]);
+  for (const p of participants) {
+    if (p.userId === senderId) continue;
+    emitToUser(p.userId, "message:new", { conversationId, message });
     await notify({
       userId: p.userId,
       category: "CHAT",
@@ -152,12 +175,11 @@ chatRouter.post("/:id/messages", async (req, res) => {
       body: body.type === "TEXT" ? body.text.slice(0, 140) : body.type === "IMAGE" ? "Mengirim foto" : "Mengirim jadwal sesi",
       tag: "Pesan",
       action: "Balas Pesan",
-      link: `/chat/${convo.id}`,
+      link: `/chat/${conversationId}`,
     });
   }
-
-  res.status(201).json({ ...message, from: "me", time: hhmm(message.createdAt) });
-});
+  return message;
+}
 
 /** POST /api/conversations/:id/read — tandai sudah dibaca */
 chatRouter.post("/:id/read", async (req, res) => {

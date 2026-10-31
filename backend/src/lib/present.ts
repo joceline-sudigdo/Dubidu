@@ -2,8 +2,9 @@
 // Bentuknya sengaja dibuat mirip data dummy di frontend (src/data/parent.ts)
 // supaya Joce tinggal mengganti import dummy dengan hasil fetch.
 
-import type { NeedCategory, User } from "../db.js";
+import type { NeedCategory, Skill, User } from "../db.js";
 import { ageFrom } from "./dates.js";
+import { childSkills, cityLabel, SKILL_KEY } from "./matching.js";
 
 export type Tone = "blue" | "green" | "red" | "yellow" | "gray";
 
@@ -55,7 +56,7 @@ type ChildWithNeeds = {
   gender: string | null;
   avatarUrl: string | null;
   domicile: string | null;
-  needs?: { needOption: { id: string; label: string; category: NeedCategory } }[];
+  needs?: { needOption: { id: string; label: string; category: NeedCategory; skill?: Skill | null } }[];
 };
 
 export function presentChild(child: ChildWithNeeds) {
@@ -78,7 +79,10 @@ export function presentChild(child: ChildWithNeeds) {
     avatarUrl: child.avatarUrl,
     // teks singkat untuk kartu, contoh "ADHD & Regulasi Sensori"
     condition: child.diagnosis ?? needs.slice(0, 2).map((n) => n.label).join(" & "),
+    city: cityLabel(child.domicile),
     needs,
+    // bidang keahlian yang dibutuhkan (= Child.needs di frontend: ["adhd", "sensory"])
+    skills: childSkills({ diagnosis: child.diagnosis, needs: (child.needs ?? []).map((n) => ({ needOption: { skill: n.needOption.skill ?? null } })) }).map((s) => SKILL_KEY[s]),
   };
 }
 

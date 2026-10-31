@@ -7,6 +7,7 @@ import { me, requireAuth, requireRole } from "../lib/auth.js";
 import { shortDate } from "../lib/dates.js";
 import { forbidden, HttpError, notFound, param, parse } from "../lib/http.js";
 import { notify } from "../lib/notify.js";
+import { sendMessage } from "./chat.js";
 import { displayName, initials, presentChild } from "../lib/present.js";
 
 export const applicationsRouter = Router();
@@ -103,6 +104,12 @@ applicationsRouter.patch("/:id", async (req, res) => {
   if (status === "ACCEPTED") {
     const convo = await ensureConversation("TEACHER", a.child.parentId, a.teacherUserId, a.childId);
     conversationId = convo.id;
+    // pesan balasan otomatis (tombol "Terima Tawaran")
+    const parent = await prisma.user.findUniqueOrThrow({ where: { id: a.child.parentId } });
+    const text = isTeacher
+      ? `Halo ${parent.nickname ?? parent.fullName.split(" ")[0]}! Saya ${displayName(a.teacher, a.teacher.teacherProfile?.title)}, saya menerima tawaran pendampingan untuk ${a.child.name}. Kapan kita bisa atur jadwal observasi pertama?`
+      : `Halo Kak ${a.teacher.nickname ?? a.teacher.fullName.split(" ")[0]}! Terima kasih sudah menawarkan diri untuk ${a.child.name}. Yuk kita atur jadwal observasi pertama.`;
+    await sendMessage(convo.id, user.id, { type: "TEXT", text });
   }
 
   const otherUserId = isTeacher ? a.child.parentId : a.teacherUserId;

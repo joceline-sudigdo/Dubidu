@@ -3,6 +3,7 @@ import { Router } from "express";
 import { prisma } from "../db.js";
 import { requireAuth } from "../lib/auth.js";
 import { HttpError } from "../lib/http.js";
+import { SKILL_KEY, SKILL_LABEL, SKILLS } from "../lib/matching.js";
 import { CHECKIN_REWARDS } from "../lib/points.js";
 import { CATEGORY_LABEL, CATEGORY_TONE } from "../lib/present.js";
 import { storeFile, uploadMiddleware } from "../lib/upload.js";
@@ -16,7 +17,7 @@ metaRouter.get("/meta/needs", async (_req, res) => {
     category,
     title: CATEGORY_LABEL[category as keyof typeof CATEGORY_LABEL],
     tone: CATEGORY_TONE[category as keyof typeof CATEGORY_TONE],
-    options: options.filter((o) => o.category === category).map((o) => ({ id: o.id, label: o.label })),
+    options: options.filter((o) => o.category === category).map((o) => ({ id: o.id, label: o.label, skill: o.skill ? SKILL_KEY[o.skill] : null })),
   }));
   res.json(grouped.filter((g) => g.options.length > 0));
 });
@@ -32,6 +33,8 @@ metaRouter.get("/meta/app", (_req, res) => {
       { id: "SEDIH", label: "Sedih", emoji: "😢" },
     ],
     checkinRewards: CHECKIN_REWARDS,
+    // 7 bidang keahlian untuk matching (kunci dipakai di skills teacher & needs anak)
+    skills: SKILLS.map((s) => ({ key: SKILL_KEY[s], label: SKILL_LABEL[s] })),
     communityTopics: ["ADHD", "Autism", "Speech Delay", "Sensori", "Umum"],
     consultationTypes: [
       { id: "VIDEO", label: "Video Call", hint: "Paling Populer" },

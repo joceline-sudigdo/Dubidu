@@ -16,6 +16,7 @@ import { config } from "../config.js";
 import { prisma } from "../db.js";
 import { aiClient, FALLBACK } from "./ai.js";
 import { ageFrom } from "./dates.js";
+import { childSkills, SKILL_LABEL } from "./matching.js";
 
 export type AiInsight = { aiScore: number; reasons: string[]; caution: string | null };
 
@@ -62,6 +63,7 @@ export async function childProfileForAi(childId: string) {
     jenisKelamin: child.gender,
     jenjang: [child.schoolLevel, child.grade].filter(Boolean).join(" ") || null,
     kebutuhan: child.needs.map((n) => `${n.needOption.category}: ${n.needOption.label}`),
+    bidangDibutuhkan: childSkills(child).map((s) => SKILL_LABEL[s]),
     keteranganOrangTua: child.diagnosis,
     kondisiRumah: child.homeNotes,
     reportTerakhir: report
@@ -76,7 +78,7 @@ export async function childProfileForAi(childId: string) {
 export async function teacherProfileForAi(teacherUserId: string) {
   const t = await prisma.teacherProfile.findUniqueOrThrow({
     where: { userId: teacherUserId },
-    include: { specializations: { include: { needOption: true } } },
+    include: { specializations: { include: { needOption: true } }, skills: true },
   });
   return {
     gelar: t.title,
@@ -86,6 +88,7 @@ export async function teacherProfileForAi(teacherUserId: string) {
     pengalamanTahun: t.experienceYears,
     usiaAnakDidampingi: t.childAgeMin != null ? `${t.childAgeMin}–${t.childAgeMax} tahun` : null,
     spesialisasi: t.specializations.map((s) => `${s.needOption.category}: ${s.needOption.label}`),
+    levelKeahlian: Object.fromEntries(t.skills.map((s) => [SKILL_LABEL[s.skill], `${s.level}/100`])),
     rating: t.reviewCount > 0 ? `${t.rating} dari ${t.reviewCount} ulasan` : "belum ada ulasan",
   };
 }
@@ -235,18 +238,19 @@ export async function getAiInsightsWithin(pairs: { childId: string; teacherUserI
 export function warmMatchesForChild(childId: string) {
   if (!aiClient()) return;
   void (async () => {
-    const needs = await prisma.childNeed.findMany({ where: { childId }, select: { needOptionId: true } });
-    const child = await prisma.child.findUniqueOrThrow({ where: { id: childId }, select: { parent: { select: { isDemo: true } } } });
-    const teachers = await prisma.teacherProfile.findMany({
-      where: {
-        verificationStatus: "VERIFIED",
-        user: { isDemo: child.parent.isDemo },
-        specializations: { some: { needOptionId: { in: needs.map((n) => n.needOptionId) } } },
-      },
-      select: { userId: true },
-      orderBy: { rating: "desc" },
-      take: 12,
+    const child = await prisma.child.findUniqueOrThrow({
+      where: { id: childId },
+      include: { needs: { include: { needOption: true } }, parent: { select: { isDemo: true } } },
     });
+    const wanted = childSkills(child);
+    const candidates = await prisma.teacherProfile.findMany({
+      where: { verificationStatus: "VERIFIED", user: { isDemo: child.parent.isDemo } },
+      select: { userId: true, rating: true, skills: true },
+    });
+    // teacher dengan level tertinggi di bidang yang dibutuhkan anak
+    const avg = (t: (typeof candidates)[number]) =>
+      wanted.reduce((sum, s) => sum + (t.skills.find((x) => x.skill === s)?.level ?? 0), 0) / Math.max(1, wanted.length);
+    const teachers = candidates.sort((a, b) => avg(b) - avg(a) || b.rating - a.rating).slice(0, 10);
     await getAiInsights(teachers.map((t) => ({ childId, teacherUserId: t.userId })));
   })().catch((err) => console.error("Warm AI matching gagal:", err));
 }

@@ -119,6 +119,40 @@ export async function registerParent(data: {
 export const getParentHome = (childId?: string) =>
   api(`/home/parent${childId ? `?childId=${childId}` : ''}`);
 
+// ---------------------------------------------------------------------------
+//  Matching (Cari Teacher / Cari Anak / Bandingkan) — pengganti data/teachers.ts & matching-store.ts
+// ---------------------------------------------------------------------------
+
+/** Layar "Teacher Matching": 5 teacher paling cocok. `skipsLeft: null` = Dubidu Plus (tanpa batas) */
+export const getTeacherMatches = (childId: string) => api(`/matching/teachers?childId=${childId}`);
+
+/** Tombol "Lewati" → daftar baru (kandidat berikutnya masuk). Error 429 = batas harian habis */
+export const skipTeacher = (teacherId: string, childId: string) =>
+  api(`/matching/teachers/${teacherId}/skip`, { body: { childId } });
+
+/** Tombol "Hubungkan" → buka chat yang dikembalikan, mis. router.push(`/chat/${conversationId}`) */
+export const connectTeacher = (teacherId: string, childId: string) =>
+  api<{ conversationId: string }>(`/matching/teachers/${teacherId}/connect`, { body: { childId } });
+
+/** Layar "Bandingkan Teacher" */
+export const compareTeachers = (childId: string, a: string, b: string) =>
+  api(`/matching/teachers/compare?childId=${childId}&teacherIds=${a},${b}`);
+
+/** Teacher: "Cari Anak", "Lewati", "Hubungkan", "Bandingkan Anak" */
+export const getChildMatches = () => api('/matching/children');
+export const skipChild = (childId: string) => api(`/matching/children/${childId}/skip`, { body: {} });
+export const connectChild = (childId: string) =>
+  api<{ conversationId: string }>(`/matching/children/${childId}/connect`, { body: {} });
+export const compareChildren = (a: string, b: string) => api(`/matching/children/compare?childIds=${a},${b}`);
+
+/** Teacher: layar "Permintaan" → tombol "Terima Tawaran" / "Tolak" */
+export const answerRequest = (applicationId: string, accept: boolean) =>
+  api(`/applications/${applicationId}`, { method: 'PATCH', body: { status: accept ? 'ACCEPTED' : 'REJECTED' } });
+
+/** Teacher: simpan level keahlian 0–100 per bidang (profil) */
+export const saveTeacherSkills = (skills: Record<'speech' | 'communication' | 'adhd' | 'sensory' | 'social' | 'autism' | 'academic', number>) =>
+  api('/teachers/me', { method: 'PATCH', body: { skills } });
+
 /** Tombol "Klaim madu hari ini!" */
 export const claimCheckin = (childId: string, mood: string) =>
   api('/checkins', { body: { childId, mood: mood.toUpperCase() } });

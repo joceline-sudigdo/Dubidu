@@ -16,7 +16,7 @@ backend/
 │   ├── config.ts, db.ts
 │   ├── lib/               ← auth, matching + AI matching, pembayaran (transfer manual / Midtrans), email, video call, push, upload
 │   └── routes/            ← satu file per fitur
-├── tests/flow.test.ts     ← uji alur lengkap (26 skenario)
+├── tests/flow.test.ts     ← uji alur lengkap (29 skenario)
 └── docs/
     ├── DATABASE.md        ← ERD & penjelasan tabel
     ├── API.md             ← daftar endpoint + pemetaan data dummy frontend
@@ -32,7 +32,7 @@ cp .env.example .env          # isi DATABASE_URL & JWT_SECRET
 npm run db:migrate            # buat tabel
 npm run db:seed               # isi master data + akun demo
 npm run dev                   # http://localhost:4000/api/health
-npm test                      # uji 26 alur utama
+npm test                      # uji 29 alur utama
 ```
 
 Akun demo (password `dubidu123`): `devi@dubidu.id` (orang tua), `pras@dubidu.id` (teacher), `amanda@dubidu.id` (psikolog), `admin@dubidu.id` / `admin12345`.

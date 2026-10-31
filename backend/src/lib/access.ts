@@ -72,7 +72,7 @@ export async function ensureConversation(
 /**
  * Akun demo (dari seed) dan akun sungguhan hidup di dunia terpisah:
  * akun demo hanya melihat sesama demo, user sungguhan hanya melihat user sungguhan.
- * Dipakai untuk swipe, daftar psikolog, booking, profil teacher, dan komunitas.
+ * Dipakai untuk rekomendasi matching, daftar psikolog, booking, profil teacher, dan komunitas.
  */
 export async function isDemoUser(userId: string) {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { isDemo: true } });

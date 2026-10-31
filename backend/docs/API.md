@@ -6,7 +6,7 @@ Base URL: `https://<nama-service>.onrender.com/api` (lokal: `http://localhost:40
 - Endpoint bertanda 🔒 butuh header `Authorization: Bearer <token>` (token dari login/register).
 - Error selalu berbentuk `{ "error": "pesan bahasa Indonesia", "details"?: [...] }`.
 - Waktu disimpan UTC; label jam (`"15:00"`) sudah dikonversi ke WIB.
-- **Akun demo vs user sungguhan:** akun dari seed demo punya `isDemo: true` dan hanya melihat sesama akun demo. User yang mendaftar sendiri (`isDemo: false`) hanya melihat user sungguhan, berlaku untuk swipe, daftar psikolog, booking, profil teacher, dan komunitas. Akses ke data dunia lain → 404. Admin melihat semuanya.
+- **Akun demo vs user sungguhan:** akun dari seed demo punya `isDemo: true` dan hanya melihat sesama akun demo. User yang mendaftar sendiri (`isDemo: false`) hanya melihat user sungguhan, berlaku untuk rekomendasi matching, daftar psikolog, booking, profil teacher, dan komunitas. Akses ke data dunia lain → 404. Admin melihat semuanya.
 
 ## Pemetaan data dummy frontend → endpoint
 
@@ -71,14 +71,24 @@ Alur registrasi dengan file: `POST /auth/register` → simpan token → `POST /u
 | PATCH 🔒 | `/children/:id` | kirim `conditions` untuk mengganti seluruh kebutuhan |
 | DELETE 🔒 | `/children/:id` | |
 
-## Smart-matching (swipe)
+## Matching berbasis profil (layar Cari Teacher / Cari Anak / Bandingkan)
+
+Tidak ada swipe. Skor = 75% kecocokan keahlian (level teacher 0–100 di bidang yang dibutuhkan anak) + 15% rating + 10% lokasi, lalu digabung dengan penilaian AI (40% skor dasar + 60% AI) bila `ANTHROPIC_API_KEY` diisi.
+
+Bidang keahlian (kunci): `speech`, `communication`, `adhd`, `sensory`, `social`, `autism`, `academic` (sama dengan `SKILL_LABELS` di frontend; daftar lengkap di `GET /meta/app` → `skills`).
 
 | Method | Path | Keterangan |
 |---|---|---|
-| GET 🔒 | `/matching/teachers?childId=&limit=20` | (orang tua) `{ swipesLeft, aiPending, cards[] }` — `swipesLeft: null` = tanpa batas (Plus). Tiap kartu: `matchPercent` (gabungan), `ruleScore`, `ai: { score, reasons[], caution } \| null` |
-| POST 🔒 | `/matching/teachers/:teacherId/swipe` | `{ childId, direction: "LIKE"\|"PASS" }` — LIKE membuat pengajuan |
-| GET 🔒 | `/matching/children?limit=20` | (teacher terverifikasi) kartu anak dianonimkan, juga dengan `ai` & `aiPending` |
-| POST 🔒 | `/matching/children/:childId/swipe` | `{ direction, message? }` |
+| GET 🔒 | `/matching/teachers?childId=` | (orang tua) **5 teacher paling cocok**: `{ child: { skills[] }, matchCount, skipsLeft, aiPending, cards[] }`. Kartu = `Teacher` di frontend: `id, name, city, price, rating, reviews, experience, responseRate, sessions, about, skills{speech:..}`, plus `matchPercent`, `ruleScore`, `ai: { score, reasons[], caution } \| null`, `connected`. `skipsLeft: null` = tanpa batas (Plus) |
+| POST 🔒 | `/matching/teachers/:teacherId/skip` | `{ childId }` — **Lewati**; balikan daftar baru (kandidat berikutnya masuk). Gratis 5×/hari → 429 kalau habis |
+| POST 🔒 | `/matching/teachers/:teacherId/connect` | `{ childId, message? }` — **Hubungkan**: pengajuan + chat langsung terbuka dengan pesan penawaran otomatis → `{ application, conversationId }` |
+| GET 🔒 | `/matching/teachers/compare?childId=&teacherIds=a,b` | **Bandingkan Teacher**: `{ teachers[2], recommendedId, reason }` |
+| GET 🔒 | `/matching/children` | (teacher terverifikasi) **5 anak paling cocok**, data dianonimkan: `id, initials, age, grade, city, distanceKm, parent, needs[] (kunci bidang), needLabels[], matchPercent, ai, connected, requestId` |
+| POST 🔒 | `/matching/children/:childId/skip` | Lewati anak |
+| POST 🔒 | `/matching/children/:childId/connect` | `{ message? }` — teacher menawarkan diri → chat terbuka |
+| GET 🔒 | `/matching/children/compare?childIds=a,b` | **Bandingkan Anak** |
+
+**Permintaan & Terima Tawaran:** permintaan dari orang tua muncul di `GET /applications?status=PENDING` (`initiatedBy: "PARENT"`). Tombol **Terima Tawaran** = `PATCH /applications/:id { status: "ACCEPTED" }`, yang otomatis mengirim pesan balasan di chat. Sebelum diterima, teacher hanya melihat inisial anak.
 
 ## Pengajuan, kontrak, sesi, jadwal
 
@@ -169,7 +179,7 @@ Alur registrasi dengan file: `POST /auth/register` → simpan token → `POST /u
 | POST 🔒 | `/doobie/chat` | `{ message, childId?, topic? }` → `{ reply }` |
 | GET 🔒 | `/doobie/history?childId=` | |
 | GET 🔒 | `/teachers/:userId` | profil publik teacher |
-| PATCH 🔒 | `/teachers/me` | (teacher) profil terstandar + `specializations: string[]` |
+| PATCH 🔒 | `/teachers/me` | (teacher) profil terstandar + `specializations: string[]` + **`skills: { speech: 90, adhd: 70, ... }`** (penilaian diri 0–100, wajib sebelum diverifikasi) |
 | POST 🔒 | `/teachers/me/documents` | `{ type: "KTP"\|"IJAZAH"\|"SERTIFIKAT"\|"CV"\|"LAINNYA", url }` |
 | POST 🔒 | `/reviews` | (orang tua) `{ targetUserId, rating 1–5, comment? }` |
 
@@ -179,7 +189,8 @@ Alur registrasi dengan file: `POST /auth/register` → simpan token → `POST /u
 |---|---|---|
 | GET 🔒 | `/admin/stats?demo=false` | angka user sungguhan (default) + `demoUsers`; `demo=true` untuk angka data demo |
 | GET 🔒 | `/admin/teachers?status=PENDING` | antrian verifikasi |
-| PATCH 🔒 | `/admin/teachers/:userId/verification` | `{ status: "VERIFIED"\|"REJECTED", note? }` |
+| PATCH 🔒 | `/admin/teachers/:userId/verification` | `{ status: "VERIFIED"\|"REJECTED", note? }` — VERIFIED ditolak (400) kalau teacher belum mengisi level keahlian |
+| PATCH 🔒 | `/admin/teachers/:userId/skills` | `{ skills: { speech: 80, ... } }` — admin menyesuaikan level setelah cek dokumen/interview (nilai ini yang dipakai matching). `GET /admin/teachers` menampilkan `skillLevels: { speech: { self, level, adminAdjusted } }` |
 | POST 🔒 | `/admin/psychologists` | buat akun psikolog |
 | PATCH 🔒 | `/admin/users/:id` | `{ isActive }` |
 | GET 🔒 | `/admin/users?role=&q=&demo=&page=&pageSize=` | daftar user (cari nama/email/HP). `demo=true`/`false` untuk memfilter; tiap user punya `isDemo` → tampilkan label "Demo" |

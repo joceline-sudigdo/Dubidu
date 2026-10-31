@@ -1,42 +1,94 @@
-// Smart-Matching Engine
-// Skor 0–100 dari 4 faktor (bobot bisa diubah di sini):
-//   - kecocokan kebutuhan anak vs spesialisasi teacher  (60)
-//   - jarak / radius lokasi                              (20)
-//   - rating & jumlah ulasan                             (10)
-//   - status verifikasi                                  (10)
+// Smart-Matching berbasis profil (tanpa swipe)
+//
+// Skor dasar 0–99 (sama dengan rumus frontend `matchScore`):
+//   75% kecocokan keahlian  → rata-rata level teacher (0–100) di bidang yang dibutuhkan anak
+//   15% rating teacher       → rating/5 × 100 (teacher baru tanpa ulasan dianggap 70)
+//   10% lokasi               → kota sama 100, ≤ 30 km 75, lebih jauh 45
+// Lalu dinilai AI (lib/aiMatching.ts) dan digabung: 40% skor dasar + 60% skor AI.
 
-export const WEIGHTS = { needs: 60, distance: 20, rating: 10, verified: 10 };
+import type { Skill } from "../db.js";
 
-export type MatchInput = {
-  childNeedIds: string[];
-  teacherNeedIds: string[];
-  distanceKm: number | null;
-  radiusKm: number;
+export const SKILLS: Skill[] = ["SPEECH", "COMMUNICATION", "ADHD", "SENSORY", "SOCIAL", "AUTISM", "ACADEMIC"];
+
+/** Kunci & label bidang, sama dengan SKILL_LABELS di frontend */
+export const SKILL_KEY: Record<Skill, string> = {
+  SPEECH: "speech",
+  COMMUNICATION: "communication",
+  ADHD: "adhd",
+  SENSORY: "sensory",
+  SOCIAL: "social",
+  AUTISM: "autism",
+  ACADEMIC: "academic",
+};
+export const SKILL_LABEL: Record<Skill, string> = {
+  SPEECH: "Speech Delay",
+  COMMUNICATION: "Komunikasi",
+  ADHD: "ADHD & Fokus",
+  SENSORY: "Sensori",
+  SOCIAL: "Interaksi Sosial",
+  AUTISM: "Autisme",
+  ACADEMIC: "Akademik",
+};
+const KEY_TO_SKILL = Object.fromEntries(Object.entries(SKILL_KEY).map(([k, v]) => [v, k as Skill]));
+export const skillFromKey = (key: string) => KEY_TO_SKILL[key.toLowerCase()] as Skill | undefined;
+
+/** Bidang yang dibutuhkan anak: dari pilihan kebutuhan + kata kunci di keterangan orang tua */
+export function childSkills(child: { diagnosis?: string | null; needs: { needOption: { skill: Skill | null } }[] }) {
+  const set = new Set<Skill>();
+  for (const n of child.needs) if (n.needOption.skill) set.add(n.needOption.skill);
+  const text = (child.diagnosis ?? "").toLowerCase();
+  if (/autis|asd|spektrum/.test(text)) set.add("AUTISM");
+  if (/adhd|hiperaktif|fokus/.test(text)) set.add("ADHD");
+  if (/speech|wicara|bicara/.test(text)) set.add("SPEECH");
+  if (/sensor/.test(text)) set.add("SENSORY");
+  if (/disleksia|akademik|membaca|berhitung/.test(text)) set.add("ACADEMIC");
+  return [...set];
+}
+
+/** Level teacher sebagai objek { speech: 90, ... } (bidang yang belum diisi = 0) */
+export function skillMap(levels: { skill: Skill; level: number }[]) {
+  const map = Object.fromEntries(SKILLS.map((s) => [SKILL_KEY[s], 0])) as Record<string, number>;
+  for (const l of levels) map[SKILL_KEY[l.skill]] = l.level;
+  return map;
+}
+
+const PROVINCE = /^(jawa|dki|di |daerah istimewa|banten|bali$|sumatera|sumatra|riau|jambi|bengkulu|lampung|bangka|kalimantan|sulawesi|gorontalo|maluku|papua|nusa tenggara|ntb|ntt|aceh|indonesia)/;
+
+/** Nama kota dari domisili: "Lowokwaru, Malang" / "Malang, Jawa Timur" → "Malang" */
+export function cityLabel(domicile?: string | null) {
+  const parts = (domicile ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+  const cities = parts.filter((p) => !PROVINCE.test(p.toLowerCase()));
+  return cities.at(-1) ?? parts[0] ?? null;
+}
+
+/** Kota dalam huruf kecil untuk dibandingkan */
+export function cityOf(domicile?: string | null) {
+  return cityLabel(domicile)?.toLowerCase() ?? null;
+}
+
+export type ScoreInput = {
+  childSkills: Skill[];
+  teacherLevels: { skill: Skill; level: number }[];
   rating: number;
   reviewCount: number;
-  verified: boolean;
+  sameCity: boolean;
+  distanceKm: number | null;
 };
 
-export function matchScore(input: MatchInput) {
-  const childNeeds = new Set(input.childNeedIds);
-  const overlap = input.teacherNeedIds.filter((id) => childNeeds.has(id)).length;
-  const needsRatio = childNeeds.size === 0 ? 0.5 : overlap / childNeeds.size;
+export function matchScore(input: ScoreInput) {
+  const levels = new Map(input.teacherLevels.map((l) => [l.skill, l.level]));
+  const need = input.childSkills.length
+    ? input.childSkills.reduce((sum, s) => sum + (levels.get(s) ?? 0), 0) / input.childSkills.length
+    : 50;
+  const rating = input.reviewCount > 0 ? (input.rating / 5) * 100 : 70;
+  const location = input.sameCity ? 100 : input.distanceKm != null && input.distanceKm <= 30 ? 75 : 45;
+  return Math.min(99, Math.round(need * 0.75 + rating * 0.15 + location * 0.1));
+}
 
-  // tanpa koordinat → anggap netral (setengah poin)
-  const distanceRatio =
-    input.distanceKm == null ? 0.5 : Math.max(0, 1 - input.distanceKm / Math.max(input.radiusKm, 1));
-
-  // rating 0–5, dikoreksi sedikit kalau ulasannya masih sedikit
-  const confidence = Math.min(1, input.reviewCount / 10);
-  const ratingRatio = ((input.rating / 5) * confidence) + 0.5 * (1 - confidence);
-
-  const score =
-    WEIGHTS.needs * needsRatio +
-    WEIGHTS.distance * distanceRatio +
-    WEIGHTS.rating * ratingRatio +
-    WEIGHTS.verified * (input.verified ? 1 : 0);
-
-  return { score: Math.round(score), overlap };
+/** Bidang yang membuat teacher A lebih unggul dari B untuk anak ini (untuk kalimat rekomendasi) */
+export function strongestDifference(childSkillList: Skill[], a: Record<string, number>, b: Record<string, number>) {
+  const list = childSkillList.length ? childSkillList : SKILLS;
+  return [...list].sort((x, y) => (a[SKILL_KEY[y]]! - b[SKILL_KEY[y]]!) - (a[SKILL_KEY[x]]! - b[SKILL_KEY[x]]!))[0]!;
 }
 
 /** Jarak dua titik (km) dengan rumus haversine. */

@@ -114,7 +114,7 @@ authRouter.get("/me", requireAuth, async (req, res) => {
   const user = await prisma.user.findUnique({
     where: { id: me(req).id },
     include: {
-      teacherProfile: { include: { specializations: { include: { needOption: true } }, documents: true } },
+      teacherProfile: { include: { specializations: { include: { needOption: true } }, documents: true, skills: true } },
       psychologistProfile: true,
       children: { include: { needs: { include: { needOption: true } } }, orderBy: { createdAt: "asc" } },
       subscriptions: { where: { active: true, endsAt: { gt: new Date() } }, orderBy: { endsAt: "desc" }, take: 1 },
