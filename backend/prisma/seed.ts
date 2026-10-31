@@ -411,6 +411,8 @@ async function seedDemo() {
   }
   await prisma.pointTransaction.create({ data: { userId: devi.id, amount: 340, reason: "saldo awal (seed)" } });
 
+  // semua akun di atas (kecuali admin) adalah akun contoh → dipisahkan dari user sungguhan
+  await prisma.user.updateMany({ where: { role: { not: "ADMIN" } }, data: { isDemo: true } });
   console.log("✔ data demo");
   console.log(`
   Akun demo (password: dubidu123 kecuali disebut lain)

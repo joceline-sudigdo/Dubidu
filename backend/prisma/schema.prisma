@@ -171,6 +171,8 @@ model User {
   ktpUrl       String? // foto KTP orang tua (registrasi step "identity")
   points       Int      @default(0) // saldo Madu
   isActive     Boolean  @default(true)
+  // akun contoh (seed demo). Hanya terlihat oleh sesama akun demo; user sungguhan tidak pernah melihatnya.
+  isDemo       Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -203,6 +205,7 @@ model User {
   questionsReceived     QuickQuestion[]           @relation("QuestionParent")
 
   @@index([role])
+  @@index([isDemo, role])
 }
 
 /// Profil terstandar shadow teacher (Standardized Shadow Teacher Profile).

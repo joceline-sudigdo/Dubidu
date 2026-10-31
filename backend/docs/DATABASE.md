@@ -108,6 +108,7 @@ Check-in mood        ─► MoodCheckin + PointTransaction + User.points (Madu)
 | Slot psikolog tidak bisa dobel booking | `slotId @unique` + update bersyarat `isBooked=false` dalam transaksi |
 | Satu like per user per post | primary key `[postId, userId]` |
 | Hapus user → data turunannya ikut terhapus | `onDelete: Cascade` |
+| Akun demo tidak bercampur dengan user sungguhan | `User.isDemo` — filter di semua daftar & pencarian; migrasi `demo_accounts` menandai akun seed yang sudah ada |
 | Password tidak pernah disimpan polos | `passwordHash` (bcrypt) |
 
 ## 5. Smart-matching + AI matching (skor 0–100)

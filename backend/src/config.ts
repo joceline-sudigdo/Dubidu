@@ -60,7 +60,7 @@ export const config = {
     return Number(env("MANUAL_PAYMENT_EXPIRY_MINUTES") ?? 120);
   },
   get appScheme() {
-    return env("APP_SCHEME") ?? "duwbiduw"; // = "scheme" di app.json frontend
+    return env("APP_SCHEME") ?? "dubidu"; // = "scheme" di app.json frontend
   },
 
   // --- Email (lupa password) ---
