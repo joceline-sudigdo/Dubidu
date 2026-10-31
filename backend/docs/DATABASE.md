@@ -11,7 +11,7 @@
 |---|---|---|
 | Akun & profil | `User`, `TeacherProfile`, `TeacherDocument`, `PsychologistProfile` | Login, Register, Profil |
 | Child Needs Assessment | `Child`, `NeedOption`, `ChildNeed` | Register (child-data, child-needs), chip anak di Beranda |
-| Smart-Matching | `TeacherSpecialization`, `Swipe`, `Application` | Swipe card, "Pengajuan Aktif", Riwayat |
+| Matching berbasis profil | `TeacherSkill` (level 0–100 per bidang), `NeedOption.skill`, `TeacherSpecialization`, `MatchSkip`, `Application` | Cari Teacher / Cari Anak, Bandingkan, Permintaan, Riwayat Pengajuan |
 | Pendampingan | `Engagement`, `Session` | "Teacher saat ini", Jadwal, Detail kontrak |
 | Report Card | `SessionReport`, `ReportScore`, `ReportPhoto` | Report card (kalender & detail) |
 | Komunikasi | `Conversation`, `ConversationParticipant`, `Message`, `QuickQuestion` | Chat, "Respon cepat" |
@@ -22,7 +22,7 @@
 | Ulasan | `Review` | Rating teacher & psikolog |
 | Push notification | `DeviceToken` | Notifikasi di HP |
 | Lupa password | `PasswordReset` | Kode OTP via email |
-| AI matching | `MatchInsight` | Skor & alasan AI di kartu swipe |
+| AI matching | `MatchInsight` | Skor & alasan AI di kartu rekomendasi |
 
 ## 2. ERD (diagram relasi)
 
@@ -39,8 +39,9 @@ erDiagram
   NeedOption ||--o{ ChildNeed : ""
   Child ||--o{ ChildNeed : membutuhkan
 
-  User ||--o{ Swipe : "swipe (actor)"
-  Child ||--o{ Swipe : ""
+  TeacherProfile ||--o{ TeacherSkill : "level keahlian"
+  User ||--o{ MatchSkip : "lewati (actor)"
+  Child ||--o{ MatchSkip : ""
   Child ||--o{ Application : diajukan
   User ||--o{ Application : "teacher"
   Application ||--o| Engagement : "deal menjadi"
@@ -85,8 +86,10 @@ Registrasi orang tua ─► User(PARENT) + Child + ChildNeed
 Registrasi teacher   ─► User(TEACHER) + TeacherProfile(UNVERIFIED)
    └─ upload dokumen ─► TeacherDocument, status PENDING ─► admin ─► VERIFIED
 
-Swipe kanan (LIKE)   ─► Swipe + Application(PENDING)
-Pihak lain menerima  ─► Application(ACCEPTED) + Conversation (chat terbuka)
+Lihat rekomendasi    ─► 5 teratas (TeacherSkill × kebutuhan anak + rating + lokasi, + AI)
+Lewati               ─► MatchSkip (kandidat berikutnya masuk; gratis 5×/hari)
+Hubungkan            ─► Application(PENDING) + Conversation + pesan penawaran otomatis
+Pihak lain menerima  ─► Application(ACCEPTED) + pesan balasan otomatis
 Deal                 ─► Engagement(ACTIVE) ─► Session (jadwal) ─► Payment
 Setelah sesi         ─► SessionReport + ReportScore + ReportPhoto ─► Notification ke orang tua
 
@@ -117,12 +120,13 @@ Dihitung di [`src/lib/matching.ts`](../src/lib/matching.ts):
 
 | Faktor | Bobot | Sumber data |
 |---|---|---|
-| Irisan kebutuhan anak & spesialisasi teacher | 60 | `ChildNeed` ∩ `TeacherSpecialization` |
-| Jarak (radius) | 20 | `User.latitude/longitude`, `TeacherProfile.radiusKm` |
-| Rating & jumlah ulasan | 10 | `TeacherProfile.rating/reviewCount` |
-| Terverifikasi | 10 | `TeacherProfile.verificationStatus` |
+| Kecocokan keahlian: rata-rata level teacher di bidang yang dibutuhkan anak | 75% | `ChildNeed → NeedOption.skill` × `TeacherSkill.level` |
+| Rating teacher (belum ada ulasan = 70) | 15% | `TeacherProfile.rating/reviewCount` |
+| Lokasi: kota sama 100, ≤ 30 km 75, lainnya 45 | 10% | `User.domicile`, `latitude/longitude` |
 
-**Lapisan AI** ([`src/lib/aiMatching.ts`](../src/lib/aiMatching.ts)): 15 kandidat teratas dari skor aturan dinilai AI berdasarkan profil lengkap (kebutuhan anak, keterangan orang tua, kondisi rumah, report card terakhir ↔ pendidikan, pengalaman, pendekatan, spesialisasi teacher). AI memberi skor 0–100, 2–3 alasan, dan catatan. Skor akhir = 40% aturan + 60% AI. Hasil disimpan di `MatchInsight` dan hanya dihitung ulang bila profil berubah (`inputHash`). Nama & kontak tidak dikirim ke AI.
+Rumus ini sama dengan `matchScore` di frontend. Hanya teacher **terverifikasi** yang muncul. Level keahlian diisi teacher (`selfLevel`) dan bisa disesuaikan admin (`level`, `adminAdjusted`).
+
+**Lapisan AI** ([`src/lib/aiMatching.ts`](../src/lib/aiMatching.ts)): 10 kandidat teratas dari skor aturan dinilai AI berdasarkan profil lengkap (kebutuhan anak, keterangan orang tua, kondisi rumah, report card terakhir ↔ pendidikan, pengalaman, pendekatan, spesialisasi teacher). AI memberi skor 0–100, 2–3 alasan, dan catatan. Skor akhir = 40% aturan + 60% AI. Hasil disimpan di `MatchInsight` dan hanya dihitung ulang bila profil berubah (`inputHash`). Nama & kontak tidak dikirim ke AI.
 
 ## 6. Pembayaran
 

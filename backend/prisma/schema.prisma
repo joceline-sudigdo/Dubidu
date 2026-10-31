@@ -44,6 +44,17 @@ enum NeedCategory {
   SENSORIK
 }
 
+/// 7 bidang keahlian yang dipakai untuk matching (sama dengan SKILL_LABELS di frontend)
+enum Skill {
+  SPEECH // Speech Delay
+  COMMUNICATION // Komunikasi
+  ADHD // ADHD & Fokus
+  SENSORY // Sensori
+  SOCIAL // Interaksi Sosial
+  AUTISM // Autisme
+  ACADEMIC // Akademik
+}
+
 enum VerificationStatus {
   UNVERIFIED // belum upload dokumen
   PENDING // dokumen sudah diupload, menunggu admin
@@ -57,11 +68,6 @@ enum DocumentType {
   SERTIFIKAT
   CV
   LAINNYA
-}
-
-enum SwipeDirection {
-  LIKE
-  PASS
 }
 
 enum ApplicationStatus {
@@ -181,8 +187,8 @@ model User {
   passwordResets        PasswordReset[]
   psychologistProfile   PsychologistProfile?
   children              Child[]                   @relation("ParentChildren")
-  swipesMade            Swipe[]                   @relation("SwipeActor")
-  swipesReceived        Swipe[]                   @relation("SwipeTeacher")
+  skipsMade             MatchSkip[]               @relation("SkipActor")
+  skipsReceived         MatchSkip[]               @relation("SkipTeacher")
   applicationsAsTeacher Application[]             @relation("ApplicationTeacher")
   engagementsAsTeacher  Engagement[]              @relation("EngagementTeacher")
   engagementsAsParent   Engagement[]              @relation("EngagementParent")
@@ -233,7 +239,22 @@ model TeacherProfile {
   updatedAt          DateTime           @updatedAt
 
   specializations TeacherSpecialization[]
+  skills          TeacherSkill[]
   documents       TeacherDocument[]
+}
+
+/// Level keahlian teacher per bidang (0–100). Diisi teacher (selfLevel), bisa disesuaikan admin saat verifikasi.
+/// `level` = nilai yang dipakai matching (= selfLevel, atau nilai dari admin kalau sudah disesuaikan).
+model TeacherSkill {
+  teacherId     String
+  teacher       TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  skill         Skill
+  selfLevel     Int
+  level         Int
+  adminAdjusted Boolean        @default(false)
+  updatedAt     DateTime       @updatedAt
+
+  @@id([teacherId, skill])
 }
 
 model TeacherDocument {
@@ -278,6 +299,7 @@ model PsychologistProfile {
 model NeedOption {
   id       String       @id @default(cuid())
   category NeedCategory
+  skill    Skill? // bidang keahlian teacher yang dibutuhkan untuk kebutuhan ini
   label    String       @unique
   order    Int          @default(0)
 
@@ -305,7 +327,7 @@ model Child {
   updatedAt        DateTime     @updatedAt
 
   needs         ChildNeed[]
-  swipes        Swipe[]
+  skips         MatchSkip[]
   applications  Application[]
   engagements   Engagement[]
   reports       SessionReport[]
@@ -339,19 +361,20 @@ model TeacherSpecialization {
 //  MATCHING (swipe card) → PENGAJUAN → KONTRAK PENDAMPINGAN → SESI → REPORT CARD
 // ----------------------------------------------------------------------------
 
-/// Riwayat swipe. Orang tua swipe teacher (untuk anak tertentu), teacher swipe anak.
-model Swipe {
-  id            String         @id @default(cuid())
+/// Kandidat yang dilewati ("Lewati") di daftar rekomendasi — tidak ditampilkan lagi untuk anak itu.
+/// Orang tua melewati teacher; teacher melewati anak (teacherUserId = teacher itu sendiri).
+model MatchSkip {
+  id            String   @id @default(cuid())
   actorId       String
-  actor         User           @relation("SwipeActor", fields: [actorId], references: [id], onDelete: Cascade)
+  actor         User     @relation("SkipActor", fields: [actorId], references: [id], onDelete: Cascade)
   childId       String
-  child         Child          @relation(fields: [childId], references: [id], onDelete: Cascade)
+  child         Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
   teacherUserId String
-  teacher       User           @relation("SwipeTeacher", fields: [teacherUserId], references: [id], onDelete: Cascade)
-  direction     SwipeDirection
-  createdAt     DateTime       @default(now())
+  teacher       User     @relation("SkipTeacher", fields: [teacherUserId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
 
   @@unique([actorId, childId, teacherUserId])
+  @@index([actorId, createdAt])
 }
 
 /// "Pengajuan" — muncul di Riwayat orang tua & "Pengajuan Aktif" teacher.

@@ -7,7 +7,7 @@
 // ============================================================================
 import bcrypt from "bcryptjs";
 
-import { prisma, type NeedCategory } from "../src/db.js";
+import { prisma, type NeedCategory, type Skill } from "../src/db.js";
 
 const NEEDS: Record<NeedCategory, string[]> = {
   // label DISAMAKAN dengan layar child-needs di frontend
@@ -18,13 +18,33 @@ const NEEDS: Record<NeedCategory, string[]> = {
   PERILAKU: ["Tantrum / ledakan emosi", "Hiperaktif / sulit duduk tenang", "Sulit mengikuti aturan & rutinitas"],
 };
 
+/** Kebutuhan anak → bidang keahlian teacher yang dipakai matching */
+const NEED_SKILL: Record<string, Skill> = {
+  "Speech delay": "SPEECH",
+  "Sulit menyampaikan kebutuhan": "COMMUNICATION",
+  "Kesulitan memahami instruksi": "COMMUNICATION",
+  "Sulit berinteraksi dengan teman": "SOCIAL",
+  "Sulit bergiliran & berbagi": "SOCIAL",
+  "Kurang kontak mata": "AUTISM",
+  "Sulit mengikuti aturan & rutinitas": "AUTISM",
+  "Sulit fokus & konsentrasi": "ADHD",
+  "Hiperaktif / sulit duduk tenang": "ADHD",
+  "Tantrum / ledakan emosi": "ADHD",
+  "Kesulitan membaca & menulis": "ACADEMIC",
+  "Kesulitan berhitung": "ACADEMIC",
+  "Sensitif terhadap suara": "SENSORY",
+  "Sensitif terhadap sentuhan": "SENSORY",
+  "Mencari stimulasi berlebih": "SENSORY",
+};
+
 async function seedNeeds() {
   for (const [category, labels] of Object.entries(NEEDS)) {
     for (const [order, label] of labels.entries()) {
+      const skill = NEED_SKILL[label] ?? null;
       await prisma.needOption.upsert({
         where: { label },
-        create: { label, category: category as NeedCategory, order },
-        update: { category: category as NeedCategory, order },
+        create: { label, category: category as NeedCategory, order, skill },
+        update: { category: category as NeedCategory, order, skill },
       });
     }
   }
@@ -42,6 +62,38 @@ function at(dayOffset: number, hm: string) {
   return new Date(`${ymd}T${hm}:00+07:00`);
 }
 const addMinutes = (d: Date, m: number) => new Date(d.getTime() + m * 60000);
+
+// Level keahlian teacher demo (0–100): [Speech, Komunikasi, ADHD, Sensori, Sosial, Autisme, Akademik]
+const SKILL_ORDER: Skill[] = ["SPEECH", "COMMUNICATION", "ADHD", "SENSORY", "SOCIAL", "AUTISM", "ACADEMIC"];
+const DEMO_SKILLS: Record<string, number[]> = {
+  "pras@dubidu.id": [72, 78, 88, 80, 82, 90, 70],
+  "teacher@dubidu.id": [55, 65, 70, 60, 62, 50, 93],
+  "nielsen@dubidu.id": [94, 88, 86, 75, 70, 60, 68],
+  "larasati@dubidu.id": [80, 78, 90, 92, 72, 65, 66],
+  "sarah@dubidu.id": [70, 80, 64, 82, 92, 94, 68],
+  "kevin@dubidu.id": [52, 66, 92, 78, 70, 58, 74],
+  "citra@dubidu.id": [60, 68, 80, 95, 72, 78, 62],
+  "siti@dubidu.id": [78, 82, 62, 70, 90, 91, 60],
+  "bayu@dubidu.id": [58, 64, 70, 60, 65, 52, 90],
+};
+
+/** Perbarui level keahlian teacher demo yang sudah ada (mis. di Neon). Akun sungguhan tidak disentuh. */
+async function syncDemoTeacherSkills() {
+  let updated = 0;
+  for (const [email, levels] of Object.entries(DEMO_SKILLS)) {
+    const profile = await prisma.teacherProfile.findFirst({ where: { user: { email, isDemo: true } } });
+    if (!profile) continue;
+    for (const [i, skill] of SKILL_ORDER.entries()) {
+      await prisma.teacherSkill.upsert({
+        where: { teacherId_skill: { teacherId: profile.id, skill } },
+        create: { teacherId: profile.id, skill, selfLevel: levels[i]!, level: levels[i]! },
+        update: { selfLevel: levels[i]!, level: levels[i]!, adminAdjusted: false },
+      });
+    }
+    updated++;
+  }
+  if (updated) console.log(`✔ level keahlian ${updated} teacher demo`);
+}
 
 async function seedDemo() {
   const needId = async (label: string) => (await prisma.needOption.findUniqueOrThrow({ where: { label } })).id;
@@ -156,6 +208,13 @@ async function seedDemo() {
             verificationStatus: t.status ?? "VERIFIED", verifiedAt: t.status === "PENDING" ? null : new Date(),
             rating: t.rating, reviewCount: t.reviews,
             specializations: { create: await Promise.all(t.specs.map(async (l) => ({ needOptionId: await needId(l) }))) },
+            skills: {
+              create: SKILL_ORDER.map((skill, i) => ({
+                skill,
+                selfLevel: DEMO_SKILLS[t.email]![i]!,
+                level: DEMO_SKILLS[t.email]![i]!,
+              })),
+            },
           },
         },
       },
@@ -329,13 +388,15 @@ async function seedDemo() {
 
   // pendapatan Pras bulan ini (kartu "Pendapatan")
   const payments = [
-    { amount: 600000, daysAgo: 1 }, { amount: 450000, daysAgo: 3 }, { amount: 300000, daysAgo: 9 },
+    { amount: 600000, daysAgo: 0 }, { amount: 450000, daysAgo: 3 }, { amount: 300000, daysAgo: 9 },
   ];
   for (const [i, p] of payments.entries()) {
     await prisma.payment.create({
       data: {
         userId: devi.id, purpose: "ENGAGEMENT", referenceId: ePrasElisya.id, invoiceNo: `DUB-SEED${i + 1}`, amount: p.amount,
-        status: "PAID", method: "mock", payeeUserId: pras.id, payeeAmount: Math.round(p.amount * 0.9), paidAt: at(-p.daysAgo, "10:00"),
+        status: "PAID", method: "mock", payeeUserId: pras.id, payeeAmount: Math.round(p.amount * 0.9),
+        // satu pembayaran selalu "hari ini" supaya kartu Pendapatan bulan ini tidak kosong
+        paidAt: p.daysAgo === 0 ? new Date(Date.now() - 60000) : at(-p.daysAgo, "10:00"),
       },
     });
   }
@@ -429,7 +490,8 @@ async function main() {
   await seedNeeds();
   if (process.env.SEED_DEMO === "false") return;
   if ((await prisma.user.count()) > 0) {
-    console.log("• database sudah berisi user, data demo dilewati (pakai `npm run db:reset` untuk mengulang)");
+    console.log("• database sudah berisi user, data demo tidak dibuat ulang");
+    await syncDemoTeacherSkills();
     return;
   }
   await seedDemo();
