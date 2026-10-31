@@ -5,6 +5,7 @@ import type { ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
+import { openImages } from '@/components/ui/image-viewer';
 import { Colors, Radius, Shadow } from '@/constants/theme';
 import { showAlert } from '@/lib/dialog';
 
@@ -41,7 +42,9 @@ export function UploadBox({ title, icon, value, onChange }: Props) {
       style={({ pressed }) => [styles.box, Shadow.soft, pressed && { opacity: 0.85 }]}>
       {value ? (
         <View style={styles.previewWrap}>
-          <Image source={{ uri: value }} style={styles.preview} contentFit="cover" />
+          <Pressable accessibilityLabel="Lihat file" onPress={() => openImages([value])}>
+            <Image source={{ uri: value }} style={styles.preview} contentFit="cover" />
+          </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Hapus file"

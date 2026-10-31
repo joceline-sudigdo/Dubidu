@@ -8,9 +8,9 @@ import { FormScreen } from '@/components/ui/form-screen';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { TextField } from '@/components/ui/text-field';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
-import { login } from '@/lib/auth';
+import { demoAccounts, login, type Account } from '@/lib/auth';
 import { setSession } from '@/lib/session';
-import { showAlert } from '@/lib/dialog';
+import { showActionSheet } from '@/lib/dialog';
 
 // semua role login di sini, psikolog nggak bisa daftar sendiri
 export default function LoginScreen() {
@@ -28,6 +28,10 @@ export default function LoginScreen() {
       return;
     }
     setError('');
+    enter(account);
+  };
+
+  const enter = (account: Account) => {
     setSession({ role: account.role, name: account.name });
     if (account.role === 'parent') router.replace('/beranda');
     else if (account.role === 'teacher') router.replace('/teacher/beranda');
@@ -66,7 +70,7 @@ export default function LoginScreen() {
         <Pressable
           style={styles.forgot}
           hitSlop={8}
-          onPress={() => showAlert('Lupa kata sandi', 'Fitur ini akan segera tersedia.')}>
+          onPress={() => router.push('/lupa-sandi')}>
           <AppText variant="link" color={Colors.red} style={styles.forgotText}>
             Lupa kata sandi?
           </AppText>
@@ -89,7 +93,16 @@ export default function LoginScreen() {
 
       <Pressable
         accessibilityRole="button"
-        onPress={() => showAlert('Masuk dengan Google', 'Fitur ini akan segera tersedia.')}
+        onPress={() =>
+          showActionSheet({
+            title: 'Pilih akun Google',
+            options: demoAccounts().map((a) => ({
+              label: `${a.name.split(',')[0]} · ${a.email}`,
+              icon: 'user' as const,
+              onPress: () => enter(a),
+            })),
+          })
+        }
         style={({ pressed }) => [styles.google, Shadow.soft, pressed && { opacity: 0.85 }]}>
         <AntDesign name="google" size={22} color="#4285F4" />
         <AppText style={styles.googleText}>Masuk dengan Google</AppText>

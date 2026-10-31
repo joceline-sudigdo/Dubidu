@@ -11,6 +11,7 @@ import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { TabHeader } from '@/components/parent/screen-header';
 import { AppText } from '@/components/ui/app-text';
+import { openImages } from '@/components/ui/image-viewer';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { addPost, useCommunity } from '@/lib/community-store';
 import { showAlert } from '@/lib/dialog';
@@ -138,7 +139,9 @@ export function CommunityScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.thumbs}>
           {photos.map((uri, i) => (
             <View key={uri} style={styles.thumb}>
-              <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+              <Pressable style={StyleSheet.absoluteFill} onPress={() => openImages(photos, i)}>
+                <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+              </Pressable>
               <Pressable
                 accessibilityLabel={`Hapus foto ${i + 1}`}
                 onPress={() => setPhotos((list) => list.filter((x) => x !== uri))}

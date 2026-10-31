@@ -58,6 +58,7 @@ type State = {
   posts: FeedPost[];
   liked: string[];
   hidden: string[];
+  saved: string[];
   comments: Record<string, PostComment[]>;
 };
 
@@ -68,6 +69,7 @@ let state: State = {
   })),
   liked: [],
   hidden: [],
+  saved: [],
   comments: Object.fromEntries(communityPosts.map((p) => [p.id, seedComments(p)])),
 };
 const listeners = new Set<() => void>();
@@ -124,6 +126,13 @@ export function addPost(text: string, photos: string[], topic: CommunityPost['to
 
 export function deletePost(id: string) {
   set({ ...state, posts: state.posts.filter((p) => p.id !== id) });
+}
+
+// simpan / batal simpan postingan (dilihat lagi di Profil > Postingan Tersimpan)
+export function toggleSave(id: string) {
+  const saved = state.saved.includes(id) ? state.saved.filter((x) => x !== id) : [id, ...state.saved];
+  set({ ...state, saved });
+  return saved.includes(id);
 }
 
 export function hidePost(id: string) {

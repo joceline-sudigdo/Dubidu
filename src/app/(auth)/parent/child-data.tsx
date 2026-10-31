@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -32,6 +32,9 @@ function isValidDate(value: string) {
 
 export default function ChildDataScreen() {
   const { data, update } = useParentRegistration();
+  // mode 'add' = tambah anak dari dalam aplikasi (khusus Plus), langkahnya cuma 2
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const adding = mode === 'add';
   const [name, setName] = useState(data.child.name);
   const [birthDate, setBirthDate] = useState(data.child.birthDate);
   const [gender, setGender] = useState<Gender | null>(data.child.gender);
@@ -47,9 +50,13 @@ export default function ChildDataScreen() {
 
   return (
     <FormScreen
-      title="Data Anak"
-      subtitle="Informasi dasar untuk mulai mencari pendamping yang tepat."
-      step={{ current: 2, total: 3 }}>
+      title={adding ? 'Tambah Anak' : 'Data Anak'}
+      subtitle={
+        adding
+          ? 'Lengkapi profil si kecil supaya kami bisa carikan pendamping yang cocok.'
+          : 'Informasi dasar untuk mulai mencari pendamping yang tepat.'
+      }
+      step={adding ? { current: 1, total: 2 } : { current: 2, total: 3 }}>
       <TextField
         label="Nama Anak"
         icon="user"
@@ -118,7 +125,7 @@ export default function ChildDataScreen() {
             schoolLevel,
             domicile: domicile.trim(),
           });
-          router.push('/parent/child-needs');
+          router.push({ pathname: '/parent/child-needs', params: adding ? { mode: 'add' } : {} });
         }}
       />
       <SecureNote />

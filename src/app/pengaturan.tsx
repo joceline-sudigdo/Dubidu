@@ -1,4 +1,5 @@
 import Feather from '@expo/vector-icons/Feather';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
 import { useState, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, Switch, View } from 'react-native';
@@ -8,7 +9,7 @@ import { Screen } from '@/components/parent/screen';
 import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
 import { AppText } from '@/components/ui/app-text';
 import { Colors, Fonts } from '@/constants/theme';
-import { comingSoon, showActionSheet, showAlert, showPrompt } from '@/lib/dialog';
+import { showActionSheet, showAlert, showPrompt } from '@/lib/dialog';
 import { toggleSetting, useProfile } from '@/lib/profile-store';
 import { getSession } from '@/lib/session';
 
@@ -31,6 +32,25 @@ export default function PengaturanScreen() {
       { text: 'Batal', style: 'cancel' },
       { text: 'Keluar', style: 'destructive', onPress: () => router.replace('/login') },
     ]);
+
+  // konfirmasi kedua: ketik HAPUS biar nggak kepencet
+  const confirmDelete = () =>
+    showPrompt({
+      title: 'Ketik HAPUS untuk konfirmasi',
+      message: 'Kontrak aktif, ikan, dan voucher kamu juga akan hilang.',
+      value: '',
+      placeholder: 'HAPUS',
+      submitText: 'Hapus akun',
+      onSubmit: (v) => {
+        if (v.trim().toUpperCase() !== 'HAPUS') {
+          showAlert('Akun tidak dihapus', 'Teks konfirmasi tidak sesuai.');
+          return;
+        }
+        router.dismissAll();
+        router.replace('/login');
+        showAlert('Akun berhasil dihapus', 'Terima kasih sudah menjadi bagian dari Dubidu.');
+      },
+    });
 
   return (
     <Screen header={<ScreenHeader title="Pengaturan" />} edges={['top', 'bottom']}>
@@ -66,7 +86,7 @@ export default function PengaturanScreen() {
             })
           }
         />
-        <Row icon="credit-card" label={isTeacher ? 'Rekening pencairan' : 'Metode pembayaran'} onPress={() => comingSoon('Pembayaran')} last />
+        <Row icon="credit-card" label={isTeacher ? 'Rekening pencairan' : 'Metode pembayaran'} onPress={() => router.push('/metode-pembayaran')} last />
       </ClayCard>
 
       <SectionHeader title="Notifikasi" />
@@ -91,18 +111,19 @@ export default function PengaturanScreen() {
           value={settings.showProfile}
           onToggle={() => toggleSetting('showProfile')}
         />
-        <Row icon="shield" label="Kebijakan Privasi" onPress={() => comingSoon('Kebijakan privasi')} />
-        <Row icon="file-text" label="Syarat & Ketentuan" onPress={() => comingSoon('Syarat & ketentuan')} last />
+        <Row icon="shield" label="Kebijakan Privasi" onPress={() => router.push({ pathname: '/legal/[type]', params: { type: 'privacy' } })} />
+        <Row icon="file-text" label="Syarat & Ketentuan" onPress={() => router.push({ pathname: '/legal/[type]', params: { type: 'terms' } })} last />
       </ClayCard>
 
       <SectionHeader title="Lainnya" />
       <ClayCard style={styles.group}>
         {getSession().role !== 'psychologist' && (
-          <Row icon="star" label="Dubidu Plus" onPress={() => router.push('/plus')} />
+          <Row icon="crown" label="Dubidu Plus" onPress={() => router.push('/plus')} />
         )}
         {getSession().role !== 'psychologist' && (
           <Row icon="gift" label="Doobie Rewards" onPress={() => router.push('/rewards')} />
         )}
+        <Row icon="file-text" label="Riwayat Transaksi" onPress={() => router.push('/riwayat-transaksi')} />
         <Row icon="help-circle" label="Pusat Bantuan" onPress={() => router.push('/bantuan')} />
         <Row icon="info" label="Versi aplikasi" value="1.0.0" />
         <Row icon="log-out" label="Keluar" danger onPress={logout} />
@@ -114,7 +135,7 @@ export default function PengaturanScreen() {
           onPress={() =>
             showAlert('Hapus akun?', 'Semua data kamu akan dihapus permanen dan tidak bisa dikembalikan.', [
               { text: 'Batal', style: 'cancel' },
-              { text: 'Hapus', style: 'destructive', onPress: () => comingSoon('Hapus akun') },
+              { text: 'Lanjutkan', style: 'destructive', onPress: confirmDelete },
             ])
           }
         />
@@ -131,7 +152,7 @@ function Row({
   last,
   onPress,
 }: {
-  icon: FeatherName;
+  icon: FeatherName | 'crown';
   label: string;
   value?: string;
   danger?: boolean;
@@ -141,7 +162,11 @@ function Row({
   const color = danger ? Colors.red : Colors.primary;
   return (
     <Pressable disabled={!onPress} onPress={onPress} style={[styles.row, !last && styles.border]}>
-      <Feather name={icon} size={20} color={color} />
+      {icon === 'crown' ? (
+        <MaterialCommunityIcons name="crown" size={20} color={color} />
+      ) : (
+        <Feather name={icon} size={20} color={color} />
+      )}
       <AppText style={[styles.label, danger && { color: Colors.red }]}>{label}</AppText>
       {value && <AppText variant="caption">{value}</AppText>}
       {onPress && <Feather name="chevron-right" size={20} color={Colors.textSecondary} />}

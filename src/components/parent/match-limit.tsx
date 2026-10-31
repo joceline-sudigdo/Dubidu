@@ -1,4 +1,5 @@
 import Feather from '@expo/vector-icons/Feather';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -53,14 +54,14 @@ export function MatchLimit({
 
       <View style={[styles.plus, Shadow.clay]}>
         <View style={styles.plusBadge}>
-          <Feather name="award" size={16} color={Colors.primary} />
+          <MaterialCommunityIcons name="crown" size={16} color={Colors.primary} />
           <AppText style={styles.plusBadgeText}>UPGRADE KE PLUS</AppText>
         </View>
         <AppText variant="body" color={Colors.primaryDark} style={styles.center}>
-          Swipe tanpa batas, kapan saja & hubungi lebih dari 1 {noun}
+          Skip tanpa batas, kapan saja & hubungi lebih dari 1 {noun}
         </AppText>
         <PrimaryButton
-          title="Swipe Lebih Banyak"
+          title="Skip Lebih Banyak"
           onPress={() => router.push('/plus')}
           style={styles.stretch}
         />

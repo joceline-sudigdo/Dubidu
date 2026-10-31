@@ -3,6 +3,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { Avatar } from '@/components/parent/avatar';
 import { ClayCard } from '@/components/parent/clay-card';
@@ -16,13 +17,22 @@ import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { bannerPhotos } from '@/data/images';
-import { activeTeachers, children, parentProfile, quickQuestion } from '@/data/parent';
-import { showAlert } from '@/lib/dialog';
+import { activeTeachers, parentProfile, quickQuestion } from '@/data/parent';
+import { startAddChild } from '@/lib/add-child';
+import { useChildren } from '@/lib/children-store';
 
 export default function BerandaScreen() {
+  const children = useChildren();
   const [childId, setChildId] = useState(children[0].id);
   const [answered, setAnswered] = useState<string | null>(null);
+  const [quickDone, setQuickDone] = useState(false);
   const child = children.find((c) => c.id === childId) ?? children[0];
+
+  // tampilkan "jawaban terkirim" sebentar sebelum kartunya diganti check-in
+  const answer = (text: string) => {
+    setAnswered(text);
+    setTimeout(() => setQuickDone(true), 1200);
+  };
 
   return (
     <Screen>
@@ -61,7 +71,7 @@ export default function BerandaScreen() {
         })}
         <Pressable
           accessibilityLabel="Tambah anak"
-          onPress={() => showAlert('Tambah anak', 'Fitur ini akan segera tersedia.')}
+          onPress={startAddChild}
           style={styles.addChild}>
           <Feather name="plus" size={18} color={Colors.textSecondary} />
         </Pressable>
@@ -73,31 +83,46 @@ export default function BerandaScreen() {
         onPress={() => router.push('/cari-teacher')}
       />
 
-      <SectionHeader title="Respon cepat" />
-      <ClayCard>
-        <View style={styles.quickRow}>
-          <Avatar name={quickQuestion.from} size={40} />
-          <View style={styles.flex}>
-            <AppText variant="caption">{quickQuestion.from}, bertanya</AppText>
-            <AppText style={styles.quickText}>{quickQuestion.text}</AppText>
-          </View>
-        </View>
-        {answered ? (
-          <View style={styles.answered}>
-            <Feather name="check-circle" size={16} color={Colors.green} />
-            <AppText variant="caption" color={Colors.green}>
-              Jawaban terkirim: {answered}
+      {/* respon cepat tampil dulu, setelah dijawab memudar lalu diganti check-in */}
+      {quickDone ? (
+        <Animated.View key="checkin" entering={FadeIn.delay(200).duration(350)}>
+          <CheckinCard />
+        </Animated.View>
+      ) : (
+        <Animated.View key="quick" exiting={FadeOut.duration(250)} style={styles.quickBlock}>
+          <SectionHeader title="Respon cepat" />
+          <ClayCard>
+            <View style={styles.quickRow}>
+              <Avatar name={quickQuestion.from} size={40} />
+              <View style={styles.flex}>
+                <AppText variant="caption">{quickQuestion.from}, bertanya</AppText>
+                <AppText style={styles.quickText}>{quickQuestion.text}</AppText>
+              </View>
+            </View>
+            {answered ? (
+              <View style={styles.answered}>
+                <Feather name="check-circle" size={16} color={Colors.green} />
+                <AppText variant="caption" color={Colors.green}>
+                  Jawaban terkirim: {answered}
+                </AppText>
+              </View>
+            ) : (
+              <View style={styles.quickActions}>
+                <PrimaryButton title="Ya, boleh!" onPress={() => answer('Ya, boleh!')} style={styles.quickBtn} />
+                <Pressable onPress={() => answer('Tidak hari ini')} style={[styles.quickBtn, styles.quickBtnAlt]}>
+                  <AppText style={styles.quickAltText}>Tidak hari ini</AppText>
+                </Pressable>
+              </View>
+            )}
+          </ClayCard>
+          <View style={styles.quickHint}>
+            <Feather name="info" size={13} color={Colors.textSecondary} />
+            <AppText variant="caption" style={styles.flex}>
+              Check-in harian (klaim ikan) muncul setelah respon cepat ini kamu jawab.
             </AppText>
           </View>
-        ) : (
-          <View style={styles.quickActions}>
-            <PrimaryButton title="Ya, boleh!" onPress={() => setAnswered('Ya, boleh!')} style={styles.quickBtn} />
-            <Pressable onPress={() => setAnswered('Tidak hari ini')} style={[styles.quickBtn, styles.quickBtnAlt]}>
-              <AppText style={styles.quickAltText}>Tidak hari ini</AppText>
-            </Pressable>
-          </View>
-        )}
-      </ClayCard>
+        </Animated.View>
+      )}
 
       <SectionHeader title="Teacher saat ini" />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.teacherRow}>
@@ -136,12 +161,9 @@ export default function BerandaScreen() {
 
       <DoobieCard
         message="Temukan pendamping yang tepat, pantau perkembangan si kecil dan dapatkan dukungan dalam setiap langkah tumbuh kembangnya."
-        topics={['Pantau progress anak', 'Tumbuh Kembang', 'Konsultasi']}
       />
 
       <PlusCard />
-
-      <CheckinCard />
     </Screen>
   );
 }
@@ -210,6 +232,16 @@ const styles = StyleSheet.create({
     borderColor: Colors.textMuted,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  quickBlock: {
+    gap: 16,
+  },
+  quickHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: -8,
+    paddingHorizontal: 4,
   },
   quickRow: {
     flexDirection: 'row',

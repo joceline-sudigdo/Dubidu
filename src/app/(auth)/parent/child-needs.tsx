@@ -1,6 +1,5 @@
-import type MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { router } from 'expo-router';
-import { useState, type ComponentProps } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
@@ -11,42 +10,14 @@ import { SecureNote } from '@/components/ui/secure-note';
 import { UploadBox } from '@/components/ui/upload-box';
 import { Colors, Fonts } from '@/constants/theme';
 import { useParentRegistration } from '@/context/parent-registration';
+import { NEED_CATEGORIES as CATEGORIES } from '@/data/needs';
+import { addChild } from '@/lib/children-store';
 import { showAlert } from '@/lib/dialog';
-
-const CATEGORIES: {
-  title: string;
-  icon: ComponentProps<typeof MaterialCommunityIcons>['name'];
-  color: string;
-  options: string[];
-}[] = [
-  {
-    title: 'Komunikasi',
-    icon: 'account-voice',
-    color: Colors.green,
-    options: ['Speech delay', 'Sulit menyampaikan kebutuhan', 'Kesulitan memahami instruksi'],
-  },
-  {
-    title: 'Sosial',
-    icon: 'account-group',
-    color: Colors.red,
-    options: ['Sulit berinteraksi dengan teman', 'Kurang kontak mata', 'Sulit bergiliran & berbagi'],
-  },
-  {
-    title: 'Akademik',
-    icon: 'book-open-variant',
-    color: Colors.yellow,
-    options: ['Sulit fokus & konsentrasi', 'Kesulitan membaca & menulis', 'Kesulitan berhitung'],
-  },
-  {
-    title: 'Sensorik',
-    icon: 'ear-hearing',
-    color: Colors.primary,
-    options: ['Sensitif terhadap suara', 'Sensitif terhadap sentuhan', 'Mencari stimulasi berlebih'],
-  },
-];
 
 export default function ChildNeedsScreen() {
   const { data, update, reset } = useParentRegistration();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const adding = mode === 'add';
   const [conditions, setConditions] = useState<string[]>(data.needs.conditions);
   const [medicalRecordUri, setMedicalRecordUri] = useState(data.needs.medicalRecordUri);
   const [expanded, setExpanded] = useState<string | null>(CATEGORIES[0].title);
@@ -57,6 +28,14 @@ export default function ChildNeedsScreen() {
     );
 
   const finish = () => {
+    if (adding) {
+      // langsung masuk ke daftar anak, lalu balik ke halaman sebelumnya
+      const child = addChild({ ...data.child, schoolLevel: data.child.schoolLevel ?? 'SD', conditions });
+      reset();
+      router.dismiss(2);
+      showAlert('Profil anak dibuat', `${child.name} sudah ditambahkan. Yuk, cari shadow teacher yang cocok untuknya!`);
+      return;
+    }
     update('needs', { conditions, medicalRecordUri });
     // TODO(backend): kirim data registrasi ke API di sini
     reset();
@@ -68,7 +47,7 @@ export default function ChildNeedsScreen() {
     <FormScreen
       title="Kebutuhan Anak"
       subtitle="Bantu kami memahami kondisi anak agar matching lebih akurat dan terarah."
-      step={{ current: 3, total: 3 }}>
+      step={adding ? { current: 2, total: 2 } : { current: 3, total: 3 }}>
       <View style={styles.group}>
         <AppText variant="label" style={styles.label}>
           Kondisi Anak <AppText style={styles.hint}>(bisa pilih lebih dari satu)</AppText>
@@ -95,7 +74,14 @@ export default function ChildNeedsScreen() {
           title="Konsultasi ke Psikolog"
           leadingIcon="heart"
           color={Colors.red}
-          onPress={() => showAlert('Konsultasi ke Psikolog', 'Fitur ini akan segera tersedia.')}
+          onPress={() =>
+            adding
+              ? router.push('/konsultasi')
+              : showAlert(
+                  'Konsultasi ke Psikolog',
+                  'Selesaikan pendaftaran dulu ya. Setelah akun aktif, kamu bisa langsung pilih psikolog dari menu Konsultasi di Beranda.'
+                )
+          }
         />
       </View>
 

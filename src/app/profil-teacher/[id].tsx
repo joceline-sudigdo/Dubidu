@@ -13,11 +13,11 @@ import { Stars } from '@/components/parent/stars';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
-import { children } from '@/data/parent';
 import { findTeacher, formatPrice, matchScore, SKILL_LABELS, topSkills, type Skill } from '@/data/teachers';
 import { getThread } from '@/lib/chat-store';
 import { showActionSheet, showAlert } from '@/lib/dialog';
 import { connectTeacher } from '@/lib/matching-store';
+import { useChildren } from '@/lib/children-store';
 
 const REVIEWS = [
   { name: 'Larasita Hadi', rating: 5, text: '“Sangat sabar dan komunikatif, anak saya jadi lebih percaya diri.”' },
@@ -28,6 +28,7 @@ const REVIEWS = [
 export default function ProfilTeacherScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const teacher = findTeacher(id);
+  const child = useChildren()[0];
 
   if (!teacher) {
     return (
@@ -37,7 +38,6 @@ export default function ProfilTeacherScreen() {
     );
   }
 
-  const child = children[0];
   const skills = (Object.keys(teacher.skills) as Skill[]).sort((a, b) => teacher.skills[b] - teacher.skills[a]);
   const chatExists = !!getThread(teacher.id);
 
@@ -106,7 +106,7 @@ export default function ProfilTeacherScreen() {
           <Pill label={`${matchScore(teacher, child)}% cocok untuk ${child.name}`} tone="blue" solid icon="star" />
         </ClayCard>
         <View style={styles.avatarWrap}>
-          <Avatar name={teacher.name} size={100} ring="#FFFFFF" />
+          <Avatar name={teacher.name} size={100} ring="#FFFFFF" viewable />
         </View>
       </View>
 

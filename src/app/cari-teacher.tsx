@@ -14,13 +14,14 @@ import { TeacherMatchCard } from '@/components/parent/teacher-match-card';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts } from '@/constants/theme';
-import { children } from '@/data/parent';
 import { matchScore, MAX_SKIPS, SKILL_LABELS, type Teacher } from '@/data/teachers';
 import { connectTeacher, shownFor, skipTeacher, useMatching } from '@/lib/matching-store';
 import { showAlert } from '@/lib/dialog';
 import { usePlus } from '@/lib/membership-store';
+import { useChildren } from '@/lib/children-store';
 
 export default function CariTeacherScreen() {
+  const children = useChildren();
   const matching = useMatching();
   const [child, setChild] = useState(children[0]);
   const [compare, setCompare] = useState<string[]>([]);

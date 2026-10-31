@@ -49,8 +49,8 @@ export default function PlusScreen() {
     showAlert(
       'Berhenti langganan?',
       teacher
-        ? 'Kuota swipe kembali 5 anak per hari dan biaya platform kembali 10%.'
-        : 'Kuota swipe kembali 5 teacher per hari dan diskon psikolog tidak berlaku lagi.',
+        ? 'Kuota skip kembali 5 anak per hari dan biaya platform kembali 10%.'
+        : 'Kuota skip kembali 5 teacher per hari dan diskon psikolog tidak berlaku lagi.',
       [
         { text: 'Tetap Plus', style: 'cancel' },
         { text: 'Berhenti', style: 'destructive', onPress: () => cancelPlus(role) },
@@ -71,7 +71,7 @@ export default function PlusScreen() {
         <AppText style={styles.heroText}>
           {teacher
             ? 'Buka semua fitur untuk shadow teacher yang aktif mencari anak dampingan.'
-            : 'Swipe tanpa batas, chat banyak pendamping, dan kelola semua anak dalam satu akun.'}
+            : 'Skip tanpa batas, chat banyak pendamping, dan kelola semua anak dalam satu akun.'}
         </AppText>
       </LinearGradient>
 
@@ -117,12 +117,15 @@ export default function PlusScreen() {
               accessibilityState={{ selected: on }}
               onPress={() => setPlan(p.key)}
               style={[styles.plan, Shadow.soft, on && styles.planOn]}>
-              {p.badge && (
-                <View style={styles.planBadge}>
-                  <AppText style={styles.planBadgeText}>{p.badge}</AppText>
-                </View>
-              )}
-              {plus === p.key && <AppText style={styles.planActive}>Paket aktif</AppText>}
+              {/* baris atas ikut alur layout supaya badge tidak menabrak judul paket */}
+              <View style={styles.planTop}>
+                {p.badge && (
+                  <View style={styles.planBadge}>
+                    <AppText style={styles.planBadgeText}>{p.badge}</AppText>
+                  </View>
+                )}
+                {plus === p.key && <AppText style={styles.planActive}>Paket aktif</AppText>}
+              </View>
               <AppText style={styles.planTitle}>{p.title}</AppText>
               <AppText style={styles.planPrice}>{formatRupiah(p.price)}</AppText>
               <AppText variant="caption">{p.note}</AppText>
@@ -143,7 +146,7 @@ export default function PlusScreen() {
           </Pressable>
         </>
       ) : (
-        <PrimaryButton title={`Langganan ${formatRupiah(chosen.price)}`} leadingIcon="star" onPress={subscribe} />
+        <PrimaryButton title={`Langganan ${formatRupiah(chosen.price)}`} leadingIcon="crown" onPress={subscribe} />
       )}
       <AppText variant="caption" style={styles.center}>
         Bayar pakai QRIS atau Virtual Account semua bank. Bisa dibatalkan kapan saja.
@@ -286,10 +289,15 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Colors.yellow,
   },
+  planTop: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 22,
+    marginBottom: 6,
+  },
   planBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: Radius.pill,
@@ -301,9 +309,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   planActive: {
-    position: 'absolute',
-    top: 14,
-    right: 14,
     fontFamily: Fonts.bodyBold,
     fontSize: 10,
     color: Colors.green,

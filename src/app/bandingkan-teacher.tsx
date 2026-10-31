@@ -11,9 +11,9 @@ import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius } from '@/constants/theme';
-import { children } from '@/data/parent';
 import { formatPrice, matchScore, SKILL_LABELS, teacherPool, type Skill, type Teacher } from '@/data/teachers';
 import { connectTeacher, useMatching } from '@/lib/matching-store';
+import { useChildren } from '@/lib/children-store';
 
 const A_COLOR = Colors.primary;
 const B_COLOR = Colors.yellow;
@@ -21,6 +21,7 @@ const B_COLOR = Colors.yellow;
 type Stat = { label: string; a: number; b: number; format: (v: number) => string; lowerIsBetter?: boolean };
 
 export default function BandingkanTeacherScreen() {
+  const children = useChildren();
   const params = useLocalSearchParams<{ a: string; b: string; child: string }>();
   const matching = useMatching();
   const child = children.find((c) => c.id === params.child) ?? children[0];

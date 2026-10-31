@@ -6,44 +6,46 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
-import { plusBenefits } from '@/data/plus';
+import { plusHighlights } from '@/data/plus';
 import { isPlusRole, usePlus } from '@/lib/membership-store';
 import { getSession } from '@/lib/session';
 
 const GOLD = '#8A6A0C';
 
-// kartu Dubidu Plus di beranda: ajakan upgrade, atau status kalau sudah Plus
+// kartu Dubidu Plus ringkas di beranda: judul satu baris + chip fitur
 export function PlusCard() {
   const role = getSession().role;
   const plus = usePlus();
   if (!isPlusRole(role)) return null;
-  const benefits = plusBenefits[role].slice(0, 2);
 
   return (
     <Pressable onPress={() => router.push('/plus')} style={({ pressed }) => pressed && { opacity: 0.92 }}>
-      <LinearGradient colors={['#FFF6DB', '#FFE39A']} style={[styles.card, Shadow.soft]}>
-        <View style={styles.crown}>
-          <MaterialCommunityIcons name="crown" size={24} color={GOLD} />
-        </View>
-        <View style={styles.flex}>
-          <AppText style={styles.label}>{plus ? 'KAMU PENGGUNA PLUS' : 'DUBIDU PLUS'}</AppText>
-          <AppText style={styles.title}>
-            {plus
-              ? 'Semua fitur Plus aktif'
-              : role === 'teacher'
-                ? 'Dampingi lebih banyak anak'
-                : 'Temukan pendamping lebih cepat'}
+      <LinearGradient
+        colors={['#FFF6DB', '#FFE39A']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.card, Shadow.soft]}>
+        <View style={styles.top}>
+          <View style={styles.crown}>
+            <MaterialCommunityIcons name="crown" size={20} color={GOLD} />
+          </View>
+          <AppText style={styles.title} numberOfLines={1}>
+            {plus ? 'Dubidu Plus aktif' : 'Upgrade ke Dubidu Plus'}
           </AppText>
-          {benefits.map((b) => (
-            <View key={b.title} style={styles.benefit}>
-              <Feather name={plus ? 'check-circle' : b.icon} size={13} color={GOLD} />
-              <AppText style={styles.benefitText}>{b.title}</AppText>
+          <View style={styles.cta}>
+            <AppText style={styles.ctaText}>{plus ? 'Kelola' : 'Lihat'}</AppText>
+            <Feather name="chevron-right" size={14} color={GOLD} />
+          </View>
+        </View>
+        <View style={styles.chips}>
+          {plusHighlights[role].map((h) => (
+            <View key={h.label} style={styles.chip}>
+              <Feather name={plus ? 'check' : h.icon} size={11} color={GOLD} />
+              <AppText style={styles.chipText} numberOfLines={1}>
+                {h.label}
+              </AppText>
             </View>
           ))}
-        </View>
-        <View style={styles.cta}>
-          <AppText style={styles.ctaText}>{plus ? 'Kelola' : 'Lihat Paket'}</AppText>
-          <Feather name="chevron-right" size={16} color={GOLD} />
         </View>
       </LinearGradient>
     </Pressable>
@@ -51,48 +53,33 @@ export function PlusCard() {
 }
 
 const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 16,
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: '#F6E2AE',
   },
+  top: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   crown: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: 'rgba(255,255,255,0.85)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  label: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 0.6,
-    color: GOLD,
-  },
   title: {
+    flex: 1,
     fontFamily: Fonts.heading,
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 15,
+    lineHeight: 21,
     color: Colors.primaryDark,
-    marginBottom: 2,
-  },
-  benefit: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  benefitText: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: '#6B5A2A',
   },
   cta: {
     flexDirection: 'row',
@@ -100,12 +87,33 @@ const styles = StyleSheet.create({
     gap: 2,
     backgroundColor: '#FFFFFF',
     borderRadius: Radius.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingLeft: 10,
+    paddingRight: 6,
+    paddingVertical: 4,
   },
   ctaText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
     color: GOLD,
+  },
+  chips: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  chip: {
+    flexShrink: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderRadius: Radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  chipText: {
+    flexShrink: 1,
+    fontFamily: Fonts.bodyBold,
+    fontSize: 11,
+    color: '#6B5A2A',
   },
 });

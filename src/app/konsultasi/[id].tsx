@@ -21,7 +21,6 @@ import {
   PROMO_CODE,
   psychologists,
 } from '@/data/parent';
-import { showAlert } from '@/lib/dialog';
 
 const STATUS_COLOR = { open: Colors.primary, few: Colors.yellow, full: Colors.red } as const;
 
@@ -52,7 +51,10 @@ export default function JadwalKonsultasiScreen() {
             icon="arrow-right"
             style={styles.flex}
             onPress={() =>
-              showAlert('Lanjut bayar', `Sesi ${date} September, ${time} WIB. Fitur pembayaran akan segera tersedia.`)
+              router.push({
+                pathname: '/checkout',
+                params: { title: `Konsultasi ${shortName} · ${date} Sep, ${time}`, amount: String(total) },
+              })
             }
           />
         </View>

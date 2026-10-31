@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 
 import { DialogHost } from '@/components/ui/dialog-host';
 import { FishCelebrationHost } from '@/components/ui/fish-celebration';
+import { ImageViewerHost } from '@/components/ui/image-viewer';
 import { Colors } from '@/constants/theme';
 import { ParentRegistrationProvider } from '@/context/parent-registration';
 
@@ -50,6 +51,7 @@ export default function RootLayout() {
       </Stack>
       <DialogHost />
       <FishCelebrationHost />
+      <ImageViewerHost />
     </ParentRegistrationProvider>
   );
 }

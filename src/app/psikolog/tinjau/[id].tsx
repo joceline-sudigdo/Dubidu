@@ -13,9 +13,10 @@ import type { Tone } from '@/components/parent/tones';
 import { VerifyBadge } from '@/components/psikolog/verify-badge';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
+import { openImages } from '@/components/ui/image-viewer';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { applicants, documentIssue, GENERAL_ISSUES, type VerifyStatus } from '@/data/psychologist';
-import { comingSoon, showAlert, showPrompt } from '@/lib/dialog';
+import { showAlert, showPrompt } from '@/lib/dialog';
 import { decideApplicant, interviewOf, resultOf, scheduleInterview, usePsikolog } from '@/lib/psikolog-store';
 
 const SKILL_TONES: Tone[] = ['red', 'blue', 'green'];
@@ -128,7 +129,7 @@ export default function TinjauScreen() {
           return (
             <Pressable
               key={d.label}
-              onPress={() => (d.uploaded ? comingSoon('Pratinjau dokumen') : showAlert(d.label, 'Dokumen ini belum diunggah pendaftar.'))}
+              onPress={() => (d.uploaded ? openImages([{ source: null, caption: `${d.label} · file pendaftar`}]) : showAlert(d.label, 'Dokumen ini belum diunggah pendaftar.'))}
               style={[styles.docRow, i < a.documents.length - 1 && styles.border]}>
               <View style={[styles.docIcon, { backgroundColor: d.uploaded ? Colors.green : Colors.disabled }]}>
                 <Feather name={d.uploaded ? 'check' : 'clock'} size={18} color="#FFFFFF" />

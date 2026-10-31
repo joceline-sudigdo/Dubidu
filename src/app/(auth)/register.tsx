@@ -9,7 +9,6 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { TextField } from '@/components/ui/text-field';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { useParentRegistration, type Role } from '@/context/parent-registration';
-import { showAlert } from '@/lib/dialog';
 
 const MIN_PASSWORD = 8;
 
@@ -32,12 +31,8 @@ export default function RegisterScreen() {
     agreed;
 
   const submit = () => {
-    if (role === 'teacher') {
-      showAlert('Segera hadir', 'Pendaftaran Shadow Teacher akan segera tersedia.');
-      return;
-    }
     update('account', { fullName: fullName.trim(), contact: contact.trim(), password });
-    router.push('/parent/identity');
+    router.push({ pathname: '/parent/identity', params: role === 'teacher' ? { role: 'teacher' } : {} });
   };
 
   return (
@@ -115,8 +110,15 @@ export default function RegisterScreen() {
           {agreed && <Feather name="check" size={16} color="#FFFFFF" />}
         </View>
         <AppText variant="caption" style={styles.termsText}>
-          Saya menyetujui <AppText style={styles.termsLink}>Syarat & Ketentuan</AppText> dan{' '}
-          <AppText style={styles.termsLink}>Kebijakan Privasi</AppText> Dubidu
+          Saya menyetujui{' '}
+          <AppText style={styles.termsLink} onPress={() => router.push({ pathname: '/legal/[type]', params: { type: 'terms' } })}>
+            Syarat & Ketentuan
+          </AppText>{' '}
+          dan{' '}
+          <AppText style={styles.termsLink} onPress={() => router.push({ pathname: '/legal/[type]', params: { type: 'privacy' } })}>
+            Kebijakan Privasi
+          </AppText>{' '}
+          Dubidu
         </AppText>
       </Pressable>
 

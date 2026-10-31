@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Pill } from '@/components/parent/pill';
 import { AppText } from '@/components/ui/app-text';
 import { BackButton } from '@/components/ui/back-button';
+import { openImages } from '@/components/ui/image-viewer';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import type { ChatMessage } from '@/data/parent';
 import { contracts } from '@/data/contracts';
@@ -28,6 +29,8 @@ import { addMessage, clearThread, useChatThreads } from '@/lib/chat-store';
 import { showActionSheet, showAlert } from '@/lib/dialog';
 
 const EMOJIS = ['😊', '😄', '🥰', '🙏', '👍', '👏', '🤗', '😅', '😢', '😮', '❤️', '💪', '🎉', '✨', '🌟', '📚', '🧸', '🍎'];
+
+const RESCHEDULE_SLOTS = ['Senin, 08:00 - 11:00', 'Rabu, 13:00 - 16:00', 'Jumat, 08:00 - 11:00', 'Sabtu, 09:00 - 12:00'];
 
 function nowTime() {
   const d = new Date();
@@ -185,7 +188,22 @@ export default function ChatDetailScreen() {
 
             {messages.map((m) =>
               m.type === 'schedule' ? (
-                <ScheduleCard key={m.id} message={m} approved={approved} onApprove={() => setApproved(true)} />
+                <ScheduleCard
+                  key={m.id}
+                  message={m}
+                  approved={approved}
+                  onApprove={() => setApproved(true)}
+                  onReschedule={(slot) =>
+                    addMessage(thread.id, {
+                      id: String(Date.now()),
+                      from: 'me',
+                      type: 'text',
+                      text: `Kak, apakah jadwal trial bisa dipindah ke ${slot}? 🙏`,
+                      time: nowTime(),
+                      read: false,
+                    })
+                  }
+                />
               ) : m.type === 'image' ? (
                 <ImageBubble key={m.id} message={m} />
               ) : (
@@ -258,7 +276,9 @@ function Bubble({ message }: { message: Extract<ChatMessage, { type: 'text' }> }
 function ImageBubble({ message }: { message: Extract<ChatMessage, { type: 'image' }> }) {
   return (
     <View style={[styles.bubbleWrap, styles.alignEnd]}>
-      <Image source={{ uri: message.uri }} style={styles.imageBubble} contentFit="cover" />
+      <Pressable accessibilityLabel="Lihat gambar" onPress={() => openImages([message.uri])}>
+        <Image source={{ uri: message.uri }} style={styles.imageBubble} contentFit="cover" />
+      </Pressable>
       <View style={styles.inline}>
         <AppText variant="caption">{message.time}</AppText>
         <MaterialCommunityIcons name="check-all" size={16} color={message.read ? Colors.primary : Colors.textMuted} />
@@ -271,10 +291,12 @@ function ScheduleCard({
   message,
   approved,
   onApprove,
+  onReschedule,
 }: {
   message: Extract<ChatMessage, { type: 'schedule' }>;
   approved: boolean;
   onApprove: () => void;
+  onReschedule: (slot: string) => void;
 }) {
   return (
     <View style={styles.bubbleWrap}>
@@ -299,7 +321,12 @@ function ScheduleCard({
               <AppText style={styles.approveText}>Setujui Sesi Ini</AppText>
             </Pressable>
             <Pressable
-              onPress={() => showAlert('Ubah jadwal', 'Fitur ini akan segera tersedia.')}
+              onPress={() =>
+                showActionSheet({
+                  title: 'Usulkan jadwal lain',
+                  options: RESCHEDULE_SLOTS.map((slot) => ({ label: slot, icon: 'calendar', onPress: () => onReschedule(slot) })),
+                })
+              }
               style={styles.change}>
               <AppText style={styles.changeText}>Ubah</AppText>
             </Pressable>

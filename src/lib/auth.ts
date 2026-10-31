@@ -10,6 +10,11 @@ export type Account = {
   password: string;
 };
 
+// akun demo untuk pilihan "Masuk dengan Google"
+export function demoAccounts() {
+  return accounts as Account[];
+}
+
 // TODO(backend): ganti dengan API login beneran
 export function login(contact: string, password: string): Account | null {
   const key = contact.trim().toLowerCase();

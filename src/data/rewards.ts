@@ -9,12 +9,13 @@ import type { PlusRole } from './plus';
 
 type FeatherName = ComponentProps<typeof Feather>['name'];
 
-export const LEVELS = [
-  { level: 1, name: 'Pemula', min: 0 },
-  { level: 2, name: 'Sahabat', min: 300 },
-  { level: 3, name: 'Hebat', min: 800 },
-  { level: 4, name: 'Juara', min: 2000, perk: 'Cashback 15%' },
-  { level: 5, name: 'Legenda', min: 4000, perk: 'Psikolog GRATIS' },
+// tema tumbuh kembang: dari tunas sampai legenda. perk = hadiah eksklusif level itu (ikon + label singkat)
+export const LEVELS: { level: number; name: string; min: number; perk?: { icon: FeatherName; label: string } }[] = [
+  { level: 1, name: 'Tunas', min: 0 },
+  { level: 2, name: 'Mekar', min: 300 },
+  { level: 3, name: 'Bersinar', min: 800 },
+  { level: 4, name: 'Bintang', min: 2000, perk: { icon: 'percent', label: '15%' } },
+  { level: 5, name: 'Legenda', min: 4000, perk: { icon: 'heart', label: 'Gratis' } },
 ];
 
 export const LEVEL_TITLE: Record<PlusRole, string> = { parent: 'Keluarga', teacher: 'Pendamping' };
@@ -40,7 +41,7 @@ export type Mission = {
 export const missions: Record<PlusRole, Mission[]> = {
   parent: [
     { id: 'm-report', title: 'Isi laporan perkembangan', subtitle: 'Evaluasi mingguan si kecil', reward: 30, icon: 'check-circle', tone: 'green', done: true, action: { label: 'Klaim' } },
-    { id: 'm-review', title: 'Beri ulasan teacher', subtitle: 'Review sesi Kak Nielsen', reward: 50, icon: 'edit-3', tone: 'blue', action: { label: 'Kerjakan', href: '/report-card' } },
+    { id: 'm-review', title: 'Beri ulasan teacher', subtitle: 'Review sesi Kak Nielsen', reward: 50, icon: 'edit-3', tone: 'blue', action: { label: 'Kerjakan', href: '/beri-ulasan' } },
     { id: 'm-webinar', title: 'Ikut kelas komunitas', subtitle: 'Webinar Sensory Play', reward: 40, icon: 'users', tone: 'yellow', action: { label: 'Daftar', href: '/komunitas' } },
     { id: 'm-invite', title: 'Ajak teman bergabung', subtitle: 'Kode: DEVI24', reward: 200, icon: 'user-plus', tone: 'yellow', action: { label: 'Bagikan', share: 'Yuk gabung Dubidu! Pakai kode DEVI24 untuk bonus ikan 🐟' } },
   ],

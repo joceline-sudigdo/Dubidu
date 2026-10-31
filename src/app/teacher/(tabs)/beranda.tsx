@@ -74,6 +74,8 @@ export default function TeacherBerandaScreen() {
         onPress={() => router.push('/teacher/cari-anak')}
       />
 
+      <CheckinCard />
+
       <SectionHeader title="Jadwal kamu" />
       <ClayCard onPress={() => router.push('/teacher/jadwal')} style={styles.schedule}>
         <View style={styles.scheduleIcon}>
@@ -149,12 +151,9 @@ export default function TeacherBerandaScreen() {
 
       <DoobieCard
         message="Cek rekomendasi murid baru, kelola laporan harian, atau konsultasi modul belajar bersama Doobie AI."
-        topics={['Laporan harian', 'Jadwal sesi', 'Tips pendampingan']}
       />
 
       <PlusCard />
-
-      <CheckinCard />
     </Screen>
   );
 }

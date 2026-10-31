@@ -2,7 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import type { ComponentProps } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -15,11 +15,12 @@ import { Stars } from '@/components/parent/stars';
 import { Tones } from '@/components/parent/tones';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
+import { openImages } from '@/components/ui/image-viewer';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { reportPhotos } from '@/data/images';
-import { children, formatLongDate, reportDetail as d, sessionReports } from '@/data/parent';
-import { showAlert } from '@/lib/dialog';
+import { formatLongDate, reportDetail as d, sessionReports } from '@/data/parent';
 import { downloadPdf } from '@/lib/pdf';
+import { useChildren } from '@/lib/children-store';
 
 // teks dengan **tebal** jadi warna biru tebal
 function RichParagraph({ text }: { text: string }) {
@@ -41,8 +42,7 @@ function RichParagraph({ text }: { text: string }) {
 export default function ReportDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const report = sessionReports.find((r) => r.id === id) ?? sessionReports[0];
-  const child = children[0];
-  const soon = (title: string) => showAlert(title, 'Fitur ini akan segera tersedia.');
+  const child = useChildren()[0];
 
   const exportPdf = () =>
     downloadPdf(`Report Card ${child.fullName}`, `Sesi ke-${report.number} · ${formatLongDate(report.date)} · ${report.teacher}`, [
@@ -74,7 +74,7 @@ export default function ReportDetailScreen() {
             <Feather name="download" size={18} color={Colors.primary} />
             <AppText style={styles.secondaryText}>Unduh PDF</AppText>
           </Pressable>
-          <PrimaryButton title="Beri Ulasan" leadingIcon="edit-3" onPress={() => soon('Beri ulasan')} style={styles.flex} />
+          <PrimaryButton title="Beri Ulasan" leadingIcon="edit-3" onPress={() => router.push({ pathname: '/beri-ulasan', params: { teacher: report.teacher } })} style={styles.flex} />
         </View>
       }>
       <View style={styles.metaRow}>
@@ -215,7 +215,7 @@ export default function ReportDetailScreen() {
           </View>
           <Sparkline />
         </View>
-        <Pressable onPress={() => soon('Growth timeline')} style={styles.inline}>
+        <Pressable onPress={() => router.push('/growth-timeline')} style={styles.inline}>
           <AppText variant="link" style={{ fontSize: 14 }}>
             Lihat Growth Timeline Lengkap
           </AppText>
@@ -231,8 +231,11 @@ export default function ReportDetailScreen() {
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photos}>
           {d.photos.map((caption, i) => (
-            <LinearGradient
+            <Pressable
               key={caption}
+              accessibilityLabel={`Lihat foto ${caption}`}
+              onPress={() => openImages(d.photos.map((c, j) => ({ source: reportPhotos[j] ?? null, caption: c })), i)}>
+            <LinearGradient
               colors={i % 2 ? [Colors.yellowSoft, '#FCE3A6'] : [Colors.blueSoft, Colors.blueMid]}
               style={styles.photo}>
               {reportPhotos[i] && <Image source={reportPhotos[i]} style={StyleSheet.absoluteFill} contentFit="cover" />}
@@ -245,6 +248,7 @@ export default function ReportDetailScreen() {
                 </AppText>
               </View>
             </LinearGradient>
+            </Pressable>
           ))}
         </ScrollView>
       </ClayCard>

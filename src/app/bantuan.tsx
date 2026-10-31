@@ -10,7 +10,7 @@ import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
-import { comingSoon } from '@/lib/dialog';
+import { openSupportChat } from '@/lib/support-chat';
 
 const FAQ = [
   {
@@ -91,7 +91,7 @@ export default function BantuanScreen() {
       )}
 
       <SectionHeader title="Masih butuh bantuan?" />
-      <PrimaryButton title="Chat dengan Tim Dubidu" leadingIcon="chat" onPress={() => comingSoon('Chat bantuan')} />
+      <PrimaryButton title="Chat dengan Tim Dubidu" leadingIcon="chat" onPress={openSupportChat} />
       <Pressable onPress={() => Linking.openURL('mailto:halo@dubidu.id')} style={[styles.secondary, Shadow.soft]}>
         <Feather name="mail" size={18} color={Colors.primary} />
         <AppText style={styles.secondaryText}>Kirim Email</AppText>

@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -13,6 +13,8 @@ import { useParentRegistration } from '@/context/parent-registration';
 
 export default function IdentityScreen() {
   const { data, update } = useParentRegistration();
+  // dipakai juga untuk pendaftaran shadow teacher (4 langkah)
+  const isTeacher = useLocalSearchParams<{ role?: string }>().role === 'teacher';
   const [ktpUri, setKtpUri] = useState(data.identity.ktpUri);
   const [domicile, setDomicile] = useState(data.identity.domicile);
 
@@ -22,7 +24,7 @@ export default function IdentityScreen() {
     <FormScreen
       title="Verifikasi Identitas"
       subtitle="Agar kami merasa aman berinteraksi dengan kamu."
-      step={{ current: 1, total: 3 }}>
+      step={{ current: 1, total: isTeacher ? 4 : 3 }}>
       <View style={styles.group}>
         <AppText variant="label" style={styles.label}>
           KTP/Kartu Identitas
@@ -53,7 +55,7 @@ export default function IdentityScreen() {
         style={styles.button}
         onPress={() => {
           update('identity', { ktpUri, domicile: domicile.trim() });
-          router.push('/parent/child-data');
+          router.push(isTeacher ? '/daftar-teacher/pendidikan' : '/parent/child-data');
         }}
       />
       <SecureNote />

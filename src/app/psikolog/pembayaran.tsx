@@ -1,5 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ClayCard } from '@/components/parent/clay-card';
@@ -11,10 +12,8 @@ import { SecureNote } from '@/components/ui/secure-note';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { formatRupiah } from '@/data/parent';
 import { psychologistPayment as p } from '@/data/psychologist';
-import { showAlert } from '@/lib/dialog';
 import { downloadPdf } from '@/lib/pdf';
 
-const soon = (title: string) => showAlert(title, 'Fitur ini akan segera tersedia.');
 
 export default function PsikologPembayaranScreen() {
   return (
@@ -60,7 +59,7 @@ export default function PsikologPembayaranScreen() {
             },
           ])
         } />
-      <Pressable onPress={() => soon('Riwayat pembayaran')} style={styles.link}>
+      <Pressable onPress={() => router.push('/riwayat-transaksi')} style={styles.link}>
         <AppText variant="link">Lihat Riwayat Pembayaran</AppText>
         <Feather name="arrow-right" size={16} color={Colors.primary} />
       </Pressable>

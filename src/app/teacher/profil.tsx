@@ -22,12 +22,14 @@ import { changePhoto, updateTeacher, useProfile } from '@/lib/profile-store';
 
 const MENU: {
   label: string;
-  icon: ComponentProps<typeof Feather>['name'];
-  href?: '/pengaturan' | '/bantuan' | '/plus';
+  icon: ComponentProps<typeof Feather>['name'] | 'crown';
+  href?: '/pengaturan' | '/bantuan' | '/plus' | '/metode-pembayaran' | '/riwayat-transaksi' | '/tersimpan';
 }[] = [
-  { label: 'Dubidu Plus', icon: 'star', href: '/plus' },
+  { label: 'Dubidu Plus', icon: 'crown', href: '/plus' },
+  { label: 'Postingan Tersimpan', icon: 'bookmark', href: '/tersimpan' },
   { label: 'Pengaturan Akun', icon: 'settings', href: '/pengaturan' },
-  { label: 'Rekening & Pembayaran', icon: 'credit-card' },
+  { label: 'Rekening Pencairan', icon: 'credit-card', href: '/metode-pembayaran' },
+  { label: 'Riwayat Transaksi', icon: 'file-text', href: '/riwayat-transaksi' },
   { label: 'Pusat Bantuan', icon: 'help-circle', href: '/bantuan' },
 ];
 
@@ -94,7 +96,7 @@ export default function TeacherProfilScreen() {
           </View>
         </ClayCard>
         <View style={styles.avatarWrap}>
-          <Avatar name={p.name} size={100} ring="#FFFFFF" />
+          <Avatar name={p.name} size={100} ring="#FFFFFF" viewable />
           <Pressable accessibilityLabel="Ganti foto" onPress={() => changePhoto(p.name)} style={styles.camera}>
             <Feather name="camera" size={14} color="#FFFFFF" />
           </Pressable>
@@ -195,7 +197,11 @@ export default function TeacherProfilScreen() {
             key={m.label}
             onPress={() => (m.href ? router.push(m.href) : comingSoon(m.label))}
             style={[styles.menuRow, i < MENU.length - 1 && styles.menuBorder]}>
-            <Feather name={m.icon} size={20} color={Colors.primary} />
+            {m.icon === 'crown' ? (
+              <MaterialCommunityIcons name="crown" size={20} color={Colors.primary} />
+            ) : (
+              <Feather name={m.icon} size={20} color={Colors.primary} />
+            )}
             <AppText style={styles.menuLabel}>{m.label}</AppText>
             <Feather name="chevron-right" size={20} color={Colors.textSecondary} />
           </Pressable>

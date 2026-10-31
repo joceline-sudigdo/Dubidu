@@ -16,6 +16,7 @@ import {
   hidePost,
   likeCount,
   toggleLike,
+  toggleSave,
   useCommunity,
   type FeedPost,
 } from '@/lib/community-store';
@@ -42,7 +43,14 @@ export function PostCard({ post, detail, onDeleted }: Props) {
     showActionSheet({
       title: 'Postingan',
       options: [
-        { label: 'Simpan postingan', icon: 'bookmark', onPress: () => showAlert('Postingan tersimpan') },
+        {
+          label: community.saved.includes(post.id) ? 'Hapus dari tersimpan' : 'Simpan postingan',
+          icon: 'bookmark',
+          onPress: () =>
+            toggleSave(post.id)
+              ? showAlert('Postingan tersimpan', 'Lihat lagi kapan saja di Profil > Postingan Tersimpan.')
+              : showAlert('Dihapus dari tersimpan'),
+        },
         { label: 'Bagikan', icon: 'share-2', onPress: () => Share.share({ message: `${post.author}: ${post.text}` }) },
         ...(post.mine
           ? [

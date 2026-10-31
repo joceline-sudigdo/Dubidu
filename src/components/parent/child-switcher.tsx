@@ -4,8 +4,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
-import { children } from '@/data/parent';
 import type { Gender } from '@/data/teacher';
+import { useChildren } from '@/lib/children-store';
 
 import { Avatar } from './avatar';
 import { BearAvatar } from './bear-avatar';
@@ -16,13 +16,15 @@ type SwitcherItem = { id: string; name: string; fullName: string; grade: string;
 export function ChildSwitcher<T extends SwitcherItem>({
   value,
   onChange,
-  items = children as unknown as T[],
+  items,
 }: {
   value: T;
   onChange: (child: T) => void;
   items?: T[];
 }) {
   const [open, setOpen] = useState(false);
+  const all = useChildren() as unknown as T[];
+  const list = items ?? all;
 
   return (
     <View style={[styles.card, Shadow.clay]}>
@@ -44,7 +46,7 @@ export function ChildSwitcher<T extends SwitcherItem>({
         </View>
       </Pressable>
       {open &&
-        items
+        list
           .filter((c) => c.id !== value.id)
           .map((c) => (
             <Pressable

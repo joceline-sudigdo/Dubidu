@@ -20,7 +20,7 @@ let state: State = {
   points: { parent: 1240, teacher: 860 },
   checkinClaimed: { parent: false, teacher: false },
   claimedMissions: { parent: [], teacher: [] },
-  redeemed: { parent: [], teacher: [] },
+  redeemed: { parent: ['r-kopi'], teacher: [] },
   history: {
     parent: [
       { id: 'h1', title: 'Check-in harian', amount: 20, time: 'Kemarin' },

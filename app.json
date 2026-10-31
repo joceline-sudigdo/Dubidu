@@ -34,7 +34,13 @@
       "expo-font",
       "expo-image-picker",
       "@react-native-community/datetimepicker",
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Izinkan Dubidu memakai mikrofon untuk mengirim voice note ke Doobie."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

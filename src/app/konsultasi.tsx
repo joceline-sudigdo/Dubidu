@@ -85,7 +85,7 @@ export default function PilihPsikologScreen() {
 
       <View style={[styles.plus, Shadow.clay]}>
         <View style={styles.plusIcon}>
-          <Feather name="star" size={22} color={Colors.yellowDark} />
+          <MaterialCommunityIcons name="crown" size={22} color={Colors.yellowDark} />
         </View>
         <View style={styles.flex}>
           <View style={styles.inline}>

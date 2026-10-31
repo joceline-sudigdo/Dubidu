@@ -20,7 +20,8 @@ import { changePhoto, updatePsychologist, useProfile } from '@/lib/profile-store
 
 type FeatherName = ComponentProps<typeof Feather>['name'];
 
-const MENU: { label: string; icon: FeatherName; href?: '/pengaturan' | '/bantuan' | '/psikolog/pembayaran' }[] = [
+const MENU: { label: string; icon: FeatherName; href?: '/pengaturan' | '/bantuan' | '/psikolog/pembayaran' | '/tersimpan' }[] = [
+  { label: 'Postingan Tersimpan', icon: 'bookmark', href: '/tersimpan' },
   { label: 'Pengaturan Akun', icon: 'settings', href: '/pengaturan' },
   { label: 'Rekening & Pembayaran', icon: 'credit-card', href: '/psikolog/pembayaran' },
   { label: 'Pusat Bantuan', icon: 'help-circle', href: '/bantuan' },
@@ -56,7 +57,7 @@ export default function PsikologProfilScreen() {
       }>
       <View style={styles.hero}>
         <View>
-          <Avatar name={p.name} size={110} ring="#FFFFFF" />
+          <Avatar name={p.name} size={110} ring="#FFFFFF" viewable />
           <Pressable accessibilityLabel="Ganti foto" onPress={() => changePhoto(p.name)} style={styles.camera}>
             <Feather name="camera" size={14} color="#FFFFFF" />
           </Pressable>

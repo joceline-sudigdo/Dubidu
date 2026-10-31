@@ -12,15 +12,18 @@ import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
 import { PointsCard } from '@/components/shared/points-card';
 import { AppText } from '@/components/ui/app-text';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
-import { activeMatches, children, parentProfile as p } from '@/data/parent';
+import { activeMatches, parentProfile as p } from '@/data/parent';
 import { comingSoon, showActionSheet, showAlert, showPrompt } from '@/lib/dialog';
 import { usePlus } from '@/lib/membership-store';
 import { changePhoto, updateParent, useProfile } from '@/lib/profile-store';
+import { startAddChild } from '@/lib/add-child';
+import { useChildren } from '@/lib/children-store';
 
-const MENU: { label: string; icon: ComponentProps<typeof Feather>['name']; href?: '/pengaturan' | '/bantuan' }[] = [
+const MENU: { label: string; icon: ComponentProps<typeof Feather>['name']; href?: '/pengaturan' | '/bantuan' | '/metode-pembayaran' | '/riwayat-transaksi' | '/tersimpan' }[] = [
+  { label: 'Postingan Tersimpan', icon: 'bookmark', href: '/tersimpan' },
   { label: 'Pengaturan Akun', icon: 'settings', href: '/pengaturan' },
-  { label: 'Metode Pembayaran', icon: 'credit-card' },
-  { label: 'Riwayat Transaksi', icon: 'file-text' },
+  { label: 'Metode Pembayaran', icon: 'credit-card', href: '/metode-pembayaran' },
+  { label: 'Riwayat Transaksi', icon: 'file-text', href: '/riwayat-transaksi' },
   { label: 'Privasi & Keamanan', icon: 'shield', href: '/pengaturan' },
   { label: 'Pusat Bantuan', icon: 'help-circle', href: '/bantuan' },
 ];
@@ -39,6 +42,7 @@ const editField = (title: string, value: string, key: 'email' | 'phone' | 'domic
   });
 
 export default function ProfilScreen() {
+  const children = useChildren();
   const account = useProfile().parent;
   const plus = usePlus();
 
@@ -56,7 +60,7 @@ export default function ProfilScreen() {
           </View>
         </ClayCard>
         <View style={styles.avatarWrap}>
-          <Avatar name={p.fullName} size={96} ring="#FFFFFF" />
+          <Avatar name={p.fullName} size={96} ring="#FFFFFF" viewable />
           <Pressable accessibilityLabel="Ubah foto" onPress={() => changePhoto(p.fullName)} style={styles.editAvatar}>
             <Feather name="edit-2" size={14} color="#FFFFFF" />
           </Pressable>
@@ -78,7 +82,7 @@ export default function ProfilScreen() {
       <SectionHeader
         title="Anak Saya"
         right={
-          <Pressable onPress={() => soon('Tambah anak')} hitSlop={8} style={styles.inline}>
+          <Pressable onPress={startAddChild} hitSlop={8} style={styles.inline}>
             <Feather name="plus" size={16} color={Colors.primary} />
             <AppText variant="link">Tambah</AppText>
           </Pressable>
@@ -138,7 +142,7 @@ export default function ProfilScreen() {
       <SectionHeader title="Langganan" />
       <View style={[styles.plan, Shadow.clay]}>
         <View style={styles.planIcon}>
-          <Feather name="star" size={22} color={Colors.yellowDark} />
+          <MaterialCommunityIcons name="crown" size={22} color={Colors.yellowDark} />
         </View>
         <View style={styles.flex}>
           <View style={styles.inline}>
@@ -146,7 +150,7 @@ export default function ProfilScreen() {
             {plus && <Pill label={plus === 'tahunan' ? 'Tahunan' : 'Bulanan'} tone="green" solid />}
           </View>
           <AppText variant="caption" color={Colors.text}>
-            {plus ? 'Swipe tanpa batas & diskon psikolog 20% aktif' : 'Upgrade untuk swipe tanpa batas & diskon psikolog'}
+            {plus ? 'Skip tanpa batas & diskon psikolog 20% aktif' : 'Upgrade untuk skip tanpa batas & diskon psikolog'}
           </AppText>
         </View>
         <Pill

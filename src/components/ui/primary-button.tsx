@@ -1,4 +1,5 @@
 import Feather from '@expo/vector-icons/Feather';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import type { ComponentProps } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
@@ -13,7 +14,7 @@ type Props = {
   icon?: ComponentProps<typeof Feather>['name'];
   color?: string;
   // 'chat' = ikon chat yang sama dengan navbar
-  leadingIcon?: ComponentProps<typeof Feather>['name'] | 'chat';
+  leadingIcon?: ComponentProps<typeof Feather>['name'] | 'chat' | 'crown';
   style?: StyleProp<ViewStyle>;
 };
 
@@ -42,6 +43,8 @@ export function PrimaryButton({
       <View style={styles.content}>
         {leadingIcon === 'chat' ? (
           <ChatIcon size={20} color="#FFFFFF" />
+        ) : leadingIcon === 'crown' ? (
+          <MaterialCommunityIcons name="crown" size={20} color="#FFFFFF" />
         ) : (
           leadingIcon && <Feather name={leadingIcon} size={20} color="#FFFFFF" />
         )}

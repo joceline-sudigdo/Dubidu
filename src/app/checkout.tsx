@@ -16,6 +16,7 @@ import { formatRupiah } from '@/data/parent';
 import { qrisSteps, vaBanks, vaSteps, type Bank, type PlusPlan } from '@/data/plus';
 import { isPlusRole, subscribePlus } from '@/lib/membership-store';
 import { getSession } from '@/lib/session';
+import { addTransaction } from '@/lib/transactions-store';
 
 type Method = 'qris' | 'va';
 type Step = 'method' | 'pay' | 'success';
@@ -51,6 +52,12 @@ export default function CheckoutScreen() {
       if ((params.plan === 'bulanan' || params.plan === 'tahunan') && isPlusRole(role)) {
         subscribePlus(role, params.plan as PlusPlan);
       }
+      addTransaction({
+        title,
+        subtitle: `No. pesanan ${orderId}`,
+        amount: -(amount + ADMIN_FEE[method]),
+        method: method === 'qris' ? 'QRIS' : `VA ${bank.name}`,
+      });
       setStep('success');
     }, 1500);
   };
@@ -64,7 +71,7 @@ export default function CheckoutScreen() {
           </View>
           <AppText style={styles.successTitle}>Pembayaran Berhasil!</AppText>
           <AppText variant="body" color={Colors.textSecondary} style={styles.center}>
-            Terima kasih. {title} sudah aktif.
+            Terima kasih. Pembayaran untuk {title} sudah kami terima.
           </AppText>
         </View>
         <ClayCard style={styles.list}>

@@ -2,9 +2,9 @@ import Feather from '@expo/vector-icons/Feather';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState, type ComponentRef } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, LinearTransition } from 'react-native-reanimated';
 
 import { ClayCard } from '@/components/parent/clay-card';
 import { EmptyState } from '@/components/parent/empty-state';
@@ -13,6 +13,7 @@ import { Screen } from '@/components/parent/screen';
 import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
 import { Tones } from '@/components/parent/tones';
 import { AppText } from '@/components/ui/app-text';
+import { VoucherList } from '@/components/shared/voucher-list';
 import { celebrateFish } from '@/components/ui/fish-celebration';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import {
@@ -26,6 +27,7 @@ import {
   type Reward,
   type RewardCategory,
 } from '@/data/rewards';
+import { rewardPhotos } from '@/data/images';
 import { showAlert } from '@/lib/dialog';
 import { claimMission, hasPoints, redeemReward, usePoints } from '@/lib/points-store';
 import { getSession } from '@/lib/session';
@@ -39,6 +41,7 @@ export default function RewardsScreen() {
   const store = usePoints();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('Semua');
   const [showHistory, setShowHistory] = useState(false);
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
 
   if (!hasPoints(role)) {
     return (
@@ -52,6 +55,8 @@ export default function RewardsScreen() {
   const { current, next } = levelOf(points);
   const progress = next ? (points - current.min) / (next.min - current.min) : 1;
   const goal = NEXT_GOAL[role];
+  // isi garis jalur level: sampai level sekarang + progres menuju level berikutnya
+  const pathFill = Math.min(current.level - 1 + Math.min(progress, 1), LEVELS.length - 1) / (LEVELS.length - 1);
   const list = rewards[role].filter((r) => filter === 'Semua' || r.category === filter);
 
   const doMission = (m: Mission, claimed: boolean) => {
@@ -64,6 +69,13 @@ export default function RewardsScreen() {
     } else if (m.action.href) {
       router.push(m.action.href);
     }
+  };
+
+  // riwayat dibuka lalu layar ikut digulir ke bawah supaya isinya kelihatan
+  const toggleHistory = () => {
+    const open = !showHistory;
+    setShowHistory(open);
+    if (open) setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 80);
   };
 
   const redeem = (r: Reward) => {
@@ -81,7 +93,7 @@ export default function RewardsScreen() {
         text: 'Tukar',
         onPress: () => {
           redeemReward(r.id, r.title, r.cost);
-          showAlert('Penukaran berhasil', 'Kode hadiah dikirim ke email dan notifikasi kamu.');
+          showAlert('Penukaran berhasil', 'Vouchernya sudah masuk ke bagian Voucher Saya.');
         },
       },
     ]);
@@ -107,7 +119,8 @@ export default function RewardsScreen() {
           }
         />
       }
-      edges={['top', 'bottom']}>
+      edges={['top', 'bottom']}
+      scrollRef={scrollRef}>
       <LinearGradient colors={[Colors.primary, Colors.primaryDark]} style={[styles.balance, Shadow.button]}>
         <View style={styles.balanceTop}>
           <View style={styles.flex}>
@@ -123,7 +136,7 @@ export default function RewardsScreen() {
               <AppText style={styles.balanceValue}>{fmt(points)}</AppText>
             </View>
           </View>
-          <Image source={require('@/assets/images/mascot/wait.png')} style={styles.mascot} contentFit="contain" />
+          <Image source={require('@/assets/images/mascot/bear-fish.png')} style={styles.mascot} contentFit="contain" />
         </View>
         <View style={styles.balanceDivider} />
         <View style={styles.spaceBetween}>
@@ -156,39 +169,54 @@ export default function RewardsScreen() {
             <AppText variant="caption">Kenaikan tingkat membuka reward eksklusif</AppText>
           </View>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.levels}>
-          {LEVELS.map((l, i) => {
+        {/* garis jalur digambar sekali di belakang, lingkaran level di atasnya */}
+        <View style={styles.levels}>
+          <View style={styles.levelTrack} />
+          <View style={[styles.levelTrackOn, { width: `${pathFill * 80}%` }]} />
+          {LEVELS.map((l) => {
             const reached = current.level >= l.level;
             const isCurrent = current.level === l.level;
             return (
               <View key={l.level} style={styles.levelStep}>
-                {i > 0 && <View style={[styles.levelLine, reached && styles.levelLineOn]} />}
-                {isCurrent && (
-                  <View style={styles.here}>
-                    <AppText style={styles.hereText}>Kamu di sini!</AppText>
-                  </View>
-                )}
-                <View
-                  style={[
-                    styles.levelCircle,
-                    reached && styles.levelCircleOn,
-                    isCurrent && styles.levelCircleCurrent,
-                  ]}>
-                  {isCurrent ? (
-                    <Image source={FISH} style={styles.levelFish} contentFit="contain" />
-                  ) : (
-                    <Feather name={reached ? 'check' : 'lock'} size={16} color={reached ? '#FFFFFF' : Colors.textMuted} />
+                <View style={styles.hereSlot}>
+                  {isCurrent && (
+                    <View style={styles.here}>
+                      <AppText style={styles.hereText} numberOfLines={1}>
+                        Kamu di sini!
+                      </AppText>
+                    </View>
                   )}
                 </View>
+                <View style={styles.circleSlot}>
+                  <View
+                    style={[
+                      styles.levelCircle,
+                      reached && styles.levelCircleOn,
+                      isCurrent && styles.levelCircleCurrent,
+                    ]}>
+                    {isCurrent ? (
+                      <Image source={FISH} style={styles.levelFish} contentFit="contain" />
+                    ) : (
+                      <Feather name={reached ? 'check' : 'lock'} size={16} color={reached ? '#FFFFFF' : Colors.textMuted} />
+                    )}
+                  </View>
+                </View>
                 <AppText style={[styles.levelNum, isCurrent && styles.bold]}>Lv {l.level}</AppText>
-                <AppText variant="caption" style={isCurrent && styles.bold}>
+                <AppText style={[styles.levelName, isCurrent && styles.bold]} numberOfLines={1}>
                   {l.name}
                 </AppText>
-                {l.perk && !reached && <Pill label={l.perk} tone="blue" />}
+                {l.perk && (
+                  <View style={[styles.perk, reached && styles.perkOn]}>
+                    <Feather name={l.perk.icon} size={10} color={reached ? Colors.green : Colors.primary} />
+                    <AppText style={[styles.perkText, reached && { color: Colors.green }]} numberOfLines={1}>
+                      {l.perk.label}
+                    </AppText>
+                  </View>
+                )}
               </View>
             );
           })}
-        </ScrollView>
+        </View>
       </ClayCard>
 
       <ClayCard style={styles.gap10}>
@@ -235,6 +263,9 @@ export default function RewardsScreen() {
         })}
       </ClayCard>
 
+      <SectionHeader title="Voucher Saya" right={<Feather name="tag" size={20} color={Colors.primary} />} />
+      <VoucherList items={rewards[role].filter((r) => store.redeemed[role].includes(r.id))} />
+
       <SectionHeader title="Tukar Hadiah" right={<Feather name="gift" size={22} color={Colors.primary} />} />
       <AppText variant="caption" style={styles.subtitle}>
         Hadiah manis untuk {role === 'parent' ? 'bunda dan si kecil' : 'pendamping hebat'}
@@ -261,7 +292,11 @@ export default function RewardsScreen() {
             <Animated.View key={r.id} layout={LinearTransition} entering={FadeInDown} style={styles.gridItem}>
               <View style={[styles.reward_card, Shadow.soft, locked && { opacity: 0.6 }]}>
                 <View style={[styles.rewardArt, { backgroundColor: t.bg }]}>
-                  <Feather name={r.icon} size={30} color={t.fg} />
+                  {rewardPhotos[r.id] ? (
+                    <Image source={rewardPhotos[r.id]} style={StyleSheet.absoluteFill} contentFit="cover" />
+                  ) : (
+                    <Feather name={r.icon} size={30} color={t.fg} />
+                  )}
                   {locked && (
                     <View style={styles.lockPill}>
                       <Feather name="lock" size={10} color={Colors.textSecondary} />
@@ -298,7 +333,7 @@ export default function RewardsScreen() {
         })}
       </View>
 
-      <Pressable onPress={() => setShowHistory((h) => !h)} style={styles.historyLink}>
+      <Pressable onPress={toggleHistory} style={styles.historyLink}>
         <View style={styles.inline}>
           <AppText variant="link">Riwayat Ikan</AppText>
           <Feather name={showHistory ? 'chevron-up' : 'arrow-right'} size={16} color={Colors.primary} />
@@ -306,6 +341,7 @@ export default function RewardsScreen() {
         <AppText variant="caption">Lihat semua perolehan & penukaran</AppText>
       </Pressable>
       {showHistory && (
+        <Animated.View entering={FadeIn.duration(250)}>
         <ClayCard style={styles.historyCard}>
           {store.history[role].map((h, i, arr) => (
             <View key={h.id} style={[styles.historyRow, i < arr.length - 1 && styles.divider]}>
@@ -320,6 +356,7 @@ export default function RewardsScreen() {
             </View>
           ))}
         </ClayCard>
+        </Animated.View>
       )}
     </Screen>
   );
@@ -408,8 +445,8 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   mascot: {
-    width: 120,
-    height: 90,
+    width: 110,
+    height: 110,
   },
   balanceDivider: {
     height: 1,
@@ -448,31 +485,44 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   levels: {
-    paddingTop: 26,
+    flexDirection: 'row',
     paddingBottom: 4,
   },
-  levelStep: {
-    width: 78,
-    alignItems: 'center',
-    gap: 4,
-  },
-  levelLine: {
+  // garis lewat tengah lingkaran: tinggi hereSlot (24) + setengah circleSlot (25)
+  levelTrack: {
     position: 'absolute',
-    top: 20,
-    right: 54,
-    width: 62,
+    top: 24 + 25 - 1.5,
+    left: '10%',
+    right: '10%',
     height: 3,
+    borderRadius: 2,
     backgroundColor: Colors.border,
   },
-  levelLineOn: {
+  levelTrackOn: {
+    position: 'absolute',
+    top: 24 + 25 - 1.5,
+    left: '10%',
+    height: 3,
+    borderRadius: 2,
     backgroundColor: Colors.primary,
+  },
+  levelStep: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  hereSlot: {
+    height: 24,
+    width: '100%',
+    alignItems: 'center',
   },
   here: {
     position: 'absolute',
-    top: -24,
+    top: 0,
+    width: 84,
+    alignItems: 'center',
     backgroundColor: Colors.primaryDark,
     borderRadius: Radius.pill,
-    paddingHorizontal: 8,
     paddingVertical: 2,
   },
   hereText: {
@@ -480,11 +530,18 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#FFFFFF',
   },
+  circleSlot: {
+    height: 50,
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
   levelCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: Colors.inputBackground,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -496,9 +553,6 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     backgroundColor: Colors.yellow,
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    marginTop: -4,
   },
   levelFish: {
     width: 30,
@@ -506,8 +560,31 @@ const styles = StyleSheet.create({
   },
   levelNum: {
     fontFamily: Fonts.body,
-    fontSize: 13,
+    fontSize: 12,
     color: Colors.textSecondary,
+  },
+  levelName: {
+    fontFamily: Fonts.body,
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  perk: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.primarySoft,
+  },
+  perkOn: {
+    backgroundColor: Colors.greenSoft,
+  },
+  perkText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 10,
+    color: Colors.primary,
   },
   mission: {
     flexDirection: 'row',

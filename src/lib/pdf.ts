@@ -1,3 +1,4 @@
+import { File, Paths } from 'expo-file-system';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
@@ -6,7 +7,9 @@ import { showAlert } from './dialog';
 
 export type PdfSection = { title: string; rows?: [string, string][]; paragraphs?: string[]; bullets?: string[] };
 
-const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// aman walau nilainya kosong / angka
+const esc = (t: unknown) =>
+  String(t ?? '-').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 // template HTML sederhana bergaya Dubidu untuk diubah jadi PDF
 function buildHtml(title: string, subtitle: string, sections: PdfSection[]) {
@@ -22,7 +25,7 @@ function buildHtml(title: string, subtitle: string, sections: PdfSection[]) {
     )
     .join('');
 
-  return `<!doctype html><html><head><meta charset="utf-8" />
+  return `<!doctype html><html><head><meta charset="utf-8" /><title>${esc(title)}</title>
   <style>
     body { font-family: -apple-system, Roboto, Helvetica, Arial, sans-serif; color: #22324A; padding: 32px; }
     header { background: #3D7ABD; color: #fff; border-radius: 16px; padding: 20px 24px; margin-bottom: 24px; }
@@ -43,21 +46,62 @@ function buildHtml(title: string, subtitle: string, sections: PdfSection[]) {
   </body></html>`;
 }
 
-// buat PDF lalu buka menu simpan/bagikan (web: dialog print bawaan browser)
+// buat PDF lalu buka menu simpan/bagikan.
+// kalau gagal, cadangannya dialog print bawaan HP (bisa pilih "Simpan sebagai PDF")
 export async function downloadPdf(title: string, subtitle: string, sections: PdfSection[]) {
+  let html: string;
   try {
-    const html = buildHtml(title, subtitle, sections);
-    if (Platform.OS === 'web') {
+    html = buildHtml(title, subtitle, sections);
+  } catch (e) {
+    showAlert('Gagal membuat PDF', errorText(e));
+    return;
+  }
+
+  if (Platform.OS === 'web') {
+    try {
       await Print.printAsync({ html });
-      return;
+    } catch (e) {
+      showAlert('Gagal membuat PDF', errorText(e));
     }
+    return;
+  }
+
+  try {
     const { uri } = await Print.printToFileAsync({ html });
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf', dialogTitle: title });
+    const named = await renameFile(uri, title);
+    if (Platform.OS === 'android') {
+      // dialog print Android pakai nama file dari uri -> pilih "Simpan sebagai PDF"
+      await Print.printAsync({ uri: named });
+    } else if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(named, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf', dialogTitle: title });
     } else {
-      showAlert('PDF tersimpan', `File tersimpan di: ${uri}`);
+      await Print.printAsync({ uri: named });
     }
+  } catch (e) {
+    // dialog print yang ditutup user juga dianggap error oleh expo-print, abaikan saja
+    if (!/cancel|did not complete/i.test(String(e))) showAlert('Gagal membuat PDF', errorText(e));
+  }
+}
+
+const errorText = (e: unknown) =>
+  `Coba lagi beberapa saat lagi.\n(${e instanceof Error ? e.message : String(e)})`;
+
+// nama file default dari expo-print acak, ganti jadi misal "Dubidu_Report_Card_Elisya_2026-11-01.pdf"
+async function renameFile(uri: string, title: string) {
+  try {
+    const slug = title.replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    const date = new Date().toISOString().slice(0, 10);
+    const dest = new File(Paths.cache, `Dubidu_${slug}_${date}.pdf`);
+    if (dest.exists) dest.delete();
+    const src = new File(uri);
+    try {
+      await src.copy(dest);
+    } catch {
+      // cadangan kalau copy gagal: tulis ulang isi file-nya
+      await dest.write(await src.bytes());
+    }
+    return dest.uri;
   } catch {
-    showAlert('Gagal membuat PDF', 'Coba lagi beberapa saat lagi.');
+    return uri;
   }
 }
