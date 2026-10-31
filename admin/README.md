@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Admin DUBIDU
 
-## Getting Started
+Panel admin (satu role: super admin) untuk aplikasi DUBIDU. Next.js App Router + TypeScript + Tailwind + shadcn/ui.
 
-First, run the development server:
+## Menjalankan
 
 ```bash
+cp .env.example .env.local   # lalu isi SESSION_SECRET
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Akun demo (data dummy)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Selama backend belum disambungkan, login memakai akun di `src/lib/mock/admins.ts`:
 
-## Learn More
+- Email: `admin@dubidu.id`
+- Kata sandi: `DubiduAdmin#2026`
 
-To learn more about Next.js, take a look at the following resources:
+Di production, akun admin dibuat lewat backend: `npm run admin:create -- <email> <password> "Nama"`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Struktur
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+  app/
+    (auth)/login/          halaman masuk + form (useActionState)
+    (dashboard)/           layout sidebar + header, halaman yang butuh login
+      page.tsx             Ringkasan (statistik agregat + aktivitas terbaru)
+      verifikasi/          Verifikasi teacher (rekomendasi psikolog → keputusan admin)
+      pembayaran/          Bukti transfer manual + tujuan transfer
+      pencairan/           Pencairan dana teacher & psikolog
+      pengguna/            Status akun + buat akun psikolog
+      moderasi/            Laporan, postingan & komentar, ulasan
+      konten/              Legal, FAQ, template Doobie, rewards, paket Plus & promo
+      audit-log/           Audit Log
+  proxy.ts                 cek cepat cookie sesi (Next 16: pengganti middleware)
+  components/
+    ui/                    komponen shadcn
+    shared/                PageHeader, StatusBadge, StatCard, DataTable, Logo
+    layout/                sidebar, menu tablet, menu admin
+    audit/                 tabel audit log
+  lib/
+    api.ts                 lapisan data (sekarang dummy, nanti fetch ke BACKEND_API_URL)
+    mock/                  data dummy
+    actions/               Server Action (login, logout, dst.)
+    dal.ts                 getCurrentAdmin(): validasi sesi di setiap halaman/aksi
+    session.ts             cookie httpOnly bertanda tangan HMAC
+    env.ts                 env server-only
+  types/                   tipe data (mengikuti skema backend)
+```
 
-## Deploy on Vercel
+## Aturan
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Data anak, laporan perkembangan, hasil asesmen, dan isi chat **tidak** ditampilkan.
+- Setiap aksi yang mengubah data wajib memanggil `createAuditLog()` (siapa, aksi, target, alasan, waktu).
+- Fetch ke backend hanya dari server (Server Component / Server Action), tidak dari komponen `"use client"`.
