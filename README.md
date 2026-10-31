@@ -56,6 +56,5 @@ Join our community of developers creating universal apps.
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
 =======
-# Dubidu
-inception hackathon
->>>>>>> 7ec0d55af1b2a1cca025f031e5f768ba408d05c2
+# duwbiduw
+>>>>>>> 818f94799afbbb05954d8dfcd0ed912c8feb5bc5
