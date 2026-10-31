@@ -3,7 +3,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { router, type Href } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
 import { Pill } from '@/components/parent/pill';
@@ -12,6 +12,7 @@ import { TabHeader } from '@/components/parent/screen-header';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { SecureNote } from '@/components/ui/secure-note';
+import { EdgeScroll } from '@/components/parent/edge-scroll';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import type { UserRole } from '@/lib/auth';
 import { useChatThreads } from '@/lib/chat-store';
@@ -105,7 +106,7 @@ export function ChatListScreen() {
             </Pressable>
           )}
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+        <EdgeScroll contentContainerStyle={styles.filters}>
           {(
             [
               ['all', 'Semua'],
@@ -124,7 +125,7 @@ export function ChatListScreen() {
               style={filter !== id && styles.idle}
             />
           ))}
-        </ScrollView>
+        </EdgeScroll>
       </>
 
       {chatThreads.length === 0 && (

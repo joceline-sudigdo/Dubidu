@@ -11,12 +11,13 @@ import { Screen } from '@/components/parent/screen';
 import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
 import type { Tone } from '@/components/parent/tones';
 import { VerifyBadge } from '@/components/psikolog/verify-badge';
+import { ScheduleComposer, type ScheduleOffer } from '@/components/shared/schedule-composer';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { openImages } from '@/components/ui/image-viewer';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { applicants, documentIssue, GENERAL_ISSUES, type VerifyStatus } from '@/data/psychologist';
-import { showAlert, showPrompt } from '@/lib/dialog';
+import { showAlert } from '@/lib/dialog';
 import { decideApplicant, interviewOf, resultOf, scheduleInterview, usePsikolog } from '@/lib/psikolog-store';
 
 const SKILL_TONES: Tone[] = ['red', 'blue', 'green'];
@@ -27,6 +28,7 @@ export default function TinjauScreen() {
   const store = usePsikolog();
   const result = resultOf(store, a);
   const interview = interviewOf(store, a);
+  const [picking, setPicking] = useState(false);
   const missing = a.documents.filter((d) => !d.uploaded).length;
   // dokumen yang belum diunggah otomatis ditandai sebagai kekurangan
   const [issues, setIssues] = useState<string[]>(
@@ -82,20 +84,30 @@ export default function TinjauScreen() {
     decide('rejected', 'Tolak pengajuan?', `Catatanmu akan dikirim ke ${a.name}.`, 'Pengajuan ditolak');
   };
 
-  const editInterview = () =>
-    showPrompt({
-      title: 'Jadwalkan interview',
-      value: interview ?? '',
-      placeholder: 'Contoh: Senin, 12 Okt · 10:00 (online)',
-      onSubmit: (v) => {
-        if (!v.trim()) return;
-        scheduleInterview(a.id, v.trim());
-        showAlert('Jadwal tersimpan');
-      },
-    });
+  const editInterview = () => setPicking(true);
+
+  // format sama dengan data: "Kamis, 8 Okt · 13:00 (online)"
+  const saveInterview = (o: ScheduleOffer) => {
+    setPicking(false);
+    const [dayName, rest] = o.date.split(', ');
+    const [date, month] = rest.split(' ');
+    scheduleInterview(a.id, `${dayName}, ${date} ${month.slice(0, 3)} · ${o.hours.replace(' WIB', '')} (${o.place.toLowerCase()})`);
+    showAlert('Jadwal tersimpan', `Undangan interview dikirim ke ${a.name}.`);
+  };
 
   return (
     <Screen header={<ScreenHeader title="Tinjau Shadow Teacher" />} edges={['top', 'bottom']}>
+      <ScheduleComposer
+        visible={picking}
+        onClose={() => setPicking(false)}
+        onSend={saveInterview}
+        heading="Jadwalkan Interview"
+        submitText="Simpan Jadwal"
+        types={['Interview kompetensi']}
+        slots={['09:00', '10:30', '13:00', '15:00', '16:30']}
+        places={['Online', 'Tatap muka']}
+        withDetail={false}
+      />
       <View style={styles.heroWrap}>
         <ClayCard tone="blue" style={styles.hero}>
           <AppText style={styles.name}>{a.name}</AppText>

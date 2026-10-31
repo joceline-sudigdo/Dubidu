@@ -2,7 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
 import { BearAvatar } from '@/components/parent/bear-avatar';
@@ -14,6 +14,7 @@ import { HeroBanner } from '@/components/shared/hero-banner';
 import { PlusCard } from '@/components/shared/plus-card';
 import { DoobieCard } from '@/components/shared/doobie-card';
 import { AppText } from '@/components/ui/app-text';
+import { EdgeScroll } from '@/components/parent/edge-scroll';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { bannerPhotos } from '@/data/images';
 import { activeApplications, students, teacherProfile as me, todaySchedule } from '@/data/teacher';
@@ -52,7 +53,7 @@ export default function TeacherBerandaScreen() {
         </Pressable>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+      <EdgeScroll contentContainerStyle={styles.chips}>
         {students.map((s) => {
           const active = s.id === studentId;
           return (
@@ -65,7 +66,7 @@ export default function TeacherBerandaScreen() {
             </Pressable>
           );
         })}
-      </ScrollView>
+      </EdgeScroll>
 
       <HeroBanner
         title="Yuk, cari anak yang butuh bantuan!"
@@ -96,7 +97,7 @@ export default function TeacherBerandaScreen() {
       </ClayCard>
 
       <SectionHeader title="Pengajuan Aktif" />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.apps}>
+      <EdgeScroll contentContainerStyle={styles.apps}>
         {activeApplications.map((a) => (
           <Pressable key={a.id} onPress={() => router.push('/teacher/riwayat')} style={[styles.appCard, Shadow.button]}>
             <View style={styles.inline}>
@@ -113,10 +114,10 @@ export default function TeacherBerandaScreen() {
             </View>
           </Pressable>
         ))}
-      </ScrollView>
+      </EdgeScroll>
 
       <View style={styles.stats}>
-        <ClayCard style={styles.stat}>
+        <ClayCard onPress={() => router.push('/pencairan')} style={styles.stat}>
           <View style={styles.inline}>
             <Feather name="credit-card" size={15} color={Colors.primary} />
             <AppText variant="caption" color={Colors.primary}>

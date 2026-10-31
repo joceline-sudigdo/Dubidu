@@ -39,7 +39,7 @@ export const personPhotos: Record<string, Photo> = {
   "Wulan Sari": null,
 
   // psikolog
-  "Amanda Putri": null,
+  "Amanda Putri": require("@/assets/images/images/amanda.jpg"),
   "Dimas Wicaksono": null,
   "dr. Reni Anggraini": require("@/assets/images/images/reni.jpg"),
   "dr. Farhan Alatas": null,

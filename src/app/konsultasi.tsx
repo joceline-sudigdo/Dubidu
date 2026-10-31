@@ -2,7 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
 import { ClayCard } from '@/components/parent/clay-card';
@@ -10,6 +10,7 @@ import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { ScreenHeader } from '@/components/parent/screen-header';
 import { AppText } from '@/components/ui/app-text';
+import { EdgeScroll } from '@/components/parent/edge-scroll';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { finalPrice, formatRupiah, psychologists, type Psychologist } from '@/data/parent';
 
@@ -54,7 +55,7 @@ export default function PilihPsikologScreen() {
         )}
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+      <EdgeScroll contentContainerStyle={styles.filters}>
         {FILTERS.map((f) => (
           <Pill
             key={f}
@@ -66,7 +67,7 @@ export default function PilihPsikologScreen() {
             style={filter !== f && styles.filterIdle}
           />
         ))}
-      </ScrollView>
+      </EdgeScroll>
 
       <View style={styles.resultRow}>
         <AppText variant="caption" style={styles.flex}>

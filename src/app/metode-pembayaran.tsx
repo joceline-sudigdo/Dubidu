@@ -12,26 +12,10 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { SecureNote } from '@/components/ui/secure-note';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import { showActionSheet, showAlert, showPrompt } from '@/lib/dialog';
+import { getMethods, saveMethods, type Method } from '@/lib/payment-methods';
 import { getSession } from '@/lib/session';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
-type Method = { id: string; label: string; detail: string; icon: IconName; color: string };
-
-// disimpan di modul biar tetap ada saat halaman dibuka lagi (belum ke backend)
-const saved: Record<'pay' | 'payout', { list: Method[]; main: string }> = {
-  pay: {
-    list: [
-      { id: 'va-bca', label: 'Virtual Account BCA', detail: 'Otomatis dibuat saat bayar', icon: 'bank', color: '#0060AF' },
-      { id: 'gopay', label: 'GoPay', detail: '0812 •••• 0001', icon: 'wallet', color: '#00AED6' },
-    ],
-    main: 'va-bca',
-  },
-  payout: {
-    list: [{ id: 'bca', label: 'BCA', detail: '•••• 4821 a.n. pemilik akun', icon: 'bank', color: '#0060AF' }],
-    main: 'bca',
-  },
-};
-
 const PAY_OPTIONS: { label: string; icon: IconName; color: string; ask: string }[] = [
   { label: 'GoPay', icon: 'wallet', color: '#00AED6', ask: 'Nomor HP GoPay' },
   { label: 'OVO', icon: 'wallet', color: '#4C2A86', ask: 'Nomor HP OVO' },
@@ -39,20 +23,17 @@ const PAY_OPTIONS: { label: string; icon: IconName; color: string; ask: string }
 ];
 const BANKS = ['BCA', 'Mandiri', 'BNI', 'BRI', 'BSI'];
 
-function save(kind: 'pay' | 'payout', list: Method[], main: string) {
-  saved[kind] = { list, main };
-}
-
 const mask = (v: string) => `•••• ${v.replace(/\D/g, '').slice(-4)}`;
 
 // orang tua: metode pembayaran, teacher & psikolog: rekening pencairan
 export default function MetodePembayaranScreen() {
-  const kind = getSession().role === 'parent' ? 'pay' : 'payout';
-  const [list, setList] = useState(saved[kind].list);
-  const [main, setMain] = useState(saved[kind].main);
+  const role = getSession().role;
+  const kind = role === 'parent' ? 'pay' : 'payout';
+  const [list, setList] = useState(getMethods(role).list);
+  const [main, setMain] = useState(getMethods(role).main);
 
   const commit = (nextList: Method[], nextMain: string) => {
-    save(kind, nextList, nextMain);
+    saveMethods(role, nextList, nextMain);
     setList(nextList);
     setMain(nextMain);
   };

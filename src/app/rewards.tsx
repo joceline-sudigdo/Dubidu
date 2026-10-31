@@ -15,6 +15,7 @@ import { Tones } from '@/components/parent/tones';
 import { AppText } from '@/components/ui/app-text';
 import { VoucherList } from '@/components/shared/voucher-list';
 import { celebrateFish } from '@/components/ui/fish-celebration';
+import { EdgeScroll } from '@/components/parent/edge-scroll';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import {
   LEVEL_TITLE,
@@ -270,7 +271,7 @@ export default function RewardsScreen() {
       <AppText variant="caption" style={styles.subtitle}>
         Hadiah manis untuk {role === 'parent' ? 'bunda dan si kecil' : 'pendamping hebat'}
       </AppText>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+      <EdgeScroll contentContainerStyle={styles.filters}>
         {FILTERS.map((f) => (
           <Pill
             key={f}
@@ -282,7 +283,7 @@ export default function RewardsScreen() {
             style={filter !== f && styles.white}
           />
         ))}
-      </ScrollView>
+      </EdgeScroll>
       <View style={styles.grid}>
         {list.map((r) => {
           const locked = !!r.minLevel && current.level < r.minLevel;

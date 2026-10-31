@@ -2,7 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { Avatar } from '@/components/parent/avatar';
@@ -15,6 +15,7 @@ import { PlusCard } from '@/components/shared/plus-card';
 import { DoobieCard } from '@/components/shared/doobie-card';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
+import { EdgeScroll } from '@/components/parent/edge-scroll';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { bannerPhotos } from '@/data/images';
 import { activeTeachers, parentProfile, quickQuestion } from '@/data/parent';
@@ -56,7 +57,7 @@ export default function BerandaScreen() {
         </Pressable>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.childRow}>
+      <EdgeScroll contentContainerStyle={styles.childRow}>
         {children.map((c) => {
           const active = c.id === childId;
           return (
@@ -75,7 +76,7 @@ export default function BerandaScreen() {
           style={styles.addChild}>
           <Feather name="plus" size={18} color={Colors.textSecondary} />
         </Pressable>
-      </ScrollView>
+      </EdgeScroll>
 
       <HeroBanner
         title={`Temukan shadow teacher untuk ${child.name}!`}
@@ -125,7 +126,7 @@ export default function BerandaScreen() {
       )}
 
       <SectionHeader title="Teacher saat ini" />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.teacherRow}>
+      <EdgeScroll contentContainerStyle={styles.teacherRow}>
         {activeTeachers.map((t) => (
           <Pressable
             key={t.id}
@@ -146,7 +147,7 @@ export default function BerandaScreen() {
             </View>
           </Pressable>
         ))}
-      </ScrollView>
+      </EdgeScroll>
 
       <Pressable onPress={() => router.push('/konsultasi')} style={[styles.psy, Shadow.clay]}>
         <View style={styles.psyIcon}>

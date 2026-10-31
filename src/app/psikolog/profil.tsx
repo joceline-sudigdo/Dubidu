@@ -66,7 +66,7 @@ export default function PsikologProfilScreen() {
         <AppText variant="body" color={Colors.textSecondary}>
           {p.title}
         </AppText>
-        <Pill label="Psikolog Mitra Dubidu" tone="blue" icon="check-circle" size="md" />
+        <Pill label="Psikolog Mitra Dubidu" tone="blue" icon="check-circle" size="md" style={styles.center} />
       </View>
 
       <View style={styles.stats}>
@@ -227,6 +227,9 @@ const styles = StyleSheet.create({
   hero: {
     alignItems: 'center',
     gap: 6,
+  },
+  center: {
+    alignSelf: 'center',
   },
   camera: {
     position: 'absolute',

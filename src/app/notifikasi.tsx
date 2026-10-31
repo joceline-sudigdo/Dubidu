@@ -2,7 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
 import { useState, type ComponentProps } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ClayCard } from '@/components/parent/clay-card';
 import { Pill } from '@/components/parent/pill';
@@ -10,6 +10,7 @@ import { Screen } from '@/components/parent/screen';
 import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
 import { Tones } from '@/components/parent/tones';
 import { AppText } from '@/components/ui/app-text';
+import { EdgeScroll } from '@/components/parent/edge-scroll';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { notifications as initial, type NotificationItem } from '@/data/parent';
 
@@ -73,7 +74,7 @@ export default function NotifikasiScreen() {
         {unread > 0 && <Pill label={`${unread} Baru`} tone="red" solid />}
       </ClayCard>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+      <EdgeScroll contentContainerStyle={styles.filters}>
         {FILTERS.map((f) => (
           <Pill
             key={f.id}
@@ -85,7 +86,7 @@ export default function NotifikasiScreen() {
             style={filter !== f.id && styles.filterIdle}
           />
         ))}
-      </ScrollView>
+      </EdgeScroll>
 
       {GROUPS.map((g) => {
         const list = visible.filter((n) => n.group === g.id);

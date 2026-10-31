@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Pill } from '@/components/parent/pill';
+import { ScheduleComposer, type ScheduleOffer } from '@/components/shared/schedule-composer';
 import { AppText } from '@/components/ui/app-text';
 import { BackButton } from '@/components/ui/back-button';
 import { openImages } from '@/components/ui/image-viewer';
@@ -43,7 +44,10 @@ export default function ChatDetailScreen() {
   const thread = threads.find((t) => t.id === id) ?? threads[0];
   const messages = thread.messages;
   const [text, setText] = useState('');
-  const [approved, setApproved] = useState(false);
+  const [approved, setApproved] = useState<string[]>([]);
+  const [composerOpen, setComposerOpen] = useState(false);
+  // hanya shadow teacher yang bisa menawarkan jadwal
+  const isTeacher = thread.owner === 'teacher';
   const [emojiOpen, setEmojiOpen] = useState(false);
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
 
@@ -52,6 +56,23 @@ export default function ChatDetailScreen() {
     if (!value) return;
     addMessage(thread.id, { id: String(Date.now()), from: 'me', type: 'text', text: value, time: nowTime(), read: false });
     setText('');
+  };
+
+  // klip: teacher bisa pilih kirim gambar atau tawaran jadwal
+  const openAttach = () =>
+    isTeacher
+      ? showActionSheet({
+          title: 'Lampirkan',
+          options: [
+            { label: 'Tawaran jadwal sesi', icon: 'calendar', onPress: () => setComposerOpen(true) },
+            { label: 'Gambar dari galeri', icon: 'image', onPress: attach },
+          ],
+        })
+      : attach();
+
+  const sendOffer = (offer: ScheduleOffer) => {
+    setComposerOpen(false);
+    addMessage(thread.id, { id: String(Date.now()), from: 'me', type: 'schedule', time: nowTime(), ...offer });
   };
 
   const attach = async () => {
@@ -191,8 +212,8 @@ export default function ChatDetailScreen() {
                 <ScheduleCard
                   key={m.id}
                   message={m}
-                  approved={approved}
-                  onApprove={() => setApproved(true)}
+                  approved={approved.includes(m.id)}
+                  onApprove={() => setApproved((list) => [...list, m.id])}
                   onReschedule={(slot) =>
                     addMessage(thread.id, {
                       id: String(Date.now()),
@@ -214,7 +235,7 @@ export default function ChatDetailScreen() {
 
           <View style={styles.inputBar}>
             <View style={styles.inputWrap}>
-              <Pressable accessibilityLabel="Lampirkan gambar" hitSlop={6} onPress={attach}>
+              <Pressable accessibilityLabel="Lampirkan" hitSlop={6} onPress={openAttach}>
                 <Feather name="paperclip" size={20} color={Colors.textSecondary} />
               </Pressable>
               <TextInput
@@ -248,6 +269,7 @@ export default function ChatDetailScreen() {
           )}
         </KeyboardAvoidingView>
       </SafeAreaView>
+      <ScheduleComposer visible={composerOpen} onClose={() => setComposerOpen(false)} onSend={sendOffer} />
     </View>
   );
 }
@@ -298,24 +320,29 @@ function ScheduleCard({
   onApprove: () => void;
   onReschedule: (slot: string) => void;
 }) {
+  const mine = message.from === 'me';
   return (
-    <View style={styles.bubbleWrap}>
+    <View style={[styles.bubbleWrap, styles.scheduleWrap, mine && styles.alignEnd]}>
       <View style={styles.schedule}>
         <View style={styles.scheduleHead}>
           <View style={styles.scheduleIcon}>
             <Feather name="calendar" size={20} color={Colors.yellowDark} />
           </View>
           <View style={styles.flex}>
-            <AppText style={styles.scheduleLabel}>JADWAL UJI COBA (TRIAL)</AppText>
+            <AppText style={styles.scheduleLabel}>{mine ? 'TAWARAN JADWAL' : 'JADWAL UJI COBA'}</AppText>
             <AppText style={styles.scheduleTitle}>{message.title}</AppText>
           </View>
-          <Pill label={approved ? 'Disetujui' : 'Siap Konfirmasi'} tone={approved ? 'green' : 'blue'} />
         </View>
+        <Pill
+          label={approved ? 'Disetujui' : mine ? 'Menunggu persetujuan orang tua' : 'Siap Konfirmasi'}
+          tone={approved ? 'green' : mine ? 'yellow' : 'blue'}
+          icon={approved ? 'check-circle' : 'clock'}
+        />
         <View style={styles.scheduleDivider} />
         <ScheduleRow icon="calendar" text={message.date} />
         <ScheduleRow icon="clock" text={message.hours} />
         <ScheduleRow icon="map-pin" text={message.place} />
-        {!approved && (
+        {!approved && !mine && (
           <View style={styles.scheduleActions}>
             <Pressable onPress={onApprove} style={styles.approve}>
               <AppText style={styles.approveText}>Setujui Sesi Ini</AppText>
@@ -453,7 +480,11 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: Colors.text,
   },
+  scheduleWrap: {
+    width: '86%',
+  },
   schedule: {
+    alignSelf: 'stretch',
     backgroundColor: '#FFFFFF',
     borderRadius: Radius.lg,
     borderWidth: 2,
@@ -497,6 +528,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 15,
     color: Colors.text,
+    flex: 1,
   },
   scheduleActions: {
     flexDirection: 'row',

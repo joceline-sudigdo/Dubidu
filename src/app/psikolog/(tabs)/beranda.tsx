@@ -122,7 +122,7 @@ export default function PsikologBerandaScreen() {
           <AppText style={styles.statValue}>{me.consultationsThisMonth}</AppText>
           <AppText variant="caption">bulan ini</AppText>
         </ClayCard>
-        <ClayCard onPress={() => router.push('/psikolog/pembayaran')} style={styles.stat}>
+        <ClayCard onPress={() => router.push('/pencairan')} style={styles.stat}>
           <View style={styles.inline}>
             <Feather name="credit-card" size={15} color={Colors.primary} />
             <AppText variant="caption" color={Colors.primary}>

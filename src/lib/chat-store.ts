@@ -44,7 +44,7 @@ export function addMessage(threadId: string, message: ChatMessage) {
       ? {
           ...t,
           messages: [...t.messages, message],
-          preview: message.type === 'text' ? message.text : 'Mengirim gambar',
+          preview: message.type === 'text' ? message.text : message.type === 'schedule' ? 'Tawaran jadwal sesi' : 'Mengirim gambar',
           time: message.time,
         }
       : t

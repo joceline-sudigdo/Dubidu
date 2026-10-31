@@ -1,6 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ClayCard } from '@/components/parent/clay-card';
 import { EmptyState } from '@/components/parent/empty-state';
@@ -8,6 +8,7 @@ import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { ScreenHeader } from '@/components/parent/screen-header';
 import { AppText } from '@/components/ui/app-text';
+import { EdgeScroll } from '@/components/parent/edge-scroll';
 import { Colors, Fonts } from '@/constants/theme';
 import { formatRupiah } from '@/data/parent';
 import { showAlert } from '@/lib/dialog';
@@ -23,7 +24,10 @@ export default function RiwayatTransaksiScreen() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('Semua');
   const isParent = getSession().role === 'parent';
   const shown = list.filter((t) => filter === 'Semua' || (filter === 'Masuk' ? t.amount > 0 : t.amount < 0));
-  const total = list.filter((t) => t.status === 'Berhasil').reduce((sum, t) => sum + t.amount, 0);
+  // orang tua: total pembayaran; teacher & psikolog: total dana masuk (penarikan saldo tidak dihitung)
+  const total = list
+    .filter((t) => t.status === 'Berhasil' && (isParent ? t.amount < 0 : t.amount > 0))
+    .reduce((sum, t) => sum + t.amount, 0);
 
   const open = (t: Transaction) =>
     showAlert(t.title, `${t.subtitle}\n${t.date} · ${t.method}\n${t.amount > 0 ? '+' : '-'}${formatRupiah(Math.abs(t.amount))} · ${t.status}`, [
@@ -54,11 +58,11 @@ export default function RiwayatTransaksiScreen() {
         <AppText variant="caption">{list.length} transaksi tercatat</AppText>
       </ClayCard>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+      <EdgeScroll contentContainerStyle={styles.filters}>
         {FILTERS.map((f) => (
           <Pill key={f} label={f} size="md" tone="blue" solid={filter === f} onPress={() => setFilter(f)} style={filter !== f && styles.white} />
         ))}
-      </ScrollView>
+      </EdgeScroll>
 
       {shown.length === 0 ? (
         <EmptyState title="Belum ada transaksi" />

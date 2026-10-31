@@ -2,7 +2,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useState, type ComponentProps } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ClayCard } from '@/components/parent/clay-card';
 import { Pill } from '@/components/parent/pill';
@@ -11,6 +11,7 @@ import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
 import { Tones } from '@/components/parent/tones';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
+import { EdgeScroll } from '@/components/parent/edge-scroll';
 import { Colors, Fonts, Shadow } from '@/constants/theme';
 import { psychologistNotifications as notifications, type PsychologistNotification } from '@/data/psychologist';
 
@@ -36,7 +37,7 @@ export default function PsikologNotifikasiScreen() {
 
   return (
     <Screen header={<ScreenHeader title="Notifikasi" />} edges={['top', 'bottom']}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+      <EdgeScroll contentContainerStyle={styles.filters}>
         {FILTERS.map((f) => (
           <Pill
             key={f.id}
@@ -48,7 +49,7 @@ export default function PsikologNotifikasiScreen() {
             style={filter !== f.id && styles.idle}
           />
         ))}
-      </ScrollView>
+      </EdgeScroll>
 
       {visible.length === 0 ? (
         <View style={styles.empty}>

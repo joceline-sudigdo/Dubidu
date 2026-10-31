@@ -258,7 +258,7 @@ export type ChatMessage =
   | { id: string; from: 'me' | 'them'; type: 'image'; uri: string; time: string; read?: boolean }
   | {
       id: string;
-      from: 'them';
+      from: 'me' | 'them';
       type: 'schedule';
       time: string;
       title: string;

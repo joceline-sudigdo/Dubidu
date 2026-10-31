@@ -1,10 +1,11 @@
 import Feather from '@expo/vector-icons/Feather';
 import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Tones } from '@/components/parent/tones';
 import { AppText } from '@/components/ui/app-text';
+import { EdgeScroll } from '@/components/parent/edge-scroll';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { rewardPhotos } from '@/data/images';
 import type { Reward } from '@/data/rewards';
@@ -33,7 +34,7 @@ export function VoucherList({ items }: { items: Reward[] }) {
   }
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+    <EdgeScroll contentContainerStyle={styles.row}>
       {items.map((r) => {
         const code = voucherCode(r.id);
         const t = Tones[r.tone];
@@ -74,7 +75,7 @@ export function VoucherList({ items }: { items: Reward[] }) {
           </Pressable>
         );
       })}
-    </ScrollView>
+    </EdgeScroll>
   );
 }
 

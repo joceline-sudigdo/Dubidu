@@ -205,14 +205,19 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: Colors.primary,
   },
+  // kalau badge panjang, "Lihat Detail" turun ke baris bawah (tetap di dalam kartu)
   footer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
+    rowGap: 10,
+    columnGap: 8,
   },
   link: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginLeft: 'auto',
   },
 });
