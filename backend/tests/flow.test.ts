@@ -274,7 +274,11 @@ describe("DUBIDU API", () => {
     const msgs = await api(`/conversations/${res.data.conversationId}/messages`, { token: parentToken });
     assert.match(msgs.data.at(-1).text, /menerima tawaran pendampingan untuk Budi/);
 
+    const lastSeen = msgs.data.at(-1).createdAt;
     await api(`/conversations/${res.data.conversationId}/messages`, { token: parentToken, body: { type: "TEXT", text: "Terima kasih Kak!" } });
+    // cek berkala (tanpa realtime): hanya pesan setelah pesan terakhir yang sudah dilihat
+    const fresh = await api(`/conversations/${res.data.conversationId}/messages?after=${encodeURIComponent(lastSeen)}`, { token: teacherToken });
+    assert.deepEqual(fresh.data.map((m: { text: string }) => m.text), ["Terima kasih Kak!"]);
     const convos = await api("/conversations", { token: teacherToken });
     const c = convos.data.find((x: { id: string }) => x.id === res.data.conversationId);
     assert.equal(c.unread, 1);

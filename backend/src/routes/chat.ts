@@ -91,9 +91,14 @@ chatRouter.get("/:id/messages", async (req, res) => {
   await loadConversation(param(req, "id"), userId);
   const limit = Math.min(Number(req.query.limit ?? 50), 100);
   const before = req.query.before ? new Date(String(req.query.before)) : undefined;
+  // ?after=<createdAt pesan terakhir> → hanya pesan baru (untuk cek berkala tiap beberapa detik)
+  const after = req.query.after ? new Date(String(req.query.after)) : undefined;
 
   const rows = await prisma.message.findMany({
-    where: { conversationId: param(req, "id"), createdAt: before ? { lt: before } : undefined },
+    where: {
+      conversationId: param(req, "id"),
+      createdAt: before ? { lt: before } : after ? { gt: after } : undefined,
+    },
     orderBy: { createdAt: "desc" },
     take: limit,
   });

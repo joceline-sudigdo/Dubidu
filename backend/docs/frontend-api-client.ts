@@ -3,7 +3,7 @@
 //  Salin ke frontend sebagai `src/lib/api.ts`, lalu ganti isi `src/lib/auth.ts`.
 //
 //  1. Di root frontend buat file `.env`:
-//       EXPO_PUBLIC_API_URL=https://dubidu-api.onrender.com
+//       EXPO_PUBLIC_API_URL=https://dubidu-api.vercel.app
 //     (lokal di HP fisik: http://<IP-laptop>:4000, bukan localhost)
 //  2. Token disimpan dengan expo-secure-store:  npx expo install expo-secure-store
 //  3. Realtime chat (opsional):                  npm i socket.io-client
@@ -169,6 +169,30 @@ export const askDoobie = (message: string, childId?: string, topic?: string) =>
 // import { io } from 'socket.io-client';
 // const socket = io(BASE_URL, { auth: { token: await getToken() } });
 // socket.on('message:new', ({ conversationId, message }) => { ... });
+
+// ---------------------------------------------------------------------------
+//  Chat tanpa realtime (server di Vercel): cek pesan baru tiap beberapa detik
+//  Pakai di layar chat/[id]:
+//    useEffect(() => pollMessages(id, lastCreatedAt, (baru) => setMessages((m) => [...m, ...baru])), [id]);
+// ---------------------------------------------------------------------------
+
+export function pollMessages(conversationId: string, lastCreatedAt: string | null, onNew: (msgs: any[]) => void, everyMs = 4000) {
+  let last = lastCreatedAt;
+  const timer = setInterval(async () => {
+    try {
+      const q = last ? `?after=${encodeURIComponent(last)}` : '';
+      const fresh = await api<any[]>(`/conversations/${conversationId}/messages${q}`);
+      if (fresh.length) {
+        last = fresh[fresh.length - 1].createdAt;
+        onNew(fresh);
+        api(`/conversations/${conversationId}/read`, { body: {} }).catch(() => {});
+      }
+    } catch {
+      // koneksi putus sebentar → coba lagi di putaran berikutnya
+    }
+  }, everyMs);
+  return () => clearInterval(timer); // dipanggil otomatis saat layar ditutup
+}
 
 // ---------------------------------------------------------------------------
 //  Lupa password (email)

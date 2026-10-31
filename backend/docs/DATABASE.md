@@ -139,6 +139,6 @@ Rumus ini sama dengan `matchScore` di frontend. Hanya teacher **terverifikasi** 
 1. Edit `prisma/schema.prisma` (misal tambah kolom `Child.bloodType String?`).
 2. `npm run db:migrate -- --name tambah_golongan_darah` → file SQL baru dibuat di `prisma/migrations/` dan langsung diterapkan ke database lokal.
 3. Commit file schema **dan** folder migrasi baru.
-4. Di server produksi, `npx prisma migrate deploy` (sudah otomatis di build command Render) menerapkan migrasi tersebut.
+4. Di server produksi, `npx prisma migrate deploy` (sudah otomatis saat build di Vercel, lihat vercel.json) menerapkan migrasi tersebut.
 
 > Jangan pernah menjalankan `prisma migrate reset` / `db:reset` ke database produksi — semua data akan hilang.

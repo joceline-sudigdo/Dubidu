@@ -37,6 +37,11 @@ export async function storeFile(file: Express.Multer.File, folder: string): Prom
     return result.secure_url;
   }
 
+  // Vercel (serverless) tidak punya penyimpanan file permanen → wajib Cloudinary
+  if (process.env.VERCEL) {
+    throw new HttpError(500, "Penyimpanan file belum dikonfigurasi (isi CLOUDINARY_URL di Vercel)");
+  }
+
   const ext = path.extname(file.originalname) || (file.mimetype === "application/pdf" ? ".pdf" : ".jpg");
   const name = `${folder}-${randomUUID()}${ext}`;
   await fs.mkdir(LOCAL_UPLOAD_DIR, { recursive: true });

@@ -1,6 +1,6 @@
 # Referensi API DUBIDU
 
-Base URL: `https://<nama-service>.onrender.com/api` (lokal: `http://localhost:4000/api`)
+Base URL: `https://dubidu-api.vercel.app/api` (lokal: `http://localhost:4000/api`)
 
 - Semua body & respons berformat JSON.
 - Endpoint bertanda 🔒 butuh header `Authorization: Bearer <token>` (token dari login/register).
@@ -119,7 +119,7 @@ Bidang keahlian (kunci): `speech`, `communication`, `adhd`, `sensory`, `social`,
 | Method | Path | Keterangan |
 |---|---|---|
 | GET 🔒 | `/conversations` | daftar chat + `unread` |
-| GET 🔒 | `/conversations/:id/messages?before=&limit=50` | bentuk `ChatMessage` |
+| GET 🔒 | `/conversations/:id/messages?before=&after=&limit=50` | bentuk `ChatMessage`. `after=<createdAt pesan terakhir>` → hanya pesan baru (dipakai untuk cek berkala tiap 3–5 detik saat layar chat terbuka) |
 | POST 🔒 | `/conversations/:id/messages` | `{ type: "TEXT", text }` / `{ type: "IMAGE", imageUrl }` / `{ type: "SCHEDULE", schedule: { title, date, hours, place } }` |
 | POST 🔒 | `/conversations/:id/read` | tandai dibaca |
 | GET 🔒 | `/quick-questions?pending=true` | |
@@ -128,7 +128,9 @@ Bidang keahlian (kunci): `speech`, `communication`, `adhd`, `sensory`, `social`,
 
 **Push notification:** setiap notifikasi (chat, booking, laporan, pengajuan) otomatis dikirim ke semua HP user yang terdaftar lewat `/auth/devices`. `data.link` berisi rute tujuan; Android `channelId`: `chat`, `booking`, `laporan`, `default`.
 
-**Realtime (Socket.IO)** — `io(BASE_URL_TANPA_/api, { auth: { token } })`, event: `message:new`, `message:read`, `notification:new`.
+**Server di Vercel (serverless): Socket.IO tidak aktif.** Saat layar chat terbuka, panggil `GET /conversations/:id/messages?after=...` tiap 3–5 detik; daftar chat & notifikasi cukup di-refresh saat layar dibuka / ditarik ke bawah. Push notification ke HP tetap jalan. Upload file maks ±4 MB per file.
+
+**Realtime (Socket.IO, hanya kalau server dijalankan sebagai server biasa — laptop/Render)** — `io(BASE_URL_TANPA_/api, { auth: { token } })`, event: `message:new`, `message:read`, `notification:new`.
 
 ## Psikolog & konsultasi
 

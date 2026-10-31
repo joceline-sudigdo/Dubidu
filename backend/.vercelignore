@@ -1,0 +1,8 @@
+# file yang TIDAK ikut diunggah saat `vercel deploy` dari laptop
+.env
+node_modules
+dist
+src/generated
+uploads
+tests
+*.log

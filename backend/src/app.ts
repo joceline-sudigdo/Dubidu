@@ -20,7 +20,7 @@ import { homeRouter } from "./routes/home.js";
 import { matchingRouter } from "./routes/matching.js";
 import { metaRouter } from "./routes/meta.js";
 import { notificationsRouter } from "./routes/notifications.js";
-import { paymentsRouter, paymentWebhookRouter, subscriptionRouter } from "./routes/payments.js";
+import { expireStalePayments, paymentsRouter, paymentWebhookRouter, subscriptionRouter } from "./routes/payments.js";
 import { consultationsRouter, psychologistsRouter } from "./routes/psychologists.js";
 import { reportsRouter } from "./routes/reports.js";
 import { reviewsRouter, teachersRouter } from "./routes/teachers.js";
@@ -32,6 +32,19 @@ export function createApp() {
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
   app.use(cors({ origin: config.corsOrigins.length ? config.corsOrigins : true }));
   app.use(express.json({ limit: "2mb" }));
+
+  // Di Vercel (serverless) tidak ada timer yang jalan terus, jadi pesanan yang lewat batas
+  // waktu bayar dibatalkan sambil melayani request (paling sering sekali per menit).
+  if (process.env.VERCEL) {
+    let lastRun = 0;
+    app.use(async (_req, _res, next) => {
+      if (Date.now() - lastRun > 60_000) {
+        lastRun = Date.now();
+        await expireStalePayments().catch((err) => console.error("Gagal memproses pembayaran kedaluwarsa:", err));
+      }
+      next();
+    });
+  }
   app.use("/uploads", express.static(LOCAL_UPLOAD_DIR));
 
   app.get("/", (_req, res) => res.json({ name: "DUBIDU API", docs: "/api/health" }));

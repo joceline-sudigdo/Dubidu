@@ -50,3 +50,15 @@ Akun demo (password `dubidu123`): `devi@dubidu.id` (orang tua), `pras@dubidu.id`
 | `npm test` | jalankan uji API |
 
 Lihat [docs/API.md](docs/API.md) untuk daftar endpoint dan [docs/DATABASE.md](docs/DATABASE.md) untuk rancangan database.
+
+## Deploy ke Vercel (gratis, tanpa kartu)
+
+File khusus: `index.js` (titik masuk serverless), `vercel.json` (install + build + migrasi), `.vercelignore`, `public/`.
+
+```bash
+npx vercel@latest login
+npx vercel@latest link        # sekali, buat project "dubidu-api"
+npx vercel@latest --prod      # setiap ada perubahan
+```
+
+Environment Variables diisi di vercel.com → project → Settings → Environment Variables (lihat `.env.example`). Di Vercel chat tidak realtime (pakai `?after=` untuk cek pesan baru) dan upload maks ±4 MB (wajib Cloudinary).
