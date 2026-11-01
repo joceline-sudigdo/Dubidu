@@ -420,6 +420,21 @@ subscriptionRouter.post("/", async (req, res) => {
   const { plan } = parse(z.object({ plan: z.enum(["MONTHLY", "YEARLY"]) }), req.body);
   const price = (await plusPrices(user.role as "PARENT" | "TEACHER"))[plan];
 
+  // tagihan Plus yang belum selesai dipakai lagi (tidak membuat tagihan dobel saat tombol ditekan ulang)
+  const open = await prisma.payment.findMany({
+    where: { userId: user.id, purpose: "SUBSCRIPTION", status: { in: ["PENDING", "VERIFYING"] } },
+    orderBy: { createdAt: "desc" },
+  });
+  for (const p of open) {
+    const sub = await prisma.subscription.findUnique({ where: { id: p.referenceId } });
+    const stillOpen = p.status === "VERIFYING" || !p.expiresAt || p.expiresAt > new Date();
+    if (sub && sub.plan === plan && stillOpen) {
+      return res.json({ subscription: sub, payment: p, reused: true });
+    }
+    // paket lain / sudah lewat batas waktu → tagihan lama dibatalkan (bukti yang sedang dicek admin tidak disentuh)
+    if (p.status === "PENDING") await markUnpaid(p.id, stillOpen ? "FAILED" : "EXPIRED");
+  }
+
   const current = await prisma.subscription.findFirst({
     where: { userId: user.id, active: true, endsAt: { gt: new Date() } },
     orderBy: { endsAt: "desc" },

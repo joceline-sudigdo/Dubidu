@@ -84,7 +84,11 @@ export function errorMessage(e: unknown) {
   return e instanceof Error ? e.message : 'Terjadi kesalahan. Coba lagi.';
 }
 
-/** Upload file dari expo-image-picker / document picker → URL file di server */
+/**
+ * Upload file dari expo-image-picker / document picker → URL file di server.
+ * Memakai XMLHttpRequest: fetch bawaan Expo versi baru menolak file berbentuk { uri, name, type }
+ * ("Unsupported FormDataPart implementation"), sedangkan XHR React Native menerimanya.
+ */
 export async function uploadFile(uri: string, folder: string, mimeType = 'image/jpeg') {
   const token = await getToken();
   const form = new FormData();
@@ -95,12 +99,26 @@ export async function uploadFile(uri: string, folder: string, mimeType = 'image/
   } else {
     form.append('file', { uri, name, type: mimeType } as unknown as Blob);
   }
-  const res = await fetch(`${API_URL}/api/uploads?folder=${encodeURIComponent(folder)}`, {
-    method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: form,
+  const { status, data } = await new Promise<{ status: number; data: { url?: string; error?: string } | null }>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_URL}/api/uploads?folder=${encodeURIComponent(folder)}`);
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.timeout = 60000;
+    xhr.onload = () => {
+      let parsed = null;
+      try {
+        parsed = JSON.parse(xhr.responseText);
+      } catch {
+        // balasan bukan JSON (mis. file terlalu besar ditolak server)
+      }
+      resolve({ status: xhr.status, data: parsed });
+    };
+    xhr.onerror = () => reject(new ApiError(0, 'Tidak bisa terhubung ke server. Periksa koneksi internetmu.'));
+    xhr.ontimeout = () => reject(new ApiError(0, 'Upload terlalu lama. Coba foto yang lebih kecil.'));
+    xhr.send(form);
   });
-  const data = await res.json().catch(() => null);
-  if (!res.ok) throw new ApiError(res.status, data?.error ?? 'Upload gagal, coba file yang lebih kecil (maks. 4 MB).');
-  return data.url as string;
+  if (status < 200 || status >= 300 || !data?.url) {
+    throw new ApiError(status, data?.error ?? 'Upload gagal, coba file yang lebih kecil (maks. 4 MB).');
+  }
+  return data.url;
 }
