@@ -43,6 +43,7 @@ import {
 } from '@/data/teacher';
 import { doobieTopics } from '@/data/doobie';
 import { legalDocs } from '@/data/legal';
+import { observationReports, type ObservationReport } from '@/data/observations';
 import { plusPlans, type PlusRole } from '@/data/plus';
 import { connectedTeachers, serverMatch, teacherPool, type Skill } from '@/data/teachers';
 
@@ -183,7 +184,7 @@ async function loadParent() {
     api<{
       quickQuestion: { id: string; from: string; text: string } | null;
       activeTeachers: { engagementId: string; teacherId: string; name: string; next: string }[];
-      checkin: Checkin;
+      checkin: Checkin | null;
     }>('/home/parent'),
     api<Engagement[]>('/engagements'),
     api<{ id: string; status: string; date: string; child: { name: string }; teacher: { name: string; specialty: string | null } }[]>('/applications'),
@@ -251,6 +252,51 @@ async function loadParent() {
     }))
   );
 
+  // laporan observasi psikolog = konsultasi selesai yang sudah diisi hasilnya
+  const consults = await api<
+    {
+      id: string;
+      status: string;
+      type: 'VIDEO' | 'CALL' | 'CHAT';
+      date: string;
+      time: string;
+      durationMin: number;
+      psychologist: { name: string; title: string };
+      child: { name: string } | null;
+      complaint: string | null;
+      result: { observation: string | null; recommendation: string | null; followUp: string | null } | null;
+    }[]
+  >('/consultations').catch(() => []);
+  replace(
+    observationReports,
+    consults
+      .filter((c) => c.status === 'COMPLETED' && c.result?.observation)
+      .map(
+        (c): ObservationReport => ({
+          id: `obs-${c.id}`,
+          consultationId: c.id,
+          psychologist: c.psychologist.name,
+          psychologistTitle: c.psychologist.title,
+          child: c.child?.name ?? '-',
+          date: c.date,
+          time: c.time,
+          mode: c.type === 'VIDEO' ? 'Video Call' : c.type === 'CALL' ? 'Panggilan' : 'Chat',
+          duration: `${c.durationMin} menit`,
+          complaint: c.complaint ?? '-',
+          summary: c.result?.observation ?? '',
+          areas: [],
+          strengths: [],
+          concerns: [],
+          recommendations: (c.result?.recommendation ?? '')
+            .split(',')
+            .map((t) => t.trim())
+            .filter((t) => t && t !== '-')
+            .map((title) => ({ title, detail: '', kind: 'rumah' as const })),
+          nextStep: c.result?.followUp ?? null,
+        })
+      )
+  );
+
   // report card anak pertama (layar Jadwal / Report Card memuat ulang per anak)
   const first = me.children[0];
   replace(sessionReports, first ? await api<SessionReport[]>(`/children/${first.id}/reports`).catch(() => []) : []);
@@ -263,7 +309,7 @@ async function loadTeacher() {
       todaySchedule: { time: string; childName: string }[];
       earnings: { month: number; weekGrowthPercent: number };
       sessions: { doneThisMonth: number; target: number };
-      checkin: Checkin;
+      checkin: Checkin | null;
       selectedChildId: string | null;
     }>('/home/teacher'),
     api<Engagement[]>('/engagements'),
@@ -275,6 +321,7 @@ async function loadTeacher() {
   t?.skills.forEach((s) => (skills[SKILL_KEY[s.skill]] = s.level));
   const name = t?.title ? `${me.user.fullName}, ${t.title}` : me.user.fullName;
   Object.assign(teacherProfile, {
+    verified: t?.verificationStatus === 'VERIFIED',
     name,
     shortName: me.user.nickname ?? me.user.fullName.split(' ')[0],
     title: t?.headline ?? 'Shadow Teacher',
@@ -469,9 +516,15 @@ export async function loadLegal() {
   }
 }
 
-/** Dipanggil setelah login & saat aplikasi dibuka dengan sesi tersimpan */
+let cleared = false;
+
+/**
+ * Dipanggil setelah login, saat aplikasi dibuka dengan sesi tersimpan, dan setelah pembayaran lunas.
+ * Data contoh bawaan dikosongkan sekali saja; muat ulang berikutnya langsung menimpa data lama,
+ * jadi layar yang sedang terbuka tidak pernah melihat daftar kosong sesaat.
+ */
 export async function loadAppData(role: UserRole) {
-  resetAppData();
+  if (!cleared) resetAppData();
   await Promise.all([
     role === 'parent' ? loadParent() : role === 'teacher' ? loadTeacher() : loadPsychologist(),
     loadThreads(),
@@ -484,6 +537,7 @@ export async function loadAppData(role: UserRole) {
 
 /** Kosongkan data contoh bawaan & data akun sebelumnya (logout / ganti akun) */
 export function resetAppData() {
+  cleared = true;
   for (const list of [
     activeMatches,
     activeTeachers,
@@ -492,6 +546,7 @@ export function resetAppData() {
     notifications,
     psychologists,
     sessionReports,
+    observationReports,
     teacherPool,
     connectedTeachers,
     students,

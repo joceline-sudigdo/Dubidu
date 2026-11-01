@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
 import { ClayCard } from '@/components/parent/clay-card';
+import { EmptyState } from '@/components/parent/empty-state';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
@@ -33,7 +34,7 @@ const STATUS_COLOR = { open: Colors.primary, few: Colors.yellow, full: Colors.re
 export default function JadwalKonsultasiScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const psychologist = psychologists.find((p) => p.id === id) ?? psychologists[0];
-  const shortName = psychologist.name.split(',')[0];
+  const shortName = psychologist?.name.split(',')[0] ?? '';
   const [type, setType] = useState('video');
   const [days, setDays] = useState<Day[]>([]);
   const [date, setDate] = useState('');
@@ -81,6 +82,13 @@ export default function JadwalKonsultasiScreen() {
     }
   };
 
+  if (!psychologist) {
+    return (
+      <Screen header={<ScreenHeader title="Konsultasi Psikolog" />}>
+        <EmptyState title="Psikolog tidak ditemukan" subtitle="Belum ada psikolog yang tersedia saat ini." />
+      </Screen>
+    );
+  }
   const total = finalPrice(psychologist);
   const discount = psychologist.basePrice - total;
 

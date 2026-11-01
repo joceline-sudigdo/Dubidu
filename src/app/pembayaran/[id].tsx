@@ -18,6 +18,7 @@ import { TextField } from '@/components/ui/text-field';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { formatRupiah } from '@/data/parent';
 import { api, errorMessage, uploadFile } from '@/lib/api';
+import { homeRoute } from '@/lib/auth';
 import { showAlert } from '@/lib/dialog';
 import { getSession } from '@/lib/session';
 import { loadAppData } from '@/lib/sync';
@@ -118,7 +119,8 @@ export default function PembayaranScreen() {
   const finish = async () => {
     // muat ulang data (konsultasi terkonfirmasi, status Plus, dll.) lalu kembali
     await loadAppData(getSession().role).catch(() => {});
-    router.dismissAll();
+    if (router.canDismiss()) router.dismissAll();
+    else router.replace(homeRoute(getSession().role));
   };
 
   if (error) {

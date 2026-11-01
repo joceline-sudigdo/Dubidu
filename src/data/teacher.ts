@@ -9,6 +9,7 @@ import { SKILL_LABELS, type Skill } from './teachers';
 export type Gender = 'male' | 'female';
 
 export const teacherProfile = {
+  verified: true, // sudah diverifikasi admin (dari server)
   name: 'Pras Karunia, S.Pd',
   shortName: 'Pras',
   title: 'Spesialis ADHD & Speech Delay',

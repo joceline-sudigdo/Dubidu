@@ -21,6 +21,7 @@ import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { bannerPhotos } from '@/data/images';
 import { activeTeachers, parentProfile, quickQuestion } from '@/data/parent';
 import { startAddChild } from '@/lib/add-child';
+import { api } from '@/lib/api';
 import { useChildren } from '@/lib/children-store';
 import { useObservations } from '@/lib/observation-store';
 
@@ -29,7 +30,7 @@ export default function BerandaScreen() {
   const observations = useObservations();
   // laporan observasi psikolog yang belum dibaca (paling baru)
   const latestObs = observations.reports.find((r) => observations.isNew(r.id));
-  const [childId, setChildId] = useState(children[0].id);
+  const [childId, setChildId] = useState(children[0]?.id ?? '');
   const [answered, setAnswered] = useState<string | null>(null);
   const [quickDone, setQuickDone] = useState(false);
   const child = children.find((c) => c.id === childId) ?? children[0];
@@ -37,6 +38,10 @@ export default function BerandaScreen() {
   // tampilkan "jawaban terkirim" sebentar sebelum kartunya diganti check-in
   const answer = (text: string) => {
     setAnswered(text);
+    // jawaban dikirim ke teacher yang bertanya (POST /quick-questions/:id/answer)
+    if (quickQuestion.id) {
+      api(`/quick-questions/${quickQuestion.id}/answer`, { body: { answer: text.startsWith('Ya') ? 'YES' : 'NO' } }).catch(() => {});
+    }
     setTimeout(() => setQuickDone(true), 1200);
   };
 
@@ -47,7 +52,9 @@ export default function BerandaScreen() {
           <AppText style={styles.hello}>
             Halo, <AppText style={[styles.hello, { color: Colors.primary }]}>{parentProfile.name}</AppText>
           </AppText>
-          <AppText variant="caption">Semoga hari ini menyenangkan untuk {child.name}.</AppText>
+          <AppText variant="caption">
+            {child ? `Semoga hari ini menyenangkan untuk ${child.name}.` : 'Semoga harimu menyenangkan.'}
+          </AppText>
         </View>
         <Pressable
           accessibilityRole="button"
@@ -84,13 +91,13 @@ export default function BerandaScreen() {
       </EdgeScroll>
 
       <HeroBanner
-        title={`Temukan shadow teacher untuk ${child.name}!`}
+        title={child ? `Temukan shadow teacher untuk ${child.name}!` : 'Temukan shadow teacher untuk si kecil!'}
         photo={bannerPhotos.parentHome}
         onPress={() => router.push('/cari-teacher')}
       />
 
       {/* respon cepat tampil dulu, setelah dijawab memudar lalu diganti check-in */}
-      {quickDone ? (
+      {quickDone || !quickQuestion.text ? (
         <Animated.View key="checkin" entering={FadeIn.delay(200).duration(350)}>
           <CheckinCard />
         </Animated.View>
