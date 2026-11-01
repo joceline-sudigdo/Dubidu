@@ -48,7 +48,9 @@ export function PrimaryButton({
         ) : (
           leadingIcon && <Feather name={leadingIcon} size={20} color="#FFFFFF" />
         )}
-        <AppText style={styles.title}>{title}</AppText>
+        <AppText style={styles.title} numberOfLines={2}>
+          {title}
+        </AppText>
         {icon && <Feather name={icon} size={20} color="#FFFFFF" />}
       </View>
     </Pressable>
@@ -61,20 +63,25 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   pressed: {
     opacity: 0.9,
     transform: [{ scale: 0.98 }],
   },
+  // label panjang di tombol sempit pindah ke baris kedua, tidak keluar dari tombol
   content: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    maxWidth: '100%',
   },
   title: {
+    flexShrink: 1,
+    textAlign: 'center',
     fontFamily: Fonts.bodyBold,
     fontSize: 17,
+    lineHeight: 21,
     color: '#FFFFFF',
   },
 });

@@ -108,9 +108,13 @@ export default function TeacherBerandaScreen() {
           <Pressable key={a.id} onPress={() => router.push('/teacher/riwayat')} style={[styles.appCard, Shadow.button]}>
             <View style={styles.inline}>
               <BearAvatar gender={a.gender} size={36} />
-              <View>
-                <AppText style={styles.appName}>{a.initials}</AppText>
-                <AppText style={styles.appInfo}>{a.info}</AppText>
+              <View style={styles.appText}>
+                <AppText style={styles.appName} numberOfLines={1}>
+                  {a.initials}
+                </AppText>
+                <AppText style={styles.appInfo} numberOfLines={2}>
+                  {a.info}
+                </AppText>
               </View>
             </View>
             <View style={styles.appStatus}>
@@ -280,6 +284,10 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: 14,
     gap: 10,
+  },
+  appText: {
+    flex: 1,
+    minWidth: 0,
   },
   appName: {
     fontFamily: Fonts.bodyBold,

@@ -146,9 +146,11 @@ export default function BerandaScreen() {
             style={[styles.teacherCard, Shadow.button]}>
             <View style={styles.teacherTop}>
               <Avatar name={t.name} size={34} ring="#FFFFFF" />
-              <View>
+              <View style={styles.teacherInfo}>
                 <View style={styles.teacherNameRow}>
-                  <AppText style={styles.teacherName}>{t.name}</AppText>
+                  <AppText style={styles.teacherName} numberOfLines={1}>
+                    {t.name}
+                  </AppText>
                   <MaterialCommunityIcons name="check-decagram" size={16} color="#FFFFFF" />
                 </View>
                 <AppText style={styles.teacherNext}>Sesi berikutnya:</AppText>
@@ -312,7 +314,7 @@ const styles = StyleSheet.create({
     paddingRight: 4,
   },
   teacherCard: {
-    width: 180,
+    width: 200,
     backgroundColor: Colors.primary,
     borderRadius: Radius.md,
     padding: 14,
@@ -323,12 +325,18 @@ const styles = StyleSheet.create({
     gap: 8,
     alignItems: 'center',
   },
+  // nama boleh terpotong "...", ikon verified tetap terlihat
+  teacherInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
   teacherNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
   teacherName: {
+    flexShrink: 1,
     fontFamily: Fonts.bodyBold,
     fontSize: 16,
     color: '#FFFFFF',

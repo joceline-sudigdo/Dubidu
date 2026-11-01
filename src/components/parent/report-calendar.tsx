@@ -137,7 +137,9 @@ function SessionCard({ report }: { report: SessionReport }) {
       <View style={styles.teacherRow}>
         <Avatar name={report.teacher} size={52} ring="#FFFFFF" />
         <View style={styles.flex}>
-          <AppText style={styles.teacher}>{report.teacher}</AppText>
+          <AppText style={styles.teacher} numberOfLines={2}>
+            {report.teacher}
+          </AppText>
           <AppText variant="caption" color={Colors.primary}>
             Shadow Teacher
           </AppText>
@@ -150,12 +152,16 @@ function SessionCard({ report }: { report: SessionReport }) {
           const t = Tones[s.tone];
           return (
             <View key={s.label} style={[styles.score, { backgroundColor: t.bg, borderColor: t.edge }]}>
-              <AppText style={styles.scoreLabel}>{s.label}</AppText>
+              <AppText style={styles.scoreLabel} numberOfLines={2}>
+                {s.label}
+              </AppText>
               <View style={styles.scoreValueRow}>
                 <MaterialCommunityIcons name="star" size={16} color={t.fg} />
                 <AppText style={[styles.scoreValue, { color: t.fg }]}>{s.value.toFixed(1)}</AppText>
               </View>
-              <AppText style={[styles.scoreStatus, { color: t.fg }]}>{s.status}</AppText>
+              <AppText style={[styles.scoreStatus, { color: t.fg }]} numberOfLines={1}>
+                {s.status}
+              </AppText>
             </View>
           );
         })}
@@ -173,7 +179,7 @@ function SessionCard({ report }: { report: SessionReport }) {
       <Highlight icon="volume-2" tone="red" title="Catatan Sensori" text={report.sensoryNote} />
 
       <PrimaryButton
-        title={`Buka Laporan Lengkap Sesi #${report.number}`}
+        title="Buka Laporan Lengkap"
         icon="arrow-right"
         onPress={() => router.push({ pathname: '/report-card/[id]', params: { id: report.id } })}
       />
@@ -363,13 +369,17 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 16,
   },
+  // grid 3 kolom: aspek penilaian bisa 3–7, jangan dipaksa satu baris
   scores: {
     flexDirection: 'row',
-    gap: 10,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   score: {
-    flex: 1,
+    flexBasis: '30%',
+    flexGrow: 1,
     alignItems: 'center',
+    paddingHorizontal: 6,
     borderRadius: Radius.md,
     borderWidth: 1,
     borderBottomWidth: 3,
@@ -379,6 +389,8 @@ const styles = StyleSheet.create({
   scoreLabel: {
     fontFamily: Fonts.body,
     fontSize: 13,
+    lineHeight: 17,
+    textAlign: 'center',
     color: Colors.text,
   },
   scoreValueRow: {
