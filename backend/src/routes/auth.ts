@@ -199,7 +199,13 @@ authRouter.post("/forgot-password", async (req, res) => {
     data: { userId: user.id, codeHash: hashCode(code), expiresAt: new Date(Date.now() + RESET_TTL_MIN * 60000) },
   });
   const mail = resetPasswordEmail(user.nickname ?? user.fullName, code);
-  await sendMail(email, mail.subject, mail.html, mail.text);
+  try {
+    await sendMail(email, mail.subject, mail.html, mail.text);
+  } catch (err) {
+    // mis. App Password Gmail salah → jangan tampilkan "kesalahan server" ke user, cukup catat di log
+    console.error("Gagal mengirim email reset password:", err);
+    throw new HttpError(503, "Email belum bisa dikirim saat ini. Coba lagi beberapa saat lagi.");
+  }
 
   // Khusus pengujian otomatis: kode ikut dikirim di respons. JANGAN aktifkan di server online.
   res.json(process.env.MAIL_TEST_RETURN_CODE === "true" ? { ...reply, testCode: code } : reply);
