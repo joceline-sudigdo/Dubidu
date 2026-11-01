@@ -24,6 +24,12 @@ const ROLE_TABS = [
   { label: "Psikolog", value: "PSYCHOLOGIST" },
 ];
 
+const KIND_TABS = [
+  { label: "Semua akun", value: "" },
+  { label: "Sungguhan", value: "real" },
+  { label: "Demo", value: "demo" },
+];
+
 const COLUMNS: Column<AppUser>[] = [
   {
     key: "name",
@@ -33,6 +39,7 @@ const COLUMNS: Column<AppUser>[] = [
         <p className="flex items-center gap-1.5 font-semibold">
           {u.fullName}
           {u.plusActive && <Crown className="size-3.5 text-warning-foreground" aria-label="Pengguna Plus" />}
+          {u.isDemo && <StatusBadge label="Demo" tone="neutral" />}
         </p>
         <p className="text-xs text-muted-foreground">{u.email ?? u.phone}</p>
       </div>
@@ -92,7 +99,10 @@ async function PenggunaContent({ searchParams }: Pick<PageProps<"/pengguna">, "s
   const role = param(sp, "role") as AppUser["role"] | "";
   const q = param(sp, "q");
   const status = param(sp, "status") as "active" | "suspended" | "";
-  const all = await listUsers({ q, status: status || undefined });
+  // akun demo = data contoh; Ringkasan hanya menghitung akun sungguhan
+  const kind = param(sp, "kind") as "real" | "demo" | "";
+  const fetched = await listUsers({ q, status: status || undefined });
+  const all = fetched.filter((u) => !kind || u.isDemo === (kind === "demo"));
   const rows = all.filter((u) => !role || u.role === role);
 
   return (
@@ -102,21 +112,30 @@ async function PenggunaContent({ searchParams }: Pick<PageProps<"/pengguna">, "s
           basePath="/pengguna"
           param="role"
           current={role}
-          keep={{ q, status }}
+          keep={{ q, status, kind }}
           tabs={ROLE_TABS.map((t) => ({ ...t, count: all.filter((u) => !t.value || u.role === t.value).length }))}
         />
-        <SearchForm placeholder="Cari nama, email, atau HP" defaultValue={q} keep={{ role, status }} />
+        <SearchForm placeholder="Cari nama, email, atau HP" defaultValue={q} keep={{ role, status, kind }} />
       </div>
-      <FilterTabs
-        basePath="/pengguna"
-        current={status}
-        keep={{ q, role }}
-        tabs={[
-          { label: "Semua status", value: "" },
-          { label: "Aktif", value: "active" },
-          { label: "Nonaktif", value: "suspended" },
-        ]}
-      />
+      <div className="flex flex-wrap gap-3">
+        <FilterTabs
+          basePath="/pengguna"
+          current={status}
+          keep={{ q, role, kind }}
+          tabs={[
+            { label: "Semua status", value: "" },
+            { label: "Aktif", value: "active" },
+            { label: "Nonaktif", value: "suspended" },
+          ]}
+        />
+        <FilterTabs
+          basePath="/pengguna"
+          param="kind"
+          current={kind}
+          keep={{ q, role, status }}
+          tabs={KIND_TABS.map((t) => ({ ...t, count: fetched.filter((u) => !t.value || u.isDemo === (t.value === "demo")).length }))}
+        />
+      </div>
       <DataTable columns={COLUMNS} rows={rows} rowKey={(u) => u.id} empty="Tidak ada pengguna yang cocok." />
     </>
   );
