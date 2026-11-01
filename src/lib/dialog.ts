@@ -60,7 +60,7 @@ export function showAlert(title: string, message?: string, buttons?: DialogButto
       ? 'soon'
       : buttons && buttons.length > 1
         ? 'confirm'
-        : SUCCESS_WORDS.some((w) => lower.includes(w))
+        : SUCCESS_WORDS.some((w) => lower.includes(w)) && !/belum|gagal|tidak/.test(lower)
           ? 'success'
           : 'info';
   set({

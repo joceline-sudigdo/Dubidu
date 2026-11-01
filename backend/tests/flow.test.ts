@@ -614,6 +614,17 @@ describe("DUBIDU API", () => {
     assert.equal((await api("/admin/users", { token: parentToken })).status, 403);
   });
 
+  it("Dubidu Plus: tombol langganan ditekan ulang tidak membuat tagihan dobel", async () => {
+    const token = await login("devi@dubidu.id");
+    const first = await api("/subscription", { token, body: { plan: "MONTHLY" } });
+    const again = await api("/subscription", { token, body: { plan: "MONTHLY" } });
+    assert.equal(again.data.payment.id, first.data.payment.id);
+    const other = await api("/subscription", { token, body: { plan: "YEARLY" } });
+    assert.notEqual(other.data.payment.id, first.data.payment.id);
+    const old = await api(`/payments/${first.data.payment.id}`, { token });
+    assert.equal(old.data.status, "FAILED"); // ganti paket → tagihan lama dibatalkan
+  });
+
   it("web admin: pencairan dana, laporan & moderasi, konten, audit log", async () => {
     const admin = await login("admin@dubidu.id", "admin12345");
 
