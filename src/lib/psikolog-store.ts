@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
+import { parentProfile } from '@/data/parent';
 import {
   applicants,
   type Applicant,
@@ -81,6 +82,16 @@ export function sendReport(c: Consultation, report: ConsultReport) {
     time,
     read: false,
   });
+  // sisi orang tua: chat dengan psikolog (demo hanya akun Devi yang punya chat psikolog)
+  if (c.parent === parentProfile.fullName) {
+    addMessage('amanda', {
+      id: `obs-parent-${Date.now()}`,
+      from: 'them',
+      type: 'text',
+      text: `Laporan observasi ${c.child} sudah saya kirim, Bunda. Silakan buka di Profil → Laporan Observasi Psikolog ya.`,
+      time,
+    });
+  }
 }
 
 export function decideApplicant(id: string, decision: VerifyResult) {

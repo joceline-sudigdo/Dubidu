@@ -7,6 +7,7 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { Avatar } from '@/components/parent/avatar';
 import { ClayCard } from '@/components/parent/clay-card';
+import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { SectionHeader } from '@/components/parent/screen-header';
 import { CheckinCard } from '@/components/shared/checkin-card';
@@ -21,9 +22,13 @@ import { bannerPhotos } from '@/data/images';
 import { activeTeachers, parentProfile, quickQuestion } from '@/data/parent';
 import { startAddChild } from '@/lib/add-child';
 import { useChildren } from '@/lib/children-store';
+import { useObservations } from '@/lib/observation-store';
 
 export default function BerandaScreen() {
   const children = useChildren();
+  const observations = useObservations();
+  // laporan observasi psikolog yang belum dibaca (paling baru)
+  const latestObs = observations.reports.find((r) => observations.isNew(r.id));
   const [childId, setChildId] = useState(children[0].id);
   const [answered, setAnswered] = useState<string | null>(null);
   const [quickDone, setQuickDone] = useState(false);
@@ -159,6 +164,21 @@ export default function BerandaScreen() {
         </View>
         <Feather name="chevron-right" size={22} color="#FFFFFF" />
       </Pressable>
+
+      {latestObs && (
+        <ClayCard onPress={() => router.push({ pathname: '/observasi/[id]', params: { id: latestObs.id } })} style={styles.obs}>
+          <View style={styles.obsIcon}>
+            <MaterialCommunityIcons name="clipboard-text-outline" size={22} color={Colors.red} />
+          </View>
+          <View style={styles.flex}>
+            <AppText style={styles.obsTitle}>Laporan observasi baru</AppText>
+            <AppText variant="caption" numberOfLines={1}>
+              {latestObs.psychologist.split(',')[0]} · untuk {latestObs.child}
+            </AppText>
+          </View>
+          <Pill label="Baca" tone="red" solid icon="arrow-right" iconRight />
+        </ClayCard>
+      )}
 
       <DoobieCard
         message="Temukan pendamping yang tepat, pantau perkembangan si kecil dan dapatkan dukungan dalam setiap langkah tumbuh kembangnya."
@@ -328,6 +348,26 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.red,
     borderRadius: Radius.lg,
     padding: 18,
+  },
+  obs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1.5,
+    borderColor: Colors.redSoft,
+  },
+  obsIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.redSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  obsTitle: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 15,
+    color: Colors.text,
   },
   psyIcon: {
     width: 46,

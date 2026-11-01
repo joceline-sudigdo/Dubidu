@@ -19,7 +19,8 @@ import { changePhoto, updateParent, useProfile } from '@/lib/profile-store';
 import { startAddChild } from '@/lib/add-child';
 import { useChildren } from '@/lib/children-store';
 
-const MENU: { label: string; icon: ComponentProps<typeof Feather>['name']; href?: '/pengaturan' | '/bantuan' | '/metode-pembayaran' | '/riwayat-transaksi' | '/tersimpan' }[] = [
+const MENU: { label: string; icon: ComponentProps<typeof Feather>['name']; href?: '/pengaturan' | '/bantuan' | '/metode-pembayaran' | '/riwayat-transaksi' | '/tersimpan' | '/observasi' }[] = [
+  { label: 'Laporan Observasi Psikolog', icon: 'clipboard', href: '/observasi' },
   { label: 'Postingan Tersimpan', icon: 'bookmark', href: '/tersimpan' },
   { label: 'Pengaturan Akun', icon: 'settings', href: '/pengaturan' },
   { label: 'Metode Pembayaran', icon: 'credit-card', href: '/metode-pembayaran' },

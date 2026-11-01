@@ -78,6 +78,21 @@ export type NotificationItem = {
 
 export const notifications: NotificationItem[] = [
   {
+    id: 'n-obs',
+    group: 'today',
+    category: 'laporan',
+    icon: 'stethoscope',
+    tone: 'red',
+    title: 'Laporan Observasi Psikolog',
+    time: 'Baru saja',
+    body: 'Amanda Putri, M.Psi. telah mengirim hasil observasi Elisya beserta 4 rekomendasi untuk di rumah dan sekolah.',
+    unread: true,
+    tag: 'Konsultasi 26 Okt',
+    tagTone: 'red',
+    action: 'Baca Laporan',
+    actionPrimary: true,
+  },
+  {
     id: 'n1',
     group: 'today',
     category: 'booking',

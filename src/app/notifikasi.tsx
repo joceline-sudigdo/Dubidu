@@ -39,7 +39,8 @@ export default function NotifikasiScreen() {
   const markAllRead = () => setItems((list) => list.map((n) => ({ ...n, unread: false })));
   const open = (n: NotificationItem) => {
     setItems((list) => list.map((x) => (x.id === n.id ? { ...x, unread: false } : x)));
-    if (n.category === 'chat') router.push({ pathname: '/chat/[id]', params: { id: 'larasati' } });
+    if (n.id === 'n-obs') router.push({ pathname: '/observasi/[id]', params: { id: 'obs-elisya' } });
+    else if (n.category === 'chat') router.push({ pathname: '/chat/[id]', params: { id: 'larasati' } });
     else if (n.category === 'laporan') router.push('/report-card');
     else if (n.id === 'n1') router.push('/konsultasi');
     else if (n.id === 'n4') router.push('/cari-teacher');
