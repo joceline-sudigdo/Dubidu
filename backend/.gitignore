@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+src/generated/
+uploads/
+*.log
+.vercel
+.env*

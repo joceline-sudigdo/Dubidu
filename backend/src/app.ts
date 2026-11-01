@@ -1,0 +1,93 @@
+import cors from "cors";
+import express from "express";
+import { rateLimit } from "express-rate-limit";
+import helmet from "helmet";
+
+import { config } from "./config.js";
+import { prisma } from "./db.js";
+import { errorHandler, HttpError } from "./lib/http.js";
+import { LOCAL_UPLOAD_DIR } from "./lib/upload.js";
+import { adminRouter } from "./routes/admin.js";
+import { applicationsRouter } from "./routes/applications.js";
+import { authRouter } from "./routes/auth.js";
+import { chatRouter, quickQuestionsRouter } from "./routes/chat.js";
+import { checkinsRouter } from "./routes/checkins.js";
+import { childrenRouter } from "./routes/children.js";
+import { communityRouter } from "./routes/community.js";
+import { doobieRouter } from "./routes/doobie.js";
+import { engagementsRouter, scheduleRouter, sessionsRouter } from "./routes/engagements.js";
+import { homeRouter } from "./routes/home.js";
+import { matchingRouter } from "./routes/matching.js";
+import { metaRouter } from "./routes/meta.js";
+import { notificationsRouter } from "./routes/notifications.js";
+import { expireStalePayments, paymentsRouter, paymentWebhookRouter, subscriptionRouter } from "./routes/payments.js";
+import { consultationsRouter, psychologistsRouter } from "./routes/psychologists.js";
+import { reportsRouter } from "./routes/reports.js";
+import { reviewsRouter, teachersRouter } from "./routes/teachers.js";
+
+export function createApp() {
+  const app = express();
+
+  app.set("trust proxy", 1);
+  app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+  app.use(cors({ origin: config.corsOrigins.length ? config.corsOrigins : true }));
+  app.use(express.json({ limit: "2mb" }));
+
+  // Di Vercel (serverless) tidak ada timer yang jalan terus, jadi pesanan yang lewat batas
+  // waktu bayar dibatalkan sambil melayani request (paling sering sekali per menit).
+  if (process.env.VERCEL) {
+    let lastRun = 0;
+    app.use(async (_req, _res, next) => {
+      if (Date.now() - lastRun > 60_000) {
+        lastRun = Date.now();
+        await expireStalePayments().catch((err) => console.error("Gagal memproses pembayaran kedaluwarsa:", err));
+      }
+      next();
+    });
+  }
+  app.use("/uploads", express.static(LOCAL_UPLOAD_DIR));
+
+  app.get("/", (_req, res) => res.json({ name: "DUBIDU API", docs: "/api/health" }));
+
+  /** GET /api/health — dipakai Render untuk cek server hidup & database tersambung */
+  app.get("/api/health", async (_req, res) => {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ ok: true, time: new Date().toISOString() });
+  });
+
+  // batasi percobaan login / reset password (anti tebak password)
+  const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: "draft-8", legacyHeaders: false });
+
+  const api = express.Router();
+  api.use(["/auth/login", "/auth/forgot-password", "/auth/reset-password"], authLimiter);
+  api.use("/auth", authRouter);
+  // webhook Midtrans & halaman finish TANPA login → harus dipasang sebelum router yang memakai requireAuth global
+  api.use("/payments", paymentWebhookRouter);
+  api.use("/", metaRouter); // /meta/needs, /meta/app, /uploads
+  api.use("/children", childrenRouter);
+  api.use("/home", homeRouter);
+  api.use("/matching", matchingRouter);
+  api.use("/applications", applicationsRouter);
+  api.use("/engagements", engagementsRouter);
+  api.use("/sessions", sessionsRouter);
+  api.use("/schedule", scheduleRouter);
+  api.use("/", reportsRouter); // /children/:id/reports, /reports/:id, /sessions/:id/report
+  api.use("/conversations", chatRouter);
+  api.use("/quick-questions", quickQuestionsRouter);
+  api.use("/psychologists", psychologistsRouter);
+  api.use("/consultations", consultationsRouter);
+  api.use("/payments", paymentsRouter);
+  api.use("/subscription", subscriptionRouter);
+  api.use("/posts", communityRouter);
+  api.use("/notifications", notificationsRouter);
+  api.use("/checkins", checkinsRouter);
+  api.use("/doobie", doobieRouter);
+  api.use("/teachers", teachersRouter);
+  api.use("/reviews", reviewsRouter);
+  api.use("/admin", adminRouter);
+  app.use("/api", api);
+
+  app.use((req, _res, next) => next(new HttpError(404, `Endpoint ${req.method} ${req.path} tidak ada`)));
+  app.use(errorHandler);
+  return app;
+}
