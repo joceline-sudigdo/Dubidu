@@ -164,6 +164,11 @@ export async function decideApplication(id: string, status: Exclude<DecisionStat
   });
 }
 
+/** Admin menyesuaikan level keahlian teacher (nilai ini yang dipakai matching) */
+export async function setTeacherSkills(userId: string, skills: Record<string, number>) {
+  return backend(`/admin/teachers/${encodeURIComponent(userId)}/skills`, { method: "PATCH", body: { skills } });
+}
+
 // ---------------------------------------------------------------------------
 //  Pembayaran (bukti transfer manual) & tujuan transfer
 // ---------------------------------------------------------------------------

@@ -55,6 +55,7 @@ import { setChildren, toChild, type ServerChild } from './children-store';
 import { loadCommunity, resetCommunity } from './community-store';
 import { resetMatching } from './matching-store';
 import { setPlans } from './membership-store';
+import { refreshProfile } from './profile-store';
 import { setCheckinWeek, setServerPoints } from './points-store';
 import { updateSession } from './session';
 
@@ -76,7 +77,7 @@ const rupiahShort = (n: number) =>
 // ---------------------------------------------------------------------------
 
 type Me = {
-  user: { fullName: string; nickname: string | null; email: string | null; phone: string | null; domicile: string | null; points: number; createdAt: string };
+  user: { id: string; fullName: string; nickname: string | null; email: string | null; phone: string | null; domicile: string | null; points: number; createdAt: string };
   teacherProfile: {
     title: string | null;
     headline: string | null;
@@ -92,6 +93,7 @@ type Me = {
     skills: { skill: string; level: number }[];
   } | null;
   psychologistProfile: {
+    id: string;
     title: string;
     place: string | null;
     experienceYears: number;
@@ -317,6 +319,10 @@ async function loadTeacher() {
     api<{ id: string; status: string; date: string; child: { name: string; age: number | null; grade: string | null; condition: string } }[]>('/applications'),
   ]);
   const t = me.teacherProfile;
+  // ulasan orang tua untuk teacher ini (yang disembunyikan admin tidak ikut)
+  const publicProfile = await api<{ reviews: { name: string; rating: number; quote: string | null }[] }>(`/teachers/${me.user.id}`).catch(
+    () => ({ reviews: [] })
+  );
   const skills = Object.fromEntries(Object.values(SKILL_KEY).map((k) => [k, 0])) as Record<Skill, number>;
   t?.skills.forEach((s) => (skills[SKILL_KEY[s.skill]] = s.level));
   const name = t?.title ? `${me.user.fullName}, ${t.title}` : me.user.fullName;
@@ -340,6 +346,7 @@ async function loadTeacher() {
       growth: `${home.earnings.weekGrowthPercent >= 0 ? '+' : ''}${home.earnings.weekGrowthPercent}% minggu ini`,
     },
     target: { done: home.sessions.doneThisMonth, total: home.sessions.target },
+    reviews: publicProfile.reviews.map((r) => ({ name: r.name, rating: r.rating, text: r.quote ? `“${r.quote}”` : '' })),
   });
   updateSession({ name });
   setPlans({ teacher: me.plan ? (me.plan.plan === 'YEARLY' ? 'tahunan' : 'bulanan') : null });
@@ -428,6 +435,7 @@ async function loadPsychologist() {
   ]);
   const p = me.psychologistProfile;
   Object.assign(psychologistProfile, {
+    profileId: p?.id ?? '',
     name: me.user.fullName,
     shortName: me.user.nickname ?? me.user.fullName.split(' ')[0],
     title: p?.title ?? 'Psikolog',
@@ -533,6 +541,7 @@ export async function loadAppData(role: UserRole) {
     loadPlusPlans().catch(() => {}),
     loadDoobieTopics().catch(() => {}),
   ]);
+  refreshProfile();
 }
 
 /** Kosongkan data contoh bawaan & data akun sebelumnya (logout / ganti akun) */

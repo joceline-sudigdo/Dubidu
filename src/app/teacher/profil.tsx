@@ -10,6 +10,7 @@ import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { SectionHeader } from '@/components/parent/screen-header';
 import { PointsCard } from '@/components/shared/points-card';
+import { SkillEditor } from '@/components/teacher/skill-editor';
 import { Stars } from '@/components/parent/stars';
 import type { Tone } from '@/components/parent/tones';
 import { AppText } from '@/components/ui/app-text';
@@ -150,6 +151,9 @@ export default function TeacherProfilScreen() {
           return <Pill key={label} label={label} tone={tone} solid={tone !== 'gray'} size="md" />;
         })}
       </View>
+
+      <SectionHeader title="Level Keahlian" />
+      <SkillEditor />
 
       <SectionHeader title="Harga & Ketersediaan" />
       <ClayCard style={styles.priceCard}>

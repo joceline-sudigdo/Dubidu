@@ -5,9 +5,11 @@ import { parentProfile } from '@/data/parent';
 import { psychologistProfile } from '@/data/psychologist';
 import { teacherProfile } from '@/data/teacher';
 
+import { api, errorMessage } from './api';
 import { showAlert } from './dialog';
 
-// data profil yang bisa diedit user (disimpan di memori, nanti disambung ke backend)
+// data profil yang bisa diedit user. Diisi ulang dari server setelah login (refreshProfile),
+// perubahan profil teacher disimpan ke server.
 type State = {
   photos: Record<string, string>;
   parent: { email: string; phone: string; domicile: string };
@@ -56,8 +58,37 @@ export function updateParent(values: Partial<State['parent']>) {
   set({ ...state, parent: { ...state.parent, ...values } });
 }
 
+/** Ambil ulang nilai awal dari data akun (dipanggil setelah data server dimuat) */
+export function refreshProfile() {
+  set({
+    ...state,
+    parent: { email: parentProfile.email, phone: parentProfile.phone, domicile: parentProfile.domicile },
+    teacher: {
+      title: teacherProfile.title,
+      about: teacherProfile.about,
+      price: teacherProfile.price,
+      availability: teacherProfile.availability,
+      specializations: teacherProfile.specializations.map((s) => s.label),
+    },
+    psychologist: { about: psychologistProfile.about, specializations: psychologistProfile.specializations },
+  });
+}
+
 export function updateTeacher(values: Partial<State['teacher']>) {
+  const before = state.teacher;
   set({ ...state, teacher: { ...state.teacher, ...values } });
+  // spesialisasi berupa teks bebas di layar ini, hanya disimpan di HP (daftar resmi dipilih saat daftar)
+  const body = {
+    ...(values.title !== undefined ? { headline: values.title } : {}),
+    ...(values.about !== undefined ? { about: values.about } : {}),
+    ...(values.availability !== undefined ? { availability: values.availability } : {}),
+    ...(values.price !== undefined ? { pricePerSession: Number(values.price.replace(/\D/g, '')) } : {}),
+  };
+  if (!Object.keys(body).length) return;
+  api('/teachers/me', { method: 'PATCH', body }).catch((e) => {
+    set({ ...state, teacher: before });
+    showAlert('Perubahan belum tersimpan', errorMessage(e));
+  });
 }
 
 export function updatePsychologist(values: Partial<State['psychologist']>) {
