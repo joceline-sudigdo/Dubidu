@@ -1,0 +1,827 @@
+// ============================================================================
+//  DUBIDU — Skema Database (PostgreSQL)
+//  Satu file ini = sumber kebenaran struktur database.
+//  Ubah model di sini → jalankan `npm run db:migrate` → tabel di database ikut berubah.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ----------------------------------------------------------------------------
+//  ENUM
+// ----------------------------------------------------------------------------
+
+enum Role {
+  PARENT
+  TEACHER
+  PSYCHOLOGIST
+  ADMIN
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum SchoolLevel {
+  TK
+  SD
+  SMP
+}
+
+// 5 kategori kebutuhan anak (proposal: Komunikasi, Perilaku, Sosial, Akademik, Sensorik)
+enum NeedCategory {
+  KOMUNIKASI
+  PERILAKU
+  SOSIAL
+  AKADEMIK
+  SENSORIK
+}
+
+/// 7 bidang keahlian yang dipakai untuk matching (sama dengan SKILL_LABELS di frontend)
+enum Skill {
+  SPEECH // Speech Delay
+  COMMUNICATION // Komunikasi
+  ADHD // ADHD & Fokus
+  SENSORY // Sensori
+  SOCIAL // Interaksi Sosial
+  AUTISM // Autisme
+  ACADEMIC // Akademik
+}
+
+enum VerificationStatus {
+  UNVERIFIED // belum upload dokumen
+  PENDING // dokumen sudah diupload, menunggu admin
+  VERIFIED
+  REJECTED
+}
+
+enum DocumentType {
+  KTP
+  IJAZAH
+  SERTIFIKAT
+  CV
+  LAINNYA
+}
+
+enum ApplicationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+enum Initiator {
+  PARENT
+  TEACHER
+}
+
+enum EngagementStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum SessionStatus {
+  SCHEDULED
+  DONE
+  CANCELLED
+}
+
+enum ConversationType {
+  TEACHER
+  PSYCHOLOGIST
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  SCHEDULE
+}
+
+enum ConsultationType {
+  VIDEO
+  CALL
+  CHAT
+}
+
+enum ConsultationStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentPurpose {
+  CONSULTATION
+  ENGAGEMENT
+  SUBSCRIPTION
+}
+
+enum PaymentStatus {
+  PENDING
+  VERIFYING // bukti transfer manual sudah diupload, menunggu dicek admin
+  PAID
+  FAILED
+  EXPIRED
+}
+
+enum PlanType {
+  MONTHLY
+  YEARLY
+}
+
+enum Mood {
+  SENANG
+  TENANG
+  BIASA
+  REWEL
+  SEDIH
+}
+
+enum NotificationCategory {
+  CHAT
+  BOOKING
+  LAPORAN
+  LAINNYA
+}
+
+enum QuickAnswer {
+  YES
+  NO
+}
+
+// ----------------------------------------------------------------------------
+//  AKUN & PROFIL
+// ----------------------------------------------------------------------------
+
+/// Semua pengguna (orang tua, shadow teacher, psikolog, admin) ada di satu tabel.
+model User {
+  id           String   @id @default(cuid())
+  role         Role
+  fullName     String
+  nickname     String? // "Devi", "Pras" — dipakai di sapaan "Halo, Devi"
+  email        String?  @unique
+  phone        String?  @unique
+  passwordHash String
+  avatarUrl    String?
+  domicile     String? // "Malang, Jawa Timur"
+  latitude     Float?
+  longitude    Float?
+  ktpUrl       String? // foto KTP orang tua (registrasi step "identity")
+  points       Int      @default(0) // saldo Madu
+  isActive     Boolean  @default(true)
+  // akun contoh (seed demo). Hanya terlihat oleh sesama akun demo; user sungguhan tidak pernah melihatnya.
+  isDemo       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  teacherProfile        TeacherProfile?
+  devices               DeviceToken[]
+  passwordResets        PasswordReset[]
+  psychologistProfile   PsychologistProfile?
+  children              Child[]                   @relation("ParentChildren")
+  skipsMade             MatchSkip[]               @relation("SkipActor")
+  skipsReceived         MatchSkip[]               @relation("SkipTeacher")
+  applicationsAsTeacher Application[]             @relation("ApplicationTeacher")
+  engagementsAsTeacher  Engagement[]              @relation("EngagementTeacher")
+  engagementsAsParent   Engagement[]              @relation("EngagementParent")
+  reportsWritten        SessionReport[]           @relation("ReportTeacher")
+  participants          ConversationParticipant[]
+  messages              Message[]
+  notifications         Notification[]
+  posts                 CommunityPost[]
+  postLikes             PostLike[]
+  postComments          PostComment[]
+  checkins              MoodCheckin[]
+  pointLedger           PointTransaction[]
+  doobieMessages        DoobieMessage[]
+  payments              Payment[]
+  subscriptions         Subscription[]
+  reviewsWritten        Review[]                  @relation("ReviewAuthor")
+  reviewsReceived       Review[]                  @relation("ReviewTarget")
+  consultationsAsParent Consultation[]            @relation("ConsultationParent")
+  questionsAsked        QuickQuestion[]           @relation("QuestionTeacher")
+  questionsReceived     QuickQuestion[]           @relation("QuestionParent")
+
+  @@index([role])
+  @@index([isDemo, role])
+}
+
+/// Profil terstandar shadow teacher (Standardized Shadow Teacher Profile).
+model TeacherProfile {
+  id                 String             @id @default(cuid())
+  userId             String             @unique
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title              String? // gelar: "S.Pd", "S.Psi"
+  headline           String? // "Spesialis ADHD & Speech Delay"
+  about              String?
+  education          String? // "S1 Pendidikan Luar Biasa – UNESA"
+  experienceYears    Int                @default(0)
+  childAgeMin        Int? // usia anak yang biasa didampingi
+  childAgeMax        Int?
+  pricePerSession    Int                @default(0) // Rupiah
+  availability       String? // "Senin–Jumat, sore hari"
+  area               String? // "Lowokwaru"
+  radiusKm           Int                @default(10)
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  verifiedAt         DateTime?
+  rating             Float              @default(0)
+  reviewCount        Int                @default(0)
+  sessionTarget      Int                @default(16) // target sesi per bulan (kartu "Sesi selesai")
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  specializations TeacherSpecialization[]
+  skills          TeacherSkill[]
+  documents       TeacherDocument[]
+}
+
+/// Level keahlian teacher per bidang (0–100). Diisi teacher (selfLevel), bisa disesuaikan admin saat verifikasi.
+/// `level` = nilai yang dipakai matching (= selfLevel, atau nilai dari admin kalau sudah disesuaikan).
+model TeacherSkill {
+  teacherId     String
+  teacher       TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  skill         Skill
+  selfLevel     Int
+  level         Int
+  adminAdjusted Boolean        @default(false)
+  updatedAt     DateTime       @updatedAt
+
+  @@id([teacherId, skill])
+}
+
+model TeacherDocument {
+  id        String             @id @default(cuid())
+  teacherId String
+  teacher   TeacherProfile     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  type      DocumentType
+  url       String
+  status    VerificationStatus @default(PENDING)
+  note      String? // alasan ditolak
+  createdAt DateTime           @default(now())
+}
+
+/// Profil psikolog / terapis (mitra profesional, dibuat oleh admin).
+model PsychologistProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String // "Psikolog Anak & Sensori"
+  place           String? // "RSIA Bunda Jakarta"
+  experienceYears Int      @default(0)
+  badge           String? // "Top Rated", "Dubidu Expert"
+  tags            String[] // ["Anak & Remaja", "ADHD & Sensori"]
+  categories      String[] // ["ADHD", "Autisme", "Speech Delay"] — untuk filter
+  basePrice       Int
+  discountPercent Int      @default(0)
+  durationMinutes Int      @default(45)
+  rating          Float    @default(0)
+  reviewCount     Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  slots         PsychologistSlot[]
+  consultations Consultation[]
+}
+
+// ----------------------------------------------------------------------------
+//  ANAK & KEBUTUHAN (Child Needs Assessment)
+// ----------------------------------------------------------------------------
+
+/// Daftar pilihan kebutuhan (master data) — dipakai anak DAN spesialisasi teacher,
+/// sehingga smart-matching tinggal menghitung irisan keduanya.
+model NeedOption {
+  id       String       @id @default(cuid())
+  category NeedCategory
+  skill    Skill? // bidang keahlian teacher yang dibutuhkan untuk kebutuhan ini
+  label    String       @unique
+  order    Int          @default(0)
+
+  children ChildNeed[]
+  teachers TeacherSpecialization[]
+}
+
+model Child {
+  id               String       @id @default(cuid())
+  parentId         String
+  parent           User         @relation("ParentChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  name             String // panggilan: "Elisya"
+  fullName         String
+  birthDate        DateTime?    @db.Date
+  gender           Gender?
+  schoolLevel      SchoolLevel?
+  grade            String? // "8th", "TK B"
+  schoolName       String?
+  domicile         String?
+  diagnosis        String? // "ADHD & Regulasi Sensori" (teks bebas dari orang tua/psikolog)
+  medicalRecordUrl String?
+  homeNotes        String? // kondisi & lingkungan rumah
+  avatarUrl        String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  needs         ChildNeed[]
+  skips         MatchSkip[]
+  applications  Application[]
+  engagements   Engagement[]
+  reports       SessionReport[]
+  checkins      MoodCheckin[]
+  consultations Consultation[]
+  conversations Conversation[]
+  questions     QuickQuestion[]
+
+  @@index([parentId])
+}
+
+model ChildNeed {
+  childId      String
+  child        Child      @relation(fields: [childId], references: [id], onDelete: Cascade)
+  needOptionId String
+  needOption   NeedOption @relation(fields: [needOptionId], references: [id], onDelete: Cascade)
+
+  @@id([childId, needOptionId])
+}
+
+model TeacherSpecialization {
+  teacherId    String
+  teacher      TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  needOptionId String
+  needOption   NeedOption     @relation(fields: [needOptionId], references: [id], onDelete: Cascade)
+
+  @@id([teacherId, needOptionId])
+}
+
+// ----------------------------------------------------------------------------
+//  MATCHING (swipe card) → PENGAJUAN → KONTRAK PENDAMPINGAN → SESI → REPORT CARD
+// ----------------------------------------------------------------------------
+
+/// Kandidat yang dilewati ("Lewati") di daftar rekomendasi — tidak ditampilkan lagi untuk anak itu.
+/// Orang tua melewati teacher; teacher melewati anak (teacherUserId = teacher itu sendiri).
+model MatchSkip {
+  id            String   @id @default(cuid())
+  actorId       String
+  actor         User     @relation("SkipActor", fields: [actorId], references: [id], onDelete: Cascade)
+  childId       String
+  child         Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  teacherUserId String
+  teacher       User     @relation("SkipTeacher", fields: [teacherUserId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+
+  @@unique([actorId, childId, teacherUserId])
+  @@index([actorId, createdAt])
+}
+
+/// "Pengajuan" — muncul di Riwayat orang tua & "Pengajuan Aktif" teacher.
+model Application {
+  id            String            @id @default(cuid())
+  childId       String
+  child         Child             @relation(fields: [childId], references: [id], onDelete: Cascade)
+  teacherUserId String
+  teacher       User              @relation("ApplicationTeacher", fields: [teacherUserId], references: [id], onDelete: Cascade)
+  initiatedBy   Initiator
+  status        ApplicationStatus @default(PENDING)
+  message       String?
+  matchScore    Int? // 0–100, hasil smart-matching saat diajukan
+  createdAt     DateTime          @default(now())
+  respondedAt   DateTime?
+
+  engagement Engagement?
+
+  @@unique([childId, teacherUserId])
+  @@index([teacherUserId])
+}
+
+/// Kontrak pendampingan aktif ("Teacher saat ini" / activeMatches).
+model Engagement {
+  id             String           @id @default(cuid())
+  applicationId  String?          @unique
+  application    Application?     @relation(fields: [applicationId], references: [id])
+  childId        String
+  child          Child            @relation(fields: [childId], references: [id], onDelete: Cascade)
+  teacherUserId  String
+  teacher        User             @relation("EngagementTeacher", fields: [teacherUserId], references: [id], onDelete: Cascade)
+  parentId       String
+  parent         User             @relation("EngagementParent", fields: [parentId], references: [id], onDelete: Cascade)
+  status         EngagementStatus @default(ACTIVE)
+  ratePerSession Int
+  totalSessions  Int
+  frequency      String? // "2x seminggu (Jumat & Sabtu)"
+  location       String? // "SDN Klojen 01, Kota Malang"
+  phase          String? // "Fase Adaptasi", "Target Smt 1"
+  startDate      DateTime?        @db.Date
+  endDate        DateTime?        @db.Date
+  createdAt      DateTime         @default(now())
+
+  sessions Session[]
+
+  @@index([teacherUserId])
+  @@index([parentId])
+}
+
+model Session {
+  id           String        @id @default(cuid())
+  engagementId String
+  engagement   Engagement    @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  number       Int
+  startAt      DateTime
+  endAt        DateTime
+  location     String?
+  status       SessionStatus @default(SCHEDULED)
+  createdAt    DateTime      @default(now())
+
+  report SessionReport?
+
+  @@unique([engagementId, number])
+  @@index([startAt])
+}
+
+/// Report Card per sesi (diisi shadow teacher).
+model SessionReport {
+  id             String   @id @default(cuid())
+  sessionId      String   @unique
+  session        Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  childId        String
+  child          Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  teacherUserId  String
+  teacher        User     @relation("ReportTeacher", fields: [teacherUserId], references: [id], onDelete: Cascade)
+  dailyNote      String // catatan harian (boleh panjang, paragraf dipisah \n\n)
+  achievement    String?
+  sensoryNote    String?
+  homeTip        String?
+  improved       String[] // ["Fokus Belajar", "Kontak Mata Spontan"]
+  attention      String[] // ["Regulasi Emosi (Suara Bel)"]
+  needsAttention Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  scores ReportScore[]
+  photos ReportPhoto[]
+}
+
+/// Nilai 1–5 per aspek: Fokus, Sosial, Sensori, Komunikasi, Kemandirian, Regulasi Emosi, Akademik.
+model ReportScore {
+  id       String        @id @default(cuid())
+  reportId String
+  report   SessionReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  aspect   String
+  value    Float
+
+  @@unique([reportId, aspect])
+}
+
+model ReportPhoto {
+  id       String        @id @default(cuid())
+  reportId String
+  report   SessionReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  url      String
+  caption  String?
+}
+
+/// Ulasan untuk teacher / psikolog (rating di profil).
+model Review {
+  id           String   @id @default(cuid())
+  authorId     String
+  author       User     @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  targetUserId String
+  target       User     @relation("ReviewTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  rating       Int // 1–5
+  comment      String?
+  createdAt    DateTime @default(now())
+
+  @@unique([authorId, targetUserId])
+}
+
+// ----------------------------------------------------------------------------
+//  CHAT & RESPON CEPAT
+// ----------------------------------------------------------------------------
+
+model Conversation {
+  id        String           @id @default(cuid())
+  type      ConversationType
+  childId   String?
+  child     Child?           @relation(fields: [childId], references: [id], onDelete: SetNull)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt // dinaikkan setiap ada pesan baru → urutan daftar chat
+
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime     @default(now())
+
+  @@id([conversationId, userId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  type           MessageType  @default(TEXT)
+  text           String?
+  imageUrl       String?
+  schedule       Json? // { title, date, hours, place } untuk kartu jadwal di chat
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+/// "Respon cepat" di beranda: teacher bertanya, orang tua jawab Ya/Tidak.
+model QuickQuestion {
+  id         String       @id @default(cuid())
+  teacherId  String
+  teacher    User         @relation("QuestionTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  parentId   String
+  parent     User         @relation("QuestionParent", fields: [parentId], references: [id], onDelete: Cascade)
+  childId    String
+  child      Child        @relation(fields: [childId], references: [id], onDelete: Cascade)
+  text       String
+  answer     QuickAnswer?
+  answeredAt DateTime?
+  createdAt  DateTime     @default(now())
+
+  @@index([parentId, answer])
+}
+
+// ----------------------------------------------------------------------------
+//  KONSULTASI PSIKOLOG
+// ----------------------------------------------------------------------------
+
+model PsychologistSlot {
+  id             String              @id @default(cuid())
+  psychologistId String
+  psychologist   PsychologistProfile @relation(fields: [psychologistId], references: [id], onDelete: Cascade)
+  startAt        DateTime
+  isBooked       Boolean             @default(false)
+
+  consultation Consultation?
+
+  @@unique([psychologistId, startAt])
+}
+
+model Consultation {
+  id              String              @id @default(cuid())
+  parentId        String
+  parent          User                @relation("ConsultationParent", fields: [parentId], references: [id], onDelete: Cascade)
+  psychologistId  String
+  psychologist    PsychologistProfile @relation(fields: [psychologistId], references: [id], onDelete: Cascade)
+  childId         String?
+  child           Child?              @relation(fields: [childId], references: [id], onDelete: SetNull)
+  slotId          String?             @unique
+  slot            PsychologistSlot?   @relation(fields: [slotId], references: [id])
+  type            ConsultationType
+  scheduledAt     DateTime
+  durationMin     Int
+  basePrice       Int
+  discount        Int                 @default(0)
+  promoCode       String?
+  finalPrice      Int
+  status          ConsultationStatus  @default(PENDING_PAYMENT)
+  complaint       String? // keluhan singkat dari orang tua
+  // hasil sesi yang dikirim psikolog ("send medical records")
+  observation     String?
+  recommendation  String?
+  followUp        String?
+  // ruang video/voice call (Daily.co; cadangan Jitsi)
+  meetingProvider String?
+  meetingRoom     String?
+  meetingUrl      String?
+  createdAt       DateTime            @default(now())
+
+  @@index([parentId])
+  @@index([psychologistId])
+}
+
+// ----------------------------------------------------------------------------
+//  PEMBAYARAN & LANGGANAN
+// ----------------------------------------------------------------------------
+
+model Payment {
+  id               String         @id @default(cuid())
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose          PaymentPurpose
+  referenceId      String // id consultation / engagement / subscription
+  invoiceNo        String         @unique
+  amount           Int
+  status           PaymentStatus  @default(PENDING)
+  method           String? // "mock", "midtrans-qris", dll
+  // untuk ENGAGEMENT: siapa teacher yang menerima (pendapatan teacher)
+  payeeUserId      String?
+  payeeAmount      Int? // setelah potong biaya platform
+  paidAt           DateTime?
+  expiresAt        DateTime?
+  // Midtrans Snap
+  snapToken        String?
+  redirectUrl      String? // halaman bayar Midtrans (dibuka di WebBrowser)
+  paymentType      String? // "qris", "bank_transfer", "gopay", ...
+  gatewayStatus    String? // transaction_status terakhir dari Midtrans
+  gatewayPayload   Json? // notifikasi terakhir (untuk audit)
+  // Transfer manual (QRIS GoPay / rekening bank)
+  uniqueCode       Int? // 1–999, ditambahkan ke nominal agar mudah dicocokkan di mutasi
+  amountDue        Int? // amount + uniqueCode = nominal yang harus ditransfer
+  manualMethodId   String?
+  manualMethod     PaymentMethod? @relation(fields: [manualMethodId], references: [id], onDelete: SetNull)
+  proofUrl         String? // foto/screenshot bukti transfer
+  proofSenderName  String? // nama pemilik akun pengirim
+  proofNote        String?
+  proofSubmittedAt DateTime?
+  verifiedById     String? // admin yang mengonfirmasi / menolak
+  verifiedAt       DateTime?
+  rejectReason     String?
+  createdAt        DateTime       @default(now())
+
+  @@index([payeeUserId, status])
+  @@index([status, createdAt])
+}
+
+/// Tujuan transfer manual yang ditampilkan di aplikasi (dikelola dari web admin).
+model PaymentMethod {
+  id            String            @id @default(cuid())
+  type          PaymentMethodType
+  label         String // "QRIS GoPay DUBIDU", "Transfer BCA"
+  bankName      String? // "BCA", "BRI", ... (untuk BANK_TRANSFER)
+  accountNumber String? // nomor rekening (untuk BANK_TRANSFER)
+  accountName   String // nama pemilik rekening / merchant QRIS
+  qrImageUrl    String? // gambar QRIS (untuk QRIS)
+  instructions  String? // petunjuk singkat
+  active        Boolean           @default(true)
+  order         Int               @default(0)
+  createdAt     DateTime          @default(now())
+
+  payments Payment[]
+}
+
+enum PaymentMethodType {
+  QRIS
+  BANK_TRANSFER
+}
+
+/// Dubidu Plus
+model Subscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan      PlanType
+  price     Int
+  startsAt  DateTime
+  endsAt    DateTime
+  active    Boolean  @default(false) // jadi true setelah dibayar
+  createdAt DateTime @default(now())
+}
+
+// ----------------------------------------------------------------------------
+//  KOMUNITAS
+// ----------------------------------------------------------------------------
+
+model CommunityPost {
+  id        String   @id @default(cuid())
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  text      String
+  topic     String // "ADHD" | "Autism" | "Speech Delay" | ...
+  photos    String[]
+  createdAt DateTime @default(now())
+
+  likes    PostLike[]
+  comments PostComment[]
+
+  @@index([topic, createdAt])
+}
+
+model PostLike {
+  postId String
+  post   CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId String
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+}
+
+model PostComment {
+  id        String        @id @default(cuid())
+  postId    String
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  text      String
+  createdAt DateTime      @default(now())
+}
+
+// ----------------------------------------------------------------------------
+//  NOTIFIKASI, CHECK-IN MOOD, MADU, DOOBIE
+// ----------------------------------------------------------------------------
+
+model Notification {
+  id        String               @id @default(cuid())
+  userId    String
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  NotificationCategory
+  icon      String? // nama ikon MaterialCommunityIcons
+  tone      String? // blue | green | red | yellow | gray
+  title     String
+  body      String
+  tag       String?
+  action    String? // label tombol: "Balas Pesan"
+  link      String? // route frontend: "/chat/abc"
+  readAt    DateTime?
+  createdAt DateTime             @default(now())
+
+  @@index([userId, createdAt])
+}
+
+/// "Check-in hari ini" — satu kali per anak per hari per pengguna (orang tua & teacher bisa check-in sendiri-sendiri).
+model MoodCheckin {
+  id           String   @id @default(cuid())
+  childId      String
+  child        Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date         DateTime @db.Date
+  mood         Mood
+  note         String?
+  pointsEarned Int
+  createdAt    DateTime @default(now())
+
+  @@unique([childId, userId, date])
+}
+
+/// Buku besar Madu (poin) — saldo di User.points selalu = jumlah amount di sini.
+model PointTransaction {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount    Int
+  reason    String // "checkin", "redeem", ...
+  createdAt DateTime @default(now())
+}
+
+model DoobieMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  childId   String?
+  role      String // "user" | "assistant"
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ----------------------------------------------------------------------------
+//  PUSH NOTIFICATION, RESET PASSWORD, AI MATCHING
+// ----------------------------------------------------------------------------
+
+/// Expo push token per perangkat (satu user bisa login di beberapa HP).
+model DeviceToken {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String   @unique // "ExponentPushToken[xxxx]"
+  platform   String? // "ios" | "android"
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// Kode OTP 6 digit untuk lupa password (disimpan dalam bentuk hash).
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+}
+
+/// Hasil AI matching per pasangan anak–teacher (cache).
+/// inputHash berubah otomatis kalau profil anak / teacher berubah → dihitung ulang.
+model MatchInsight {
+  childId       String
+  teacherUserId String
+  aiScore       Int // 0–100
+  reasons       String[] // alasan singkat yang ditampilkan di kartu swipe
+  caution       String? // hal yang perlu diperhatikan
+  inputHash     String
+  model         String
+  createdAt     DateTime @default(now())
+
+  @@id([childId, teacherUserId])
+  @@index([teacherUserId])
+}
