@@ -5,8 +5,7 @@ import { DataTable, type Column } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { setReviewStatusAction } from "@/lib/actions/moderation";
 import { formatDateTime } from "@/lib/format";
-import { MODERATION, ROLE } from "@/lib/labels";
-import { HIDE_REASONS } from "@/lib/mock/community";
+import { HIDE_REASONS, MODERATION, ROLE } from "@/lib/labels";
 import type { Review } from "@/types/community";
 
 const COLUMNS: Column<Review>[] = [

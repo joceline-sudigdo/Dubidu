@@ -13,8 +13,7 @@ import { decideTeacher } from "@/lib/actions/verification";
 import { getApplication } from "@/lib/api";
 import { getCurrentAdmin } from "@/lib/dal";
 import { formatDateTime, formatRupiah } from "@/lib/format";
-import { DECISION, RECOMMENDATION } from "@/lib/labels";
-import { REVISION_ISSUES } from "@/lib/mock/verifications";
+import { DECISION, RECOMMENDATION, REVISION_ISSUES } from "@/lib/labels";
 
 export const metadata: Metadata = { title: "Tinjau Pengajuan" };
 

@@ -17,10 +17,10 @@ function refresh(id?: string) {
 // bukti transfer cocok dengan mutasi rekening → lunas
 export async function confirmPaymentAction(_: ActionState, fd: FormData): Promise<ActionState> {
   const id = text(fd, "id");
-  return adminAction(async (admin) => {
+  return adminAction(async () => {
     const p = await getPayment(id);
     if (!p) throw new Error("Pembayaran tidak ditemukan.");
-    await confirmPayment(id, admin.fullName);
+    await confirmPayment(id);
     refresh(id);
     return {
       action: "PAYMENT_CONFIRMED",
@@ -35,11 +35,11 @@ export async function confirmPaymentAction(_: ActionState, fd: FormData): Promis
 // bukti tidak cocok → kembali menunggu transfer, user bisa unggah ulang
 export async function rejectPaymentAction(_: ActionState, fd: FormData): Promise<ActionState> {
   const id = text(fd, "id");
-  return adminAction(async (admin) => {
+  return adminAction(async () => {
     const reason = requireText(text(fd, "reason"), "Alasan penolakan", 5);
     const p = await getPayment(id);
     if (!p) throw new Error("Pembayaran tidak ditemukan.");
-    await rejectPayment(id, reason, admin.fullName);
+    await rejectPayment(id, reason);
     refresh(id);
     return { action: "PAYMENT_REJECTED", targetType: "PAYMENT", targetId: id, targetLabel: p.invoiceNo, reason };
   });

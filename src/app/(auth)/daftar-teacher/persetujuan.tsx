@@ -10,6 +10,9 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { SecureNote } from '@/components/ui/secure-note';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { useParentRegistration } from '@/context/parent-registration';
+import { errorMessage } from '@/lib/api';
+import { registerTeacher } from '@/lib/auth';
+import { showAlert } from '@/lib/dialog';
 
 const AGREEMENTS = [
   {
@@ -32,9 +35,22 @@ const AGREEMENTS = [
 
 // langkah terakhir: persetujuan kode etik, lalu pendaftaran dikirim untuk diverifikasi
 export default function PersetujuanScreen() {
-  const { reset } = useParentRegistration();
+  const { data, reset } = useParentRegistration();
   const [checked, setChecked] = useState<number[]>([]);
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const submit = async () => {
+    setSending(true);
+    try {
+      await registerTeacher(data);
+      setSent(true);
+    } catch (e) {
+      showAlert('Pendaftaran belum terkirim', errorMessage(e));
+    } finally {
+      setSending(false);
+    }
+  };
   const all = checked.length === AGREEMENTS.length;
 
   const toggle = (i: number) => setChecked((c) => (c.includes(i) ? c.filter((x) => x !== i) : [...c, i]));
@@ -46,7 +62,7 @@ export default function PersetujuanScreen() {
           <Image source={require('@/assets/images/mascot/wait.png')} style={styles.mascot} contentFit="contain" />
           <AppText variant="body" color={Colors.textSecondary} style={styles.center}>
             Terima kasih sudah mendaftar jadi shadow teacher. Tim Dubidu akan memverifikasi data kamu dalam 1-3 hari
-            kerja, lalu mengabari lewat email atau WhatsApp.
+            kerja. Sambil menunggu, kamu sudah bisa masuk dan melengkapi profil.
           </AppText>
           <View style={[styles.steps, Shadow.soft]}>
             {['Data terkirim', 'Verifikasi dokumen', 'Wawancara singkat', 'Akun aktif'].map((s, i) => (
@@ -106,7 +122,12 @@ export default function PersetujuanScreen() {
         </AppText>
       </Pressable>
 
-      <PrimaryButton title="Kirim Pendaftaran" icon="send" disabled={!all} onPress={() => setSent(true)} />
+      <PrimaryButton
+        title={sending ? 'Mengirim pendaftaran…' : 'Kirim Pendaftaran'}
+        icon="send"
+        disabled={!all || sending}
+        onPress={submit}
+      />
       <SecureNote />
     </FormScreen>
   );

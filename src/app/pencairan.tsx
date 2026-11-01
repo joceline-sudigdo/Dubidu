@@ -14,22 +14,21 @@ import { SecureNote } from '@/components/ui/secure-note';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { formatRupiah } from '@/data/parent';
 import { showAlert } from '@/lib/dialog';
-import { mainMethod } from '@/lib/payment-methods';
-import { MIN_PAYOUT, PAYOUT_FEE, useBalance, withdraw } from '@/lib/payout-store';
-import { getSession } from '@/lib/session';
+import { loadBalance, useBalance, withdraw } from '@/lib/payout-store';
 import { useTransactions } from '@/lib/transactions-store';
 
 // pencairan pendapatan shadow teacher & psikolog ke rekening utama
 export default function PencairanScreen() {
-  const role = getSession().role;
   const balance = useBalance();
   const transactions = useTransactions();
   const [amountText, setAmountText] = useState('');
   const [processing, setProcessing] = useState(false);
-  const [dest, setDest] = useState(() => mainMethod(role));
+  const dest = balance.account;
+  const MIN_PAYOUT = balance.minPayout;
+  const PAYOUT_FEE = balance.payoutFee;
 
-  // rekening bisa diganti di halaman Rekening Pencairan, ambil ulang saat kembali ke sini
-  useFocusEffect(useCallback(() => setDest(mainMethod(role)), [role]));
+  // saldo & rekening bisa berubah (diganti di Rekening Pencairan / diproses admin), muat ulang saat layar dibuka
+  useFocusEffect(useCallback(() => void loadBalance().catch(() => {}), []));
 
   const amount = Number(amountText.replace(/\D/g, '')) || 0;
   const error =
@@ -41,7 +40,7 @@ export default function PencairanScreen() {
           ? 'Melebihi saldo yang bisa dicairkan'
           : '';
   const history = transactions.filter((t) => t.title.startsWith('Tarik saldo')).slice(0, 3);
-  const destLabel = dest ? `${dest.label} ${dest.detail.split(' a.n.')[0]}` : '';
+  const destLabel = dest ? `${dest.bankName} ${dest.accountNumberMasked}` : '';
 
   const setQuick = (ratio: number) => setAmountText(String(Math.floor((balance.available * ratio) / 1000) * 1000));
 
@@ -60,19 +59,17 @@ export default function PencairanScreen() {
         { text: 'Batal', style: 'cancel' },
         {
           text: 'Cairkan',
-          onPress: () => {
+          onPress: async () => {
             setProcessing(true);
-            // demo: anggap transfer diproses 1,2 detik
-            setTimeout(() => {
-              setProcessing(false);
-              if (withdraw(amount, destLabel)) {
-                setAmountText('');
-                showAlert(
-                  'Pencairan berhasil diajukan',
-                  `${formatRupiah(amount - PAYOUT_FEE)} akan masuk ke ${destLabel} maksimal 1x24 jam kerja.`
-                );
-              }
-            }, 1200);
+            const ok = await withdraw(amount, destLabel);
+            setProcessing(false);
+            if (ok) {
+              setAmountText('');
+              showAlert(
+                'Pencairan berhasil diajukan',
+                `${formatRupiah(amount - PAYOUT_FEE)} akan masuk ke ${destLabel} maksimal 1x24 jam kerja.`
+              );
+            }
           },
         },
       ]
@@ -147,12 +144,14 @@ export default function PencairanScreen() {
 
       <SectionHeader title="Rekening tujuan" />
       <ClayCard onPress={() => router.push('/metode-pembayaran')} style={styles.dest}>
-        <View style={[styles.bank, { backgroundColor: dest?.color ?? Colors.textMuted }]}>
+        <View style={[styles.bank, { backgroundColor: dest ? Colors.primaryDark : Colors.textMuted }]}>
           <MaterialCommunityIcons name="bank" size={20} color="#FFFFFF" />
         </View>
         <View style={styles.flex}>
-          <AppText style={styles.bold}>{dest?.label ?? 'Belum ada rekening'}</AppText>
-          <AppText variant="caption">{dest?.detail ?? 'Ketuk untuk menambahkan'}</AppText>
+          <AppText style={styles.bold}>{dest?.bankName ?? 'Belum ada rekening'}</AppText>
+          <AppText variant="caption">
+            {dest ? `${dest.accountNumberMasked} a.n. ${dest.accountName ?? '-'}` : 'Ketuk untuk menambahkan'}
+          </AppText>
         </View>
         <AppText variant="link" style={styles.small}>
           Ubah

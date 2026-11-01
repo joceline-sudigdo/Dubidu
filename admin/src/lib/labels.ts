@@ -76,3 +76,15 @@ export const param = (sp: Record<string, string | string[] | undefined>, key: st
   const v = sp[key];
   return (Array.isArray(v) ? v[0] : v) ?? "";
 };
+
+// pilihan catatan saat meminta revisi verifikasi teacher
+export const REVISION_ISSUES = [
+  "Pengalaman belum relevan",
+  "Perlu interview ulang",
+  "Data diri tidak lengkap",
+  "Dokumen buram / tidak terbaca",
+  "Dokumen wajib belum diunggah",
+];
+
+// alasan menyembunyikan postingan / komentar / ulasan
+export const HIDE_REASONS = ["Spam / promosi", "Ujaran kebencian / merendahkan", "Membagikan data pribadi", "Informasi medis menyesatkan", "Konten tidak pantas"];

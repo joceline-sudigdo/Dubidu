@@ -1,6 +1,6 @@
 import Feather from "@expo/vector-icons/Feather";
 import { Image } from "expo-image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Linking, Pressable, StyleSheet, TextInput, View } from "react-native";
 import Animated, { FadeIn, LinearTransition } from "react-native-reanimated";
 
@@ -10,6 +10,7 @@ import { ScreenHeader, SectionHeader } from "@/components/parent/screen-header";
 import { AppText } from "@/components/ui/app-text";
 import { PrimaryButton } from "@/components/ui/primary-button";
 import { Colors, Fonts, Radius, Shadow } from "@/constants/theme";
+import { api } from "@/lib/api";
 import { openSupportChat } from "@/lib/support-chat";
 
 const FAQ = [
@@ -38,7 +39,16 @@ const FAQ = [
 export default function BantuanScreen() {
   const [open, setOpen] = useState<number | null>(0);
   const [query, setQuery] = useState("");
-  const list = FAQ.filter((f) =>
+  const [faqs, setFaqs] = useState(FAQ);
+
+  // FAQ yang dipublikasikan dari web admin; daftar bawaan tampil dulu
+  useEffect(() => {
+    api<{ value: { question: string; answer: string }[] }>("/content/faqs")
+      .then(({ value }) => value.length && setFaqs(value.map((f) => ({ q: f.question, a: f.answer }))))
+      .catch(() => {});
+  }, []);
+
+  const list = faqs.filter((f) =>
     (f.q + f.a).toLowerCase().includes(query.trim().toLowerCase()),
   );
 

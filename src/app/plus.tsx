@@ -16,7 +16,7 @@ import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { formatRupiah } from '@/data/parent';
 import { plusBenefits, plusCompare, plusPlans, type PlusPlan } from '@/data/plus';
 import { showAlert } from '@/lib/dialog';
-import { cancelPlus, isPlusRole, usePlus } from '@/lib/membership-store';
+import { isPlusRole, usePlus } from '@/lib/membership-store';
 import { getSession } from '@/lib/session';
 
 const GOLD = '#8A6A0C';
@@ -39,22 +39,15 @@ export default function PlusScreen() {
   const plans = plusPlans[role];
   const chosen = plans.find((p) => p.key === plan)!;
 
-  const subscribe = () =>
-    router.push({
-      pathname: '/checkout',
-      params: { title: `Dubidu Plus ${chosen.title}`, amount: String(chosen.price), plan },
-    });
+  const subscribe = () => router.push({ pathname: '/checkout', params: { plan } });
 
+  // pembayaran Plus lewat transfer, tidak diperpanjang otomatis: cukup tidak membayar periode berikutnya
   const stop = () =>
     showAlert(
       'Berhenti langganan?',
-      teacher
-        ? 'Kuota skip kembali 5 anak per hari dan biaya platform kembali 10%.'
-        : 'Kuota skip kembali 5 teacher per hari dan diskon psikolog tidak berlaku lagi.',
-      [
-        { text: 'Tetap Plus', style: 'cancel' },
-        { text: 'Berhenti', style: 'destructive', onPress: () => cancelPlus(role) },
-      ]
+      `Dubidu Plus tidak diperpanjang otomatis. Paketmu tetap aktif sampai akhir periode, setelah itu ${
+        teacher ? 'kuota skip kembali 5 anak per hari dan biaya platform kembali 10%.' : 'kuota skip kembali 5 teacher per hari dan diskon psikolog tidak berlaku lagi.'
+      }`
     );
 
   return (

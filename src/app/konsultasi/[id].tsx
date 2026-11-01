@@ -1,7 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
@@ -12,15 +12,21 @@ import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
-import {
-  consultationDates,
-  consultationTimes,
-  consultationTypes,
-  finalPrice,
-  formatRupiah,
-  PROMO_CODE,
-  psychologists,
-} from '@/data/parent';
+import { consultationTypes, finalPrice, formatRupiah, MONTHS, PROMO_CODE, psychologists } from '@/data/parent';
+import { api, errorMessage } from '@/lib/api';
+import { getChildren } from '@/lib/children-store';
+import { showAlert } from '@/lib/dialog';
+
+// jadwal kosong psikolog per hari (GET /psychologists/:id/availability)
+type Day = {
+  date: string; // YYYY-MM-DD
+  day: string;
+  dayOfMonth: number;
+  status: 'open' | 'few' | 'full';
+  times: { slotId: string; time: string; status: 'open' | 'last' | 'full' }[];
+};
+
+const TYPE_ID: Record<string, 'VIDEO' | 'CALL' | 'CHAT'> = { video: 'VIDEO', call: 'CALL', chat: 'CHAT' };
 
 const STATUS_COLOR = { open: Colors.primary, few: Colors.yellow, full: Colors.red } as const;
 
@@ -29,9 +35,51 @@ export default function JadwalKonsultasiScreen() {
   const psychologist = psychologists.find((p) => p.id === id) ?? psychologists[0];
   const shortName = psychologist.name.split(',')[0];
   const [type, setType] = useState('video');
-  const [date, setDate] = useState('23');
-  const [time, setTime] = useState('10:30');
+  const [days, setDays] = useState<Day[]>([]);
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
   const [note, setNote] = useState('');
+  const [booking, setBooking] = useState(false);
+
+  useEffect(() => {
+    if (!psychologist) return;
+    api<Day[]>(`/psychologists/${psychologist.id}/availability`)
+      .then((list) => {
+        setDays(list);
+        const first = list.find((d) => d.status !== 'full');
+        if (first) {
+          setDate(first.date);
+          setTime(first.times.find((t) => t.status !== 'full')?.time ?? '');
+        }
+      })
+      .catch((e) => showAlert('Jadwal belum termuat', errorMessage(e)));
+  }, [psychologist]);
+
+  const selectedDay = days.find((d) => d.date === date);
+  const slot = selectedDay?.times.find((t) => t.time === time && t.status !== 'full');
+  const monthLabel = selectedDay ? `${MONTHS[Number(selectedDay.date.slice(5, 7)) - 1]} ${selectedDay.date.slice(0, 4)}` : '';
+
+  // pesan slot (dikunci 1 jam) lalu lanjut ke pembayaran
+  const book = async () => {
+    if (!slot) return;
+    setBooking(true);
+    try {
+      const { payment } = await api<{ payment: { id: string } }>('/consultations', {
+        body: {
+          psychologistId: psychologist.id,
+          slotId: slot.slotId,
+          type: TYPE_ID[type],
+          childId: getChildren()[0]?.id,
+          complaint: note.trim() || undefined,
+        },
+      });
+      router.push({ pathname: '/pembayaran/[id]', params: { id: payment.id } });
+    } catch (e) {
+      showAlert('Jadwal belum bisa dipesan', errorMessage(e));
+    } finally {
+      setBooking(false);
+    }
+  };
 
   const total = finalPrice(psychologist);
   const discount = psychologist.basePrice - total;
@@ -47,15 +95,11 @@ export default function JadwalKonsultasiScreen() {
             <AppText style={styles.footerTotal}>{formatRupiah(total)}</AppText>
           </View>
           <PrimaryButton
-            title="Lanjut Bayar"
+            title={booking ? 'Memesan…' : 'Lanjut Bayar'}
             icon="arrow-right"
             style={styles.flex}
-            onPress={() =>
-              router.push({
-                pathname: '/checkout',
-                params: { title: `Konsultasi ${shortName} · ${date} Sep, ${time}`, amount: String(total) },
-              })
-            }
+            disabled={!slot || booking}
+            onPress={book}
           />
         </View>
       }>
@@ -126,23 +170,26 @@ export default function JadwalKonsultasiScreen() {
         title="Pilih Tanggal"
         right={
           <View style={styles.inline}>
-            <AppText variant="link">September 2026</AppText>
+            <AppText variant="link">{monthLabel}</AppText>
             <Feather name="calendar" size={16} color={Colors.primary} />
           </View>
         }
       />
       <View style={styles.row}>
-        {consultationDates.map((d) => {
-          const active = d.id === date;
+        {days.slice(0, 7).map((d) => {
+          const active = d.date === date;
           const full = d.status === 'full';
           return (
             <Pressable
-              key={d.id}
+              key={d.date}
               disabled={full}
-              onPress={() => setDate(d.id)}
+              onPress={() => {
+                setDate(d.date);
+                setTime(d.times.find((t) => t.status !== 'full')?.time ?? '');
+              }}
               style={[styles.dateCard, active ? styles.dateActive : !full && Shadow.soft, full && styles.dateFull]}>
               <AppText style={[styles.dateDay, active && { color: '#FFFFFF' }, full && styles.strike]}>{d.day}</AppText>
-              <AppText style={[styles.dateNum, active && { color: '#FFFFFF' }, full && styles.strike]}>{d.date}</AppText>
+              <AppText style={[styles.dateNum, active && { color: '#FFFFFF' }, full && styles.strike]}>{d.dayOfMonth}</AppText>
               <View style={[styles.dateDot, { backgroundColor: active ? '#FFFFFF' : STATUS_COLOR[d.status] }]} />
             </Pressable>
           );
@@ -164,7 +211,7 @@ export default function JadwalKonsultasiScreen() {
         }
       />
       <View style={styles.timeGrid}>
-        {consultationTimes.map((t) => {
+        {(selectedDay?.times ?? []).map((t) => {
           const active = t.time === time;
           const full = t.status === 'full';
           return (

@@ -125,8 +125,14 @@ describe("DUBIDU API", () => {
     teacherId = reg.data.user.id;
     assert.equal(reg.data.user.isDemo, false);
 
+    // dokumen pertama → masuk antrian verifikasi admin
+    await api("/teachers/me/documents", { token: teacherToken, body: { type: "IJAZAH", url: "https://example.com/ijazah.pdf" } });
     const admin0 = await login("admin@dubidu.id", "admin12345");
-    const noSkills = await api(`/admin/teachers/${teacherId}/verification`, { method: "PATCH", token: admin0, body: { status: "VERIFIED" } });
+    const queue = await api("/admin/teacher-verifications?status=PENDING", { token: admin0 });
+    const application = queue.data.find((a: { userId: string }) => a.userId === teacherId);
+    assert.ok(application, "pengajuan teacher baru ada di antrian");
+    assert.ok(application.documents.some((d: { type: string; url: string | null }) => d.type === "KTP" && d.url === null)); // dokumen wajib yang belum ada
+    const noSkills = await api(`/admin/teacher-verifications/${application.id}/decision`, { token: admin0, body: { status: "VERIFIED" } });
     assert.equal(noSkills.status, 400); // level keahlian wajib diisi sebelum verifikasi
 
     const badSkill = await api("/teachers/me", { method: "PATCH", token: teacherToken, body: { skills: { menari: 90 } } });
@@ -146,11 +152,13 @@ describe("DUBIDU API", () => {
     assert.equal(profile.data.skillLevels.speech, 95);
     const early = await api("/matching/children", { token: teacherToken });
     assert.equal(early.status, 403); // belum terverifikasi
-    await api("/teachers/me/documents", { token: teacherToken, body: { type: "IJAZAH", url: "https://example.com/ijazah.pdf" } });
 
     const admin = await login("admin@dubidu.id", "admin12345");
-    const verify = await api(`/admin/teachers/${teacherId}/verification`, { method: "PATCH", token: admin, body: { status: "VERIFIED" } });
-    assert.equal(verify.data.verificationStatus, "VERIFIED");
+    const revision = await api(`/admin/teacher-verifications/${application.id}/decision`, { token: admin, body: { status: "REVISION", note: "Mohon unggah KTP" } });
+    assert.equal(revision.data.status, "REVISION");
+    await api("/teachers/me/documents", { token: teacherToken, body: { type: "KTP", url: "https://example.com/ktp.jpg" } });
+    const verify = await api(`/admin/teacher-verifications/${application.id}/decision`, { token: admin, body: { status: "VERIFIED" } });
+    assert.equal(verify.data.status, "VERIFIED", JSON.stringify(verify.data));
 
     // psikolog sungguhan dibuat admin, lalu membuka jadwal
     psyName = `Psikolog Uji ${stamp}`;
@@ -208,12 +216,14 @@ describe("DUBIDU API", () => {
 
     // admin melihat semuanya + penanda demo
     const admin = await login("admin@dubidu.id", "admin12345");
-    const demoUsers = await api("/admin/users?demo=true&pageSize=100", { token: admin });
-    assert.ok(demoUsers.data.items.every((u: { isDemo: boolean }) => u.isDemo));
-    assert.ok(demoUsers.data.items.some((u: { email: string }) => u.email === "devi@dubidu.id"));
+    const demoUsers = await api("/admin/users?demo=true", { token: admin });
+    assert.ok(demoUsers.data.every((u: { isDemo: boolean }) => u.isDemo));
+    assert.ok(demoUsers.data.some((u: { email: string }) => u.email === "devi@dubidu.id"));
     const stats = await api("/admin/stats", { token: admin });
     assert.equal(stats.data.isDemo, false);
-    assert.ok(stats.data.demoUsers > 0);
+    assert.ok(stats.data.users.parent > 0);
+    const demoStats = await api("/admin/stats?demo=true", { token: admin });
+    assert.ok(demoStats.data.users.parent > 0);
   });
 
   it("beranda demo Devi sesuai desain", async () => {
@@ -597,11 +607,59 @@ describe("DUBIDU API", () => {
   it("admin web: daftar user, pembayaran, konsultasi", async () => {
     const admin = await login("admin@dubidu.id", "admin12345");
     const users = await api("/admin/users?role=TEACHER&q=pras", { token: admin });
-    assert.equal(users.data.items[0].email, "pras@dubidu.id");
+    assert.equal(users.data[0].email, "pras@dubidu.id");
     const payments = await api("/admin/payments?status=PAID", { token: admin });
-    assert.ok(payments.data.summary.paidTotal > 0);
+    assert.ok(payments.data.length > 0 && payments.data.every((p: { status: string }) => p.status === "PAID"));
     assert.equal((await api("/admin/consultations", { token: admin })).status, 200);
     assert.equal((await api("/admin/users", { token: parentToken })).status, 403);
+  });
+
+  it("web admin: pencairan dana, laporan & moderasi, konten, audit log", async () => {
+    const admin = await login("admin@dubidu.id", "admin12345");
+
+    // psikolog punya pendapatan dari konsultasi yang sudah dibayar → ajukan pencairan → admin transfer
+    const balance = await api("/payouts/balance", { token: psyToken });
+    assert.ok(balance.data.available > 0, JSON.stringify(balance.data));
+    assert.equal((await api("/payouts", { token: psyToken, body: { amount: 50000 } })).status, 400); // rekening belum diisi
+    await api("/payouts/account", { method: "PUT", token: psyToken, body: { bankName: "BCA", accountNumber: "1234567890", accountName: psyName } });
+    const payout = await api("/payouts", { token: psyToken, body: { amount: 50000 } });
+    assert.equal(payout.status, 201, JSON.stringify(payout.data));
+    const after = await api("/payouts/balance", { token: psyToken });
+    assert.equal(after.data.available, balance.data.available - 50000);
+    const transferred = await api(`/admin/payouts/${payout.data.id}/transfer`, { token: admin, body: { transferRef: "BCA-UJI-001" } });
+    assert.equal(transferred.data.status, "TRANSFERRED");
+    assert.equal(transferred.data.accountNumber, "1234567890");
+
+    // laporan postingan → admin sembunyikan → hilang dari feed
+    const post = await api("/posts", { token: teacherToken, body: { text: "Promo jasa les murah, hubungi saya!", topic: "Umum" } });
+    const report = await api("/content-reports", { token: parentToken, body: { targetType: "POST", targetId: post.data.id, reason: "Spam / promosi" } });
+    assert.equal(report.status, 201);
+    const open = await api("/admin/reports?status=OPEN", { token: admin });
+    assert.ok(open.data.some((r: { id: string }) => r.id === report.data.id));
+    await api(`/admin/community/posts/${post.data.id}`, { method: "PATCH", token: admin, body: { status: "HIDDEN", reason: "Spam / promosi" } });
+    await api(`/admin/reports/${report.data.id}/resolve`, { token: admin, body: { status: "RESOLVED", resolution: "Postingan disembunyikan" } });
+    const feed = await api("/posts", { token: parentToken });
+    assert.ok(feed.data.posts.every((p: { id: string }) => p.id !== post.data.id));
+
+    // konten dari web admin langsung dipakai aplikasi & server (harga Plus, promo)
+    const plans = await api("/admin/content/plans", { token: admin });
+    const cheaper = plans.data.value.map((p: { role: string; key: string; price: number }) => (p.role === "parent" && p.key === "bulanan" ? { ...p, price: 49000 } : p));
+    assert.equal((await api("/admin/content/plans", { method: "PUT", token: admin, body: { value: cheaper } })).status, 200);
+    assert.equal((await api("/subscription", { token: parentToken })).data.prices.MONTHLY, 49000);
+    await api("/admin/content/plans", { method: "PUT", token: admin, body: { value: plans.data.value } });
+    assert.equal((await api("/content/promos")).status, 404); // kode promo tidak dibuka ke publik
+    assert.equal((await api("/content/faqs")).status, 200);
+
+    // audit log dari web admin
+    const log = await api("/admin/audit-logs", { token: admin, body: { action: "PAYOUT_TRANSFERRED", targetType: "PAYOUT", targetId: payout.data.id, targetLabel: "Uji", reason: null } });
+    assert.equal(log.data.actorName, "Admin Dubidu");
+    assert.equal((await api("/admin/audit-logs", { token: parentToken })).status, 403);
+
+    // akun disuspend → token lama langsung ditolak
+    const suspended = await api(`/admin/users/${teacherId}/status`, { method: "PATCH", token: admin, body: { isActive: false, reason: "Uji suspend akun" } });
+    assert.equal(suspended.data.isActive, false);
+    assert.equal((await api("/auth/me", { token: teacherToken })).status, 403);
+    await api(`/admin/users/${teacherId}/status`, { method: "PATCH", token: admin, body: { isActive: true, reason: "" } });
   });
 
   it("transfer manual QRIS/bank: kode unik → upload bukti → admin tolak → upload ulang → admin konfirmasi", async () => {
@@ -636,7 +694,7 @@ describe("DUBIDU API", () => {
       const adminNotif = await api("/notifications", { token: admin });
       assert.ok(adminNotif.data.items.some((n: { title: string }) => n.title === "Bukti transfer baru"));
       const queue = await api("/admin/payments?status=VERIFYING", { token: admin });
-      assert.ok(queue.data.items.some((p: { id: string; proofUrl: string }) => p.id === paymentId && p.proofUrl));
+      assert.ok(queue.data.some((p: { id: string; proofUrl: string }) => p.id === paymentId && p.proofUrl));
 
       const rejected = await api(`/admin/payments/${paymentId}/reject`, { token: admin, body: { reason: "Nominal belum termasuk kode unik" } });
       assert.equal(rejected.data.status, "PENDING");

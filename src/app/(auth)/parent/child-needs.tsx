@@ -11,6 +11,8 @@ import { UploadBox } from '@/components/ui/upload-box';
 import { Colors, Fonts } from '@/constants/theme';
 import { useParentRegistration } from '@/context/parent-registration';
 import { NEED_CATEGORIES as CATEGORIES } from '@/data/needs';
+import { errorMessage } from '@/lib/api';
+import { registerParent } from '@/lib/auth';
 import { addChild } from '@/lib/children-store';
 import { showAlert } from '@/lib/dialog';
 
@@ -27,20 +29,29 @@ export default function ChildNeedsScreen() {
       prev.includes(option) ? prev.filter((o) => o !== option) : [...prev, option]
     );
 
-  const finish = () => {
-    if (adding) {
-      // langsung masuk ke daftar anak, lalu balik ke halaman sebelumnya
-      const child = addChild({ ...data.child, schoolLevel: data.child.schoolLevel ?? 'SD', conditions });
+  const [saving, setSaving] = useState(false);
+
+  const finish = async () => {
+    setSaving(true);
+    try {
+      if (adding) {
+        // simpan anak baru, lalu balik ke halaman sebelumnya
+        const child = await addChild({ ...data.child, schoolLevel: data.child.schoolLevel ?? 'SD', conditions });
+        reset();
+        router.dismiss(2);
+        showAlert('Profil anak dibuat', `${child.name} sudah ditambahkan. Yuk, cari shadow teacher yang cocok untuknya!`);
+        return;
+      }
+      update('needs', { conditions, medicalRecordUri });
+      await registerParent({ ...data, needs: { conditions, medicalRecordUri } });
       reset();
-      router.dismiss(2);
-      showAlert('Profil anak dibuat', `${child.name} sudah ditambahkan. Yuk, cari shadow teacher yang cocok untuknya!`);
-      return;
+      router.dismissAll();
+      router.replace('/beranda');
+    } catch (e) {
+      showAlert(adding ? 'Profil anak belum tersimpan' : 'Pendaftaran belum berhasil', errorMessage(e));
+    } finally {
+      setSaving(false);
     }
-    update('needs', { conditions, medicalRecordUri });
-    // TODO(backend): kirim data registrasi ke API di sini
-    reset();
-    router.dismissAll();
-    router.replace('/beranda');
   };
 
   return (
@@ -98,9 +109,9 @@ export default function ChildNeedsScreen() {
       </View>
 
       <PrimaryButton
-        title="Selesai"
+        title={saving ? 'Menyimpan…' : 'Selesai'}
         icon="check-circle"
-        disabled={conditions.length === 0}
+        disabled={conditions.length === 0 || saving}
         style={styles.button}
         onPress={finish}
       />

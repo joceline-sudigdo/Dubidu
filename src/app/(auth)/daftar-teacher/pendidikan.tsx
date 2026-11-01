@@ -10,16 +10,18 @@ import { SecureNote } from '@/components/ui/secure-note';
 import { TextField } from '@/components/ui/text-field';
 import { UploadBox } from '@/components/ui/upload-box';
 import { Colors, Fonts } from '@/constants/theme';
+import { useParentRegistration } from '@/context/parent-registration';
 
 const EDUCATION = ['SMA/SMK', 'D3', 'S1', 'S2'];
 
-// langkah 2 pendaftaran shadow teacher (UI saja, data dikirim ke backend nanti)
+// langkah 2 pendaftaran shadow teacher (dikirim ke server di langkah terakhir)
 export default function PendidikanScreen() {
-  const [education, setEducation] = useState<string | null>(null);
-  const [institution, setInstitution] = useState('');
-  const [major, setMajor] = useState('');
-  const [ijazah, setIjazah] = useState<string | null>(null);
-  const [certificate, setCertificate] = useState<string | null>(null);
+  const { data, update } = useParentRegistration();
+  const [education, setEducation] = useState<string | null>(data.teacher.education);
+  const [institution, setInstitution] = useState(data.teacher.institution);
+  const [major, setMajor] = useState(data.teacher.major);
+  const [ijazah, setIjazah] = useState<string | null>(data.teacher.ijazahUri);
+  const [certificate, setCertificate] = useState<string | null>(data.teacher.certificateUri);
 
   const canSubmit = !!education && institution.trim().length > 0 && major.trim().length > 0 && !!ijazah;
 
@@ -76,7 +78,10 @@ export default function PendidikanScreen() {
         title="Next"
         disabled={!canSubmit}
         style={styles.button}
-        onPress={() => router.push('/daftar-teacher/pengalaman')}
+        onPress={() => {
+          update('teacher', { education, institution: institution.trim(), major: major.trim(), ijazahUri: ijazah, certificateUri: certificate });
+          router.push('/daftar-teacher/pengalaman');
+        }}
       />
       <SecureNote />
     </FormScreen>

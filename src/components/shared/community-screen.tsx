@@ -48,10 +48,10 @@ export function CommunityScreen() {
     if (!result.canceled) setPhotos((list) => [...list, ...result.assets.map((a) => a.uri)].slice(0, MAX_PHOTOS));
   };
 
-  const publish = () => {
+  const publish = async () => {
     const text = draft.trim();
     if (!text && photos.length === 0) return;
-    addPost(text, photos, topic ?? 'ADHD');
+    if (!(await addPost(text, photos, topic ?? 'ADHD'))) return;
     setDraft('');
     setPhotos([]);
     showAlert('Postingan berhasil dibagikan');

@@ -1,28 +1,23 @@
 import { router } from 'expo-router';
 import { useSyncExternalStore } from 'react';
 
-import {
-  CHILD_MAX_SKIPS,
-  findChildReplacement,
-  initialChildMatches,
-  needLabels,
-  teacherProfile,
-  type SeekingChild,
-} from '@/data/teacher';
+import { CHILD_MAX_SKIPS, seekingChildren, serverChildMatch, type SeekingChild } from '@/data/teacher';
+import type { Skill } from '@/data/teachers';
 
-import { getThread, upsertThread } from './chat-store';
-import { getPlan } from './membership-store';
+import { api, errorMessage } from './api';
+import { loadThreads } from './chat-store';
+import { showAlert } from './dialog';
 
-// sama seperti matching parent: disimpan di memori, batas harian beneran nanti dicek backend
+// Child Matching (sisi teacher): daftar anak paling cocok & batas skip harian dari server (GET /matching/children)
 type State = {
-  skipsUsed: number;
+  skipsLeft: number | null;
   shown: SeekingChild[] | null;
-  seen: string[];
   connected: string[];
   declined: string[];
 };
 
-let state: State = { skipsUsed: 0, shown: null, seen: [], connected: [], declined: [] };
+const EMPTY: State = { skipsLeft: CHILD_MAX_SKIPS, shown: null, connected: [], declined: [] };
+let state: State = EMPTY;
 const listeners = new Set<() => void>();
 
 function set(next: State) {
@@ -40,57 +35,119 @@ export function useChildMatching() {
   );
 }
 
-// anak yang permintaannya dilewati di halaman detail tidak ditampilkan lagi
-export function shownChildren(current: State) {
-  return (current.shown ?? initialChildMatches()).filter((c) => !current.declined.includes(c.id));
-}
+type Card = {
+  id: string;
+  initials: string;
+  age: number | null;
+  gender: 'MALE' | 'FEMALE' | null;
+  grade: string | null;
+  city: string | null;
+  distanceKm: number | null;
+  parent: string;
+  needs: Skill[];
+  matchPercent: number;
+  connected: boolean;
+  requestId: string | null;
+};
 
-export function skipChild(child: SeekingChild) {
-  if (state.skipsUsed >= CHILD_MAX_SKIPS && !getPlan('teacher')) return;
-  const current = shownChildren(state);
-  const seen = state.seen.length ? state.seen : current.map((c) => c.id);
-  const replacement = findChildReplacement(child, [...seen, ...state.declined]);
+type ChildList = { skipsLeft: number | null; cards: Card[] };
+
+const toSeeking = (c: Card): SeekingChild => ({
+  id: c.id,
+  initials: c.initials,
+  age: c.age ?? 0,
+  gender: c.gender === 'MALE' ? 'male' : 'female',
+  city: c.city ?? '-',
+  area: c.city ?? '-',
+  needs: c.needs,
+  // detail jadwal & tujuan dibahas langsung dengan orang tua lewat chat
+  frequency: 'Dibahas di chat',
+  timeOfDay: '-',
+  days: '-',
+  hours: '-',
+  system: 'Dibahas di chat',
+  goal: '-',
+  note: '',
+  parent: c.parent,
+  parentRating: 5,
+  parentReviews: 0,
+  budget: 0,
+  distanceKm: c.distanceKm ?? 0,
+  requestId: c.requestId,
+});
+
+function remember(list: ChildList) {
+  const children = list.cards.map(toSeeking);
+  for (const c of children) {
+    const i = seekingChildren.findIndex((x) => x.id === c.id);
+    if (i >= 0) seekingChildren[i] = c;
+    else seekingChildren.push(c);
+  }
+  list.cards.forEach((c) => (serverChildMatch[c.id] = c.matchPercent));
   set({
     ...state,
-    skipsUsed: state.skipsUsed + 1,
-    shown: current.flatMap((c) => (c.id === child.id ? (replacement ? [replacement] : []) : [c])),
-    seen: replacement ? [...seen, replacement.id] : seen,
+    skipsLeft: list.skipsLeft,
+    shown: children,
+    connected: [...new Set([...state.connected, ...list.cards.filter((c) => c.connected).map((c) => c.id)])],
   });
 }
 
-export function declineRequest(childId: string) {
-  if (!state.declined.includes(childId)) set({ ...state, declined: [...state.declined, childId] });
-}
-
-function nowTime() {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
-
-// teacher menawarkan diri: kirim chat ke orang tua lalu buka room chat-nya
-export function connectChild(child: SeekingChild, accepted = false) {
-  const threadId = `tc-${child.id}`;
-  if (!state.connected.includes(child.id)) {
-    const time = nowTime();
-    const text = accepted
-      ? `Halo ${child.parent}! Saya ${teacherProfile.name}, saya menerima tawaran pendampingan untuk ${child.initials}. Kapan kita bisa atur jadwal observasi pertama?`
-      : `Halo ${child.parent}! Saya ${teacherProfile.name}, shadow teacher ${teacherProfile.title.toLowerCase()}. Saya melihat profil ${child.initials} (${child.age} tahun, ${needLabels(child.needs).join(' & ')}) dan tertarik untuk mendampingi. Boleh kita diskusi lebih lanjut?`;
-    if (!getThread(threadId)) {
-      upsertThread({
-        id: threadId,
-        name: child.parent,
-        role: 'Orang Tua',
-        owner: 'teacher',
-        verified: true,
-        online: true,
-        child: child.initials,
-        preview: text,
-        time,
-        unread: 0,
-        messages: [{ id: `offer-${Date.now()}`, from: 'me', type: 'text', text, time, read: false }],
-      });
-    }
-    set({ ...state, connected: [...state.connected, child.id] });
+export async function loadChildMatches() {
+  try {
+    remember(await api<ChildList>('/matching/children'));
+  } catch (e) {
+    showAlert('Daftar anak belum termuat', errorMessage(e));
   }
-  router.push({ pathname: '/chat/[id]', params: { id: threadId } });
+}
+
+// anak yang permintaannya dilewati di halaman detail tidak ditampilkan lagi
+export function shownChildren(current: State) {
+  return (current.shown ?? []).filter((c) => !current.declined.includes(c.id));
+}
+
+export async function skipChild(child: SeekingChild) {
+  set({ ...state, shown: shownChildren(state).filter((c) => c.id !== child.id) });
+  try {
+    remember(await api<ChildList>(`/matching/children/${child.id}/skip`, { body: {} }));
+  } catch (e) {
+    showAlert('Belum bisa melewati anak ini', errorMessage(e));
+    loadChildMatches();
+  }
+}
+
+/** Tolak permintaan orang tua (PATCH /applications/:id) */
+export async function declineRequest(childId: string) {
+  const child = seekingChildren.find((c) => c.id === childId);
+  if (!state.declined.includes(childId)) set({ ...state, declined: [...state.declined, childId] });
+  if (child?.requestId) {
+    await api(`/applications/${child.requestId}`, { method: 'PATCH', body: { status: 'REJECTED' } }).catch((e) =>
+      showAlert('Permintaan belum ditolak', errorMessage(e))
+    );
+  }
+}
+
+/**
+ * Teacher menawarkan diri (Hubungkan) atau menerima permintaan orang tua (accepted = true).
+ * Server membuat chat + pesan pembuka, lalu room chat dibuka.
+ */
+export async function connectChild(child: SeekingChild, accepted = false) {
+  try {
+    let conversationId: string | undefined;
+    if (accepted && child.requestId) {
+      const res = await api<{ conversationId?: string }>(`/applications/${child.requestId}`, { method: 'PATCH', body: { status: 'ACCEPTED' } });
+      conversationId = res.conversationId;
+    }
+    if (!conversationId) {
+      ({ conversationId } = await api<{ conversationId: string }>(`/matching/children/${child.id}/connect`, { body: {} }));
+    }
+    set({ ...state, connected: [...new Set([...state.connected, child.id])] });
+    await loadThreads();
+    router.push({ pathname: '/chat/[id]', params: { id: conversationId } });
+  } catch (e) {
+    showAlert(accepted ? 'Tawaran belum diterima' : 'Pesan belum terkirim', errorMessage(e));
+  }
+}
+
+export function resetChildMatching() {
+  set(EMPTY);
 }

@@ -2,22 +2,22 @@
   {
     "role": "parent",
     "name": "Devi Anggraini",
-    "email": "parent@dubidu.id",
-    "phone": "081200000001",
-    "password": "parent123"
+    "email": "devi@dubidu.id",
+    "phone": "081234567890",
+    "password": "dubidu123"
   },
   {
     "role": "teacher",
-    "name": "Pras Karunia, S.Pd",
-    "email": "teacher@dubidu.id",
-    "phone": "081200000002",
-    "password": "teacher123"
+    "name": "Prasetyo Wibowo, S.Pd",
+    "email": "pras@dubidu.id",
+    "phone": "",
+    "password": "dubidu123"
   },
   {
     "role": "psychologist",
-    "name": "Amanda Putri, M.Psi.",
-    "email": "psikolog@dubidu.id",
-    "phone": "081200000003",
-    "password": "psikolog123"
+    "name": "Amanda Putri, M.Psi., Psikolog",
+    "email": "amanda@dubidu.id",
+    "phone": "",
+    "password": "dubidu123"
   }
 ]

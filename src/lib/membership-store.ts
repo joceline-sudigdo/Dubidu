@@ -5,7 +5,7 @@ import type { PlusPlan, PlusRole } from '@/data/plus';
 import type { UserRole } from './auth';
 import { getSession } from './session';
 
-// status langganan Dubidu Plus per role (disimpan di memori, nanti dari backend)
+// status langganan Dubidu Plus per role (dimuat dari server saat login, lihat lib/sync.ts)
 let plans: Record<PlusRole, PlusPlan | null> = { parent: null, teacher: null };
 const listeners = new Set<() => void>();
 
@@ -36,6 +36,10 @@ export function usePlus(): PlusPlan | null {
 // dipakai di luar komponen (misal store matching)
 export function getPlan(role: PlusRole) {
   return plans[role];
+}
+
+export function setPlans(next: Partial<typeof plans>) {
+  set({ ...plans, ...next });
 }
 
 export function subscribePlus(role: PlusRole, plan: PlusPlan) {

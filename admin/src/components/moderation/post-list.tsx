@@ -5,8 +5,7 @@ import { Notice } from "@/components/shared/detail-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { setCommentStatusAction, setPostStatusAction } from "@/lib/actions/moderation";
 import { formatDateTime } from "@/lib/format";
-import { MODERATION } from "@/lib/labels";
-import { HIDE_REASONS } from "@/lib/mock/community";
+import { HIDE_REASONS, MODERATION } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import type { CommunityPost } from "@/types/community";
 

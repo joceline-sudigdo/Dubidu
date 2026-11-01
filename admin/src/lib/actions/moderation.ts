@@ -46,7 +46,7 @@ export async function resolveReportAction(_: ActionState, fd: FormData): Promise
         } else if (report.targetType === "COMMENT") {
           const postId = await findCommentPostId(report.targetId);
           if (postId) {
-            await setCommentStatus(postId, report.targetId, "HIDDEN");
+            await setCommentStatus(report.targetId, "HIDDEN");
             await extra({ ...actor, action: "COMMENT_HIDDEN", targetType: "COMMENT", targetId: report.targetId, targetLabel: snippet(report.targetLabel) });
           }
         }
@@ -58,7 +58,7 @@ export async function resolveReportAction(_: ActionState, fd: FormData): Promise
       }
     }
 
-    await resolveReport(id, outcome === "resolve" ? "RESOLVED" : "DISMISSED", reason, admin.fullName);
+    await resolveReport(id, outcome === "resolve" ? "RESOLVED" : "DISMISSED", reason);
     refresh();
     return {
       action: outcome === "resolve" ? "REPORT_RESOLVED" : "REPORT_DISMISSED",
@@ -92,7 +92,7 @@ export async function setCommentStatusAction(_: ActionState, fd: FormData): Prom
     const reason = hide ? requireText(text(fd, "reason"), "Alasan", 5) : text(fd, "reason");
     const comment = (await getPost(postId))?.comments.find((c) => c.id === commentId);
     if (!comment) throw new Error("Komentar tidak ditemukan.");
-    await setCommentStatus(postId, commentId, hide ? "HIDDEN" : "VISIBLE");
+    await setCommentStatus(commentId, hide ? "HIDDEN" : "VISIBLE");
     refresh();
     return {
       action: hide ? "COMMENT_HIDDEN" : "COMMENT_RESTORED",

@@ -10,6 +10,8 @@ import { notify } from "../lib/notify.js";
 export const communityRouter = Router();
 communityRouter.use(requireAuth);
 
+const ROLE_LABEL = { PARENT: "Orang Tua", TEACHER: "Shadow Teacher", PSYCHOLOGIST: "Psikolog", ADMIN: "Admin Dubidu" } as const;
+
 /** "Diposting 3 menit lalu" */
 function postedAgo(date: Date) {
   const minutes = Math.floor((Date.now() - date.getTime()) / 60000);
@@ -33,10 +35,10 @@ communityRouter.get("/", async (req, res) => {
   const cursor = req.query.cursor ? String(req.query.cursor) : undefined;
   const posts = await prisma.communityPost.findMany({
     // feed hanya berisi post dari "dunia" yang sama (demo ↔ demo, nyata ↔ nyata)
-    where: { topic, author: { isDemo: await isDemoUser(userId) } },
+    where: { topic, status: "VISIBLE", author: { isDemo: await isDemoUser(userId) } },
     include: {
       author: true,
-      _count: { select: { likes: true, comments: true } },
+      _count: { select: { likes: true, comments: { where: { status: "VISIBLE" } } } },
       likes: { where: { userId }, select: { userId: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -48,6 +50,7 @@ communityRouter.get("/", async (req, res) => {
     posts: posts.map((p) => ({
       id: p.id,
       author: p.author.nickname ?? p.author.fullName,
+      authorRole: ROLE_LABEL[p.author.role],
       authorAvatarUrl: p.author.avatarUrl,
       isMine: p.authorId === userId,
       time: postedAgo(p.createdAt),
@@ -101,11 +104,11 @@ communityRouter.post("/:id/like", async (req, res) => {
 /** GET /api/posts/:id/comments */
 communityRouter.get("/:id/comments", async (req, res) => {
   const rows = await prisma.postComment.findMany({
-    where: { postId: param(req, "id") },
+    where: { postId: param(req, "id"), status: "VISIBLE" },
     include: { author: true },
     orderBy: { createdAt: "asc" },
   });
-  res.json(rows.map((c) => ({ id: c.id, author: c.author.nickname ?? c.author.fullName, authorAvatarUrl: c.author.avatarUrl, text: c.text, time: postedAgo(c.createdAt) })));
+  res.json(rows.map((c) => ({ id: c.id, author: c.author.nickname ?? c.author.fullName, authorRole: ROLE_LABEL[c.author.role], authorAvatarUrl: c.author.avatarUrl, isMine: c.authorId === me(req).id, text: c.text, time: postedAgo(c.createdAt) })));
 });
 
 /** POST /api/posts/:id/comments { text } */
@@ -125,7 +128,7 @@ communityRouter.post("/:id/comments", async (req, res) => {
       body: `${author.nickname ?? author.fullName} membalas ceritamu: "${text.slice(0, 80)}"`,
       tag: `Komunitas ${post.topic}`,
       action: "Buka Thread",
-      link: `/komunitas/${post.id}`,
+      link: `/postingan/${post.id}`,
     });
   }
   res.status(201).json(comment);

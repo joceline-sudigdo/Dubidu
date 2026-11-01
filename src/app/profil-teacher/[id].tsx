@@ -1,6 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Pressable, Share, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
@@ -15,8 +16,9 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { findTeacher, formatPrice, matchScore, SKILL_LABELS, topSkills, type Skill } from '@/data/teachers';
 import { getThread } from '@/lib/chat-store';
+import { reportContent } from '@/lib/community-store';
 import { showActionSheet, showAlert } from '@/lib/dialog';
-import { connectTeacher } from '@/lib/matching-store';
+import { connectTeacher, loadTeacher, useMatching } from '@/lib/matching-store';
 import { useChildren } from '@/lib/children-store';
 
 const REVIEWS = [
@@ -27,13 +29,19 @@ const REVIEWS = [
 // profil shadow teacher yang dilihat orang tua
 export default function ProfilTeacherScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  useMatching(); // tampil ulang setelah profil dari server dimuat
   const teacher = findTeacher(id);
   const child = useChildren()[0];
+  const [missing, setMissing] = useState(false);
+
+  useEffect(() => {
+    if (id && !findTeacher(id)) loadTeacher(id).catch(() => setMissing(true));
+  }, [id]);
 
   if (!teacher) {
     return (
       <Screen header={<ScreenHeader title="Profil Teacher" />}>
-        <EmptyState title="Profil tidak ditemukan" />
+        {missing ? <EmptyState title="Profil tidak ditemukan" /> : null}
       </Screen>
     );
   }
@@ -54,7 +62,13 @@ export default function ProfilTeacherScreen() {
           onPress: () =>
             showAlert('Laporkan teacher?', 'Tim Dubidu akan meninjau laporanmu.', [
               { text: 'Batal', style: 'cancel' },
-              { text: 'Laporkan', style: 'destructive', onPress: () => showAlert('Laporan terkirim') },
+              {
+                text: 'Laporkan',
+                style: 'destructive',
+                onPress: async () => {
+                  if (await reportContent('USER', teacher.id, 'Profil atau perilaku tidak pantas')) showAlert('Laporan terkirim');
+                },
+              },
             ]),
         },
       ],

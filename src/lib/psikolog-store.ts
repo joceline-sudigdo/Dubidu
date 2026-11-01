@@ -1,6 +1,6 @@
+import * as WebBrowser from 'expo-web-browser';
 import { useSyncExternalStore } from 'react';
 
-import { parentProfile } from '@/data/parent';
 import {
   applicants,
   type Applicant,
@@ -9,9 +9,11 @@ import {
   type VerifyResult,
 } from '@/data/psychologist';
 
+import { api, errorMessage } from './api';
 import { addMessage } from './chat-store';
+import { showAlert } from './dialog';
 
-// status konsultasi & hasil verifikasi, disimpan di memori sampai backend siap
+// status konsultasi & hasil verifikasi; keputusan, jadwal interview, dan laporan dikirim ke server
 export type ConsultStatus = 'scheduled' | 'report' | 'done';
 
 type State = {
@@ -65,12 +67,16 @@ export function finishSession(id: string) {
 }
 
 export function sendReport(c: Consultation, report: ConsultReport) {
+  api(`/consultations/${c.id}/result`, {
+    method: 'PATCH',
+    body: { observation: report.note, recommendation: report.recommendations.join(', ') || '-' },
+  }).catch((e) => showAlert('Laporan belum tersimpan di server', errorMessage(e)));
   set({
     ...state,
     status: { ...state.status, [c.id]: 'done' },
     reports: { ...state.reports, [c.id]: report },
   });
-  if (!c.chatId) return;
+  if (!c.chatId) return; // ringkasan juga dikirim di chat kalau ada room-nya
   const d = new Date();
   const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   const recs = report.recommendations.length ? `\n\nRekomendasi: ${report.recommendations.join(', ')}.` : '';
@@ -82,22 +88,31 @@ export function sendReport(c: Consultation, report: ConsultReport) {
     time,
     read: false,
   });
-  // sisi orang tua: chat dengan psikolog (demo hanya akun Devi yang punya chat psikolog)
-  if (c.parent === parentProfile.fullName) {
-    addMessage('amanda', {
-      id: `obs-parent-${Date.now()}`,
-      from: 'them',
-      type: 'text',
-      text: `Laporan observasi ${c.child} sudah saya kirim, Bunda. Silakan buka di Profil → Laporan Observasi Psikolog ya.`,
-      time,
-    });
-  }
 }
 
+// rekomendasi psikolog untuk admin (keputusan akhir verifikasi tetap di web admin)
 export function decideApplicant(id: string, decision: VerifyResult) {
   set({ ...state, decisions: { ...state.decisions, [id]: decision } });
+  api(`/psychologists/me/teacher-applicants/${id}`, { method: 'PUT', body: decision }).catch((e) =>
+    showAlert('Rekomendasi belum tersimpan', errorMessage(e))
+  );
 }
 
 export function scheduleInterview(id: string, value: string) {
   set({ ...state, interviews: { ...state.interviews, [id]: value } });
+  api(`/psychologists/me/teacher-applicants/${id}`, { method: 'PUT', body: { interview: value } }).catch((e) =>
+    showAlert('Jadwal interview belum tersimpan', errorMessage(e))
+  );
+}
+
+/** Buka ruang video/voice call (Daily / Jitsi) di browser; bisa mulai 15 menit sebelum jadwal */
+export async function joinConsultation(id: string) {
+  try {
+    const { url } = await api<{ url: string }>(`/consultations/${id}/join`);
+    await WebBrowser.openBrowserAsync(url);
+    return true;
+  } catch (e) {
+    showAlert('Ruang konsultasi belum bisa dibuka', errorMessage(e));
+    return false;
+  }
 }

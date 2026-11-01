@@ -9,17 +9,7 @@ import { Pill } from '@/components/parent/pill';
 import { AppText } from '@/components/ui/app-text';
 import { ChatIcon } from '@/components/ui/chat-icon';
 import { Colors, Fonts, Radius } from '@/constants/theme';
-import {
-  commentCount,
-  deletePost,
-  formatCount,
-  hidePost,
-  likeCount,
-  toggleLike,
-  toggleSave,
-  useCommunity,
-  type FeedPost,
-} from '@/lib/community-store';
+import { commentCount, deletePost, formatCount, hidePost, likeCount, reportContent, toggleLike, toggleSave, type FeedPost, useCommunity } from '@/lib/community-store';
 import { showActionSheet, showAlert } from '@/lib/dialog';
 
 import { PhotoCarousel } from './photo-carousel';
@@ -88,7 +78,13 @@ export function PostCard({ post, detail, onDeleted }: Props) {
                 onPress: () =>
                   showAlert('Laporkan postingan?', 'Tim Dubidu akan meninjau postingan ini.', [
                     { text: 'Batal', style: 'cancel' },
-                    { text: 'Laporkan', style: 'destructive', onPress: () => showAlert('Laporan terkirim') },
+                    {
+                      text: 'Laporkan',
+                      style: 'destructive',
+                      onPress: async () => {
+                        if (await reportContent('POST', post.id, 'Konten tidak pantas')) showAlert('Laporan terkirim');
+                      },
+                    },
                   ]),
               },
             ]),

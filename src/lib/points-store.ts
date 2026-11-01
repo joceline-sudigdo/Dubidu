@@ -2,11 +2,23 @@ import { useSyncExternalStore } from 'react';
 
 import type { PlusRole } from '@/data/plus';
 
+import { api, errorMessage } from './api';
 import type { UserRole } from './auth';
+import { showAlert } from './dialog';
 import { getSession } from './session';
 
-// poin ikan per role (orang tua & teacher), disimpan di memori sampai backend siap
+// poin ikan per role (orang tua & teacher). Saldo dari server, riwayat lokal sejak aplikasi dibuka
 export type PointLog = { id: string; title: string; amount: number; time: string };
+
+// satu hari di kartu check-in mingguan (Sen → Min), dari GET /home/parent|teacher
+export type CheckinDay = { day: string; reward: number; done?: boolean; today?: boolean; bonus?: boolean };
+
+const DEFAULT_WEEK: CheckinDay[] = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map((day, i) => ({
+  day,
+  reward: [10, 15, 20, 25, 30, 40, 100][i],
+  today: i === (new Date().getDay() + 6) % 7,
+  bonus: i === 6,
+}));
 
 type State = {
   points: Record<PlusRole, number>;
@@ -14,24 +26,18 @@ type State = {
   claimedMissions: Record<PlusRole, string[]>;
   redeemed: Record<PlusRole, string[]>;
   history: Record<PlusRole, PointLog[]>;
+  week: CheckinDay[];
+  checkinChildId: string | null; // anak yang dipakai untuk check-in
 };
 
 let state: State = {
-  points: { parent: 1240, teacher: 860 },
+  points: { parent: 0, teacher: 0 },
   checkinClaimed: { parent: false, teacher: false },
   claimedMissions: { parent: [], teacher: [] },
-  redeemed: { parent: ['r-kopi'], teacher: [] },
-  history: {
-    parent: [
-      { id: 'h1', title: 'Check-in harian', amount: 20, time: 'Kemarin' },
-      { id: 'h2', title: 'Isi laporan perkembangan', amount: 30, time: '2 hari lalu' },
-      { id: 'h3', title: 'Tukar voucher kopi', amount: -300, time: 'Minggu lalu' },
-    ],
-    teacher: [
-      { id: 'h1', title: 'Check-in harian', amount: 20, time: 'Kemarin' },
-      { id: 'h2', title: 'Kirim laporan harian tepat waktu', amount: 40, time: '2 hari lalu' },
-    ],
-  },
+  redeemed: { parent: [], teacher: [] },
+  history: { parent: [], teacher: [] },
+  week: DEFAULT_WEEK,
+  checkinChildId: null,
 };
 const listeners = new Set<() => void>();
 
@@ -61,6 +67,11 @@ function log(role: PlusRole, title: string, amount: number) {
   return [{ id: `p-${Date.now()}`, title, amount, time: 'Baru saja' }, ...state.history[role]];
 }
 
+/** Saldo Madu dari server (GET /auth/me) */
+export function setServerPoints(role: PlusRole, points: number) {
+  set({ ...state, points: { ...state.points, [role]: points } });
+}
+
 export function addPoints(title: string, amount: number) {
   const role = currentRole();
   set({
@@ -70,12 +81,34 @@ export function addPoints(title: string, amount: number) {
   });
 }
 
-export function claimCheckin(amount: number) {
+/** Kartu check-in dari server (GET /home/parent|teacher → checkin) + anak yang di-check-in */
+export function setCheckinWeek(
+  role: PlusRole,
+  checkin: { days: { day: string; reward: number; status: string }[]; todayDone: boolean },
+  childId: string | null
+) {
+  const todayIndex = (new Date().getDay() + 6) % 7; // Sen = 0
+  const week = checkin.days.map((d, i) => ({ day: d.day, reward: d.reward, done: d.status === 'done', today: i === todayIndex, bonus: i === 6 }));
+  set({ ...state, week, checkinChildId: childId, checkinClaimed: { ...state.checkinClaimed, [role]: checkin.todayDone } });
+}
+
+/** Klaim Madu hari ini (POST /checkins). Balikan: jumlah Madu yang didapat, atau 0 kalau gagal. */
+export async function claimCheckin(mood = 'SENANG') {
   const role = currentRole();
-  if (state.checkinClaimed[role]) return false;
-  addPoints('Check-in harian', amount);
-  set({ ...state, checkinClaimed: { ...state.checkinClaimed, [role]: true } });
-  return true;
+  if (state.checkinClaimed[role] || !state.checkinChildId) return 0;
+  try {
+    const res = await api<{ pointsEarned: number; points: number }>('/checkins', { body: { childId: state.checkinChildId, mood } });
+    set({
+      ...state,
+      points: { ...state.points, [role]: res.points },
+      checkinClaimed: { ...state.checkinClaimed, [role]: true },
+      history: { ...state.history, [role]: log(role, 'Check-in harian', res.pointsEarned) },
+    });
+    return res.pointsEarned;
+  } catch (e) {
+    showAlert('Check-in belum berhasil', errorMessage(e));
+    return 0;
+  }
 }
 
 export function claimMission(id: string, title: string, amount: number) {
@@ -85,15 +118,21 @@ export function claimMission(id: string, title: string, amount: number) {
   set({ ...state, claimedMissions: { ...state.claimedMissions, [role]: [...state.claimedMissions[role], id] } });
 }
 
-// tukar hadiah: kurangi poin, false kalau poin tidak cukup
-export function redeemReward(id: string, title: string, cost: number) {
+// tukar hadiah lewat server (POST /rewards/:id/redeem) → kode voucher
+export async function redeemReward(id: string, title: string, cost: number) {
   const role = currentRole();
-  if (state.points[role] < cost) return false;
-  set({
-    ...state,
-    points: { ...state.points, [role]: state.points[role] - cost },
-    redeemed: { ...state.redeemed, [role]: [...state.redeemed[role], id] },
-    history: { ...state.history, [role]: log(role, `Tukar ${title}`, -cost) },
-  });
-  return true;
+  if (state.points[role] < cost) return null;
+  try {
+    const res = await api<{ redemption: { code: string }; points: number }>(`/rewards/${id}/redeem`, { body: {} });
+    set({
+      ...state,
+      points: { ...state.points, [role]: res.points },
+      redeemed: { ...state.redeemed, [role]: [...state.redeemed[role], id] },
+      history: { ...state.history, [role]: log(role, `Tukar ${title}`, -cost) },
+    });
+    return res.redemption.code;
+  } catch (e) {
+    showAlert('Penukaran gagal', errorMessage(e));
+    return null;
+  }
 }

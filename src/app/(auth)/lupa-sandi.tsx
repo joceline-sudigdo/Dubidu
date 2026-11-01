@@ -7,15 +7,17 @@ import { FormScreen } from '@/components/ui/form-screen';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { TextField } from '@/components/ui/text-field';
 import { Colors, Fonts, Radius } from '@/constants/theme';
+import { errorMessage } from '@/lib/api';
+import { homeRoute, requestPasswordReset, resetPassword } from '@/lib/auth';
 import { showAlert } from '@/lib/dialog';
 
 const MIN_PASSWORD = 8;
-const OTP_LENGTH = 4;
+const OTP_LENGTH = 6;
 const RESEND_SECONDS = 30;
 
 type Step = 'contact' | 'otp' | 'password';
 
-// lupa kata sandi: email/HP -> kode OTP -> kata sandi baru (demo, kode apa saja diterima)
+// lupa kata sandi: email -> kode 6 digit dikirim ke email -> kata sandi baru (langsung masuk)
 export default function LupaSandiScreen() {
   const [step, setStep] = useState<Step>('contact');
   const [contact, setContact] = useState('');
@@ -23,6 +25,39 @@ export default function LupaSandiScreen() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [timer, setTimer] = useState(RESEND_SECONDS);
+  const [busy, setBusy] = useState(false);
+  const email = contact.trim().toLowerCase();
+
+  const sendCode = async () => {
+    setBusy(true);
+    try {
+      await requestPasswordReset(email);
+      setTimer(RESEND_SECONDS);
+      setStep('otp');
+      return true;
+    } catch (e) {
+      showAlert('Kode belum terkirim', errorMessage(e));
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const session = await resetPassword(email, otp, password);
+      showAlert('Kata sandi berhasil diubah', 'Kamu sudah masuk dengan kata sandi baru.');
+      router.dismissAll();
+      router.replace(homeRoute(session.role));
+    } catch (e) {
+      showAlert('Kata sandi belum diubah', errorMessage(e));
+      setOtp('');
+      setStep('otp');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (step !== 'otp' || timer === 0) return;
@@ -32,9 +67,9 @@ export default function LupaSandiScreen() {
 
   if (step === 'contact') {
     return (
-      <FormScreen title="Lupa kata sandi?" subtitle="Tenang, masukkan email atau nomor HP akunmu. Kami kirimkan kode verifikasi.">
+      <FormScreen title="Lupa kata sandi?" subtitle="Tenang, masukkan email akunmu. Kami kirimkan kode verifikasi (cek juga folder spam).">
         <TextField
-          label="Email atau nomor HP"
+          label="Email"
           icon="mail"
           placeholder="johndoe@example.com"
           keyboardType="email-address"
@@ -43,12 +78,9 @@ export default function LupaSandiScreen() {
           onChangeText={setContact}
         />
         <PrimaryButton
-          title="Kirim Kode"
-          disabled={contact.trim().length < 5}
-          onPress={() => {
-            setTimer(RESEND_SECONDS);
-            setStep('otp');
-          }}
+          title={busy ? 'Mengirim…' : 'Kirim Kode'}
+          disabled={!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || busy}
+          onPress={sendCode}
         />
       </FormScreen>
     );
@@ -76,9 +108,8 @@ export default function LupaSandiScreen() {
         </View>
         <Pressable
           disabled={timer > 0}
-          onPress={() => {
-            setTimer(RESEND_SECONDS);
-            showAlert('Kode dikirim ulang', `Cek kembali ${contact.trim()} ya.`);
+          onPress={async () => {
+            if (await sendCode()) showAlert('Kode dikirim ulang', `Cek kembali ${email} ya.`);
           }}
           hitSlop={8}>
           <AppText variant="link" color={timer > 0 ? Colors.textMuted : Colors.primary} style={styles.center}>
@@ -112,13 +143,9 @@ export default function LupaSandiScreen() {
         error={mismatch ? 'Kata sandi tidak sama' : undefined}
       />
       <PrimaryButton
-        title="Simpan Kata Sandi"
-        disabled={!longEnough || confirm !== password}
-        onPress={() =>
-          showAlert('Kata sandi berhasil diubah', 'Silakan masuk dengan kata sandi baru kamu.', [
-            { text: 'Ke halaman login', onPress: () => router.back() },
-          ])
-        }
+        title={busy ? 'Menyimpan…' : 'Simpan Kata Sandi'}
+        disabled={!longEnough || confirm !== password || busy}
+        onPress={save}
       />
     </FormScreen>
   );
@@ -131,11 +158,11 @@ const styles = StyleSheet.create({
   otpWrap: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 12,
+    gap: 8,
   },
   otpBox: {
-    width: 60,
-    height: 64,
+    width: 46,
+    height: 58,
     borderRadius: Radius.md,
     backgroundColor: Colors.inputBackground,
     borderWidth: 2,

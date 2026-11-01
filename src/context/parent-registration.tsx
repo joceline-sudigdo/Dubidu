@@ -4,6 +4,19 @@ export type Role = 'parent' | 'teacher';
 export type Gender = 'male' | 'female';
 export type SchoolLevel = 'TK' | 'SD' | 'SMP';
 
+// data pendaftaran shadow teacher (layar pendidikan & pengalaman)
+export type TeacherRegistration = {
+  education: string | null;
+  institution: string;
+  major: string;
+  ijazahUri: string | null;
+  certificateUri: string | null;
+  experience: string | null;
+  specializations: string[];
+  cvUri: string | null;
+  bio: string;
+};
+
 export type ParentRegistration = {
   account: { fullName: string; contact: string; password: string };
   identity: { ktpUri: string | null; domicile: string };
@@ -15,6 +28,7 @@ export type ParentRegistration = {
     domicile: string;
   };
   needs: { conditions: string[]; medicalRecordUri: string | null };
+  teacher: TeacherRegistration;
 };
 
 const initialState: ParentRegistration = {
@@ -22,6 +36,17 @@ const initialState: ParentRegistration = {
   identity: { ktpUri: null, domicile: '' },
   child: { name: '', birthDate: '', gender: null, schoolLevel: null, domicile: '' },
   needs: { conditions: [], medicalRecordUri: null },
+  teacher: {
+    education: null,
+    institution: '',
+    major: '',
+    ijazahUri: null,
+    certificateUri: null,
+    experience: null,
+    specializations: [],
+    cvUri: null,
+    bio: '',
+  },
 };
 
 type ContextValue = {
