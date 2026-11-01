@@ -1,14 +1,15 @@
 {
   "expo": {
     "name": "Dubidu",
-    "slug": "duwbiduw",
+    "slug": "dubidu",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "duwbiduw",
+    "scheme": "dubidu",
     "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.dubidu.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +18,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.dubidu.app"
     },
     "web": {
       "output": "server",
@@ -39,6 +41,13 @@
         "expo-audio",
         {
           "microphonePermission": "Izinkan Dubidu memakai mikrofon untuk mengirim voice note ke Doobie."
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#3D7ABD"
         }
       ]
     ],

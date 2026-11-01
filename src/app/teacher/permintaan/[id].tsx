@@ -2,7 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import type { ComponentProps } from 'react';
+import { useEffect, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { bearSource } from '@/components/parent/bear-avatar';
@@ -16,12 +16,22 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { SecureNote } from '@/components/ui/secure-note';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { childMatchScore, needLabels, seekingChildren } from '@/data/teacher';
-import { connectChild, declineRequest } from '@/lib/child-matching-store';
+import { connectChild, declineRequest, loadChildMatches, useChildMatching } from '@/lib/child-matching-store';
 
 // detail profil anak dari permintaan match / tombol "Lihat profil lengkap"
 export default function PermintaanMatchScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const child = seekingChildren.find((c) => c.id === id) ?? seekingChildren[0];
+  useChildMatching(); // tampil ulang setelah daftar anak dimuat
+  // id bisa berupa id anak (dari Cari Anak) atau id pengajuan (dari notifikasi permintaan)
+  const child = seekingChildren.find((c) => c.id === id || c.requestId === id);
+
+  useEffect(() => {
+    if (!child) loadChildMatches();
+  }, [child]);
+
+  if (!child) {
+    return <Screen header={<ScreenHeader title="Permintaan Match" />}>{null}</Screen>;
+  }
   const match = childMatchScore(child);
 
   return (

@@ -12,14 +12,18 @@ npm run dev
 
 Buka http://localhost:3000.
 
-### Akun demo (data dummy)
+### Login
 
-Selama backend belum disambungkan, login memakai akun di `src/lib/mock/admins.ts`:
+Semua data diambil dari backend DUBIDU (`BACKEND_API_URL`, default `https://dubidu-api.vercel.app`).
+Login memakai akun **ADMIN** di backend, dibuat dengan:
 
-- Email: `admin@dubidu.id`
-- Kata sandi: `DubiduAdmin#2026`
+```bash
+cd ../backend
+npm run admin:create -- <email> <password> "Nama"
+```
 
-Di production, akun admin dibuat lewat backend: `npm run admin:create -- <email> <password> "Nama"`.
+Untuk mencoba dengan backend lokal: jalankan `npm run dev` di folder `backend`, lalu isi
+`BACKEND_API_URL=http://localhost:4000` di `.env.local`.
 
 ## Struktur
 
@@ -43,11 +47,10 @@ src/
     layout/                sidebar, menu tablet, menu admin
     audit/                 tabel audit log
   lib/
-    api.ts                 lapisan data (sekarang dummy, nanti fetch ke BACKEND_API_URL)
-    mock/                  data dummy
+    api.ts                 lapisan data: fetch ke BACKEND_API_URL dengan token admin dari sesi
     actions/               Server Action (login, logout, dst.)
     dal.ts                 getCurrentAdmin(): validasi sesi di setiap halaman/aksi
-    session.ts             cookie httpOnly bertanda tangan HMAC
+    session.ts             cookie httpOnly bertanda tangan HMAC (berisi token backend)
     env.ts                 env server-only
   types/                   tipe data (mengikuti skema backend)
 ```

@@ -1,28 +1,13 @@
 import "server-only";
 
-import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
+import { randomUUID } from "node:crypto";
+import { connection } from "next/server";
 
-import { mockAdmins } from "@/lib/mock/admins";
-import { mockAuditLogs } from "@/lib/mock/audit-logs";
-import { mockPosts, mockReports, mockReviews } from "@/lib/mock/community";
-import {
-  mockDoobieTopics,
-  mockFaqs,
-  mockLegal,
-  mockLevels,
-  mockMissions,
-  mockPlans,
-  mockPromos,
-  mockRedemptions,
-  mockRewards,
-  mockSettings,
-} from "@/lib/mock/content";
-import { mockPaymentMethods, mockPayments, mockPayouts } from "@/lib/mock/finance";
-import { mockUsers } from "@/lib/mock/users";
-import { mockApplications } from "@/lib/mock/verifications";
+import { env } from "@/lib/env";
+import { readSession } from "@/lib/session";
 import type { AdminUser } from "@/types/admin";
 import type { AuditLog, NewAuditLog } from "@/types/audit";
-import type { CommunityPost, ContentReport, ModerationStatus, ReportStatus, Review } from "@/types/community";
+import type { CommunityComment, CommunityPost, ContentReport, ModerationStatus, ReportStatus, Review } from "@/types/community";
 import type {
   AppSettings,
   DoobieTopic,
@@ -40,216 +25,190 @@ import type { Payment, PaymentMethod, PaymentStatus, Payout, PayoutStatus } from
 import type { AppUser, NewPsychologistInput } from "@/types/user";
 import type { DecisionStatus, TeacherApplication } from "@/types/verification";
 
-// Lapisan data admin. Sekarang membaca/mengubah data dummy di src/lib/mock/ (memori proses).
-// Nanti tiap fungsi diganti fetch ke env.backendApiUrl tanpa mengubah halaman, misalnya:
-//   fetch(`${env.backendApiUrl}/api/admin/payments?status=VERIFYING`, { headers: authHeader })
-// Endpoint di komentar TODO masih usulan: backend belum punya route admin.
-
-const now = () => new Date().toISOString();
-const clone = <T>(v: T): T => structuredClone(v);
+// Lapisan data admin: semua fungsi memanggil backend DUBIDU (env.backendApiUrl) dengan token admin
+// yang tersimpan di cookie sesi. Halaman & Server Action cukup memanggil fungsi di sini.
 
 export class NotFoundError extends Error {}
 
-function find<T extends { id: string }>(list: T[], id: string): T {
-  const item = list.find((x) => x.id === id);
-  if (!item) throw new NotFoundError("Data tidak ditemukan");
-  return item;
+/** Error dari backend yang pesannya aman ditampilkan ke admin */
+export class BackendError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+  }
 }
+
+type RequestOptions = { method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown; token?: string };
+
+async function request<T>(path: string, { method = "GET", body, token }: RequestOptions = {}): Promise<T> {
+  const authToken = token ?? (await readSession())?.token;
+  const res = await fetch(`${env.backendApiUrl}/api${path}`, {
+    method,
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 204) return undefined as T;
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 404) throw new NotFoundError(data.error ?? "Data tidak ditemukan");
+  if (!res.ok) throw new BackendError(res.status, data.error ?? "Server sedang bermasalah. Coba lagi.");
+  return data as T;
+}
+
+async function backend<T>(path: string, options?: RequestOptions): Promise<T> {
+  await connection(); // data admin selalu dibaca saat request, tidak pernah di-prerender
+  return request<T>(path, options);
+}
+
+/** Sama seperti backend(), tapi 404 → null (untuk halaman detail) */
+async function backendOrNull<T>(path: string): Promise<T | null> {
+  try {
+    return await backend<T>(path);
+  } catch (e) {
+    if (e instanceof NotFoundError) return null;
+    throw e;
+  }
+}
+
+const query = (params: Record<string, string | number | undefined>) => {
+  const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== "") as [string, string][]);
+  return qs.size ? `?${qs}` : "";
+};
 
 // ---------------------------------------------------------------------------
 //  Admin & autentikasi
 // ---------------------------------------------------------------------------
 
-// buang passwordHash sebelum data keluar dari lapisan ini
-const strip = (a: (typeof mockAdmins)[number]): AdminUser => ({
-  id: a.id,
-  role: a.role,
-  fullName: a.fullName,
-  email: a.email,
-  avatarUrl: a.avatarUrl,
-  isActive: a.isActive,
-  createdAt: a.createdAt,
-});
-
-function passwordMatches(password: string, stored: string) {
-  const [salt, hash] = stored.split(":");
-  const expected = Buffer.from(hash, "hex");
-  const actual = scryptSync(password, salt, expected.length);
-  return timingSafeEqual(actual, expected);
+/** POST /api/auth/login (portal admin). Percobaan gagal dicatat di audit log oleh backend. */
+export async function verifyAdminCredentials(email: string, password: string): Promise<(AdminUser & { token: string }) | null> {
+  try {
+    const { token } = await backend<{ token: string }>("/auth/login", {
+      method: "POST",
+      body: { contact: email.trim().toLowerCase(), password, portal: "admin" },
+    });
+    const admin = await backend<AdminUser>("/admin/me", { token });
+    return { ...admin, token };
+  } catch (e) {
+    if (e instanceof BackendError && (e.status === 401 || e.status === 403)) return null;
+    throw e;
+  }
 }
 
-// TODO(backend): POST /api/auth/login (role ADMIN) → simpan token backend di sesi
-export async function verifyAdminCredentials(email: string, password: string): Promise<AdminUser | null> {
-  const admin = mockAdmins.find((a) => a.email === email.trim().toLowerCase());
-  if (!admin || !admin.isActive || !passwordMatches(password, admin.passwordHash)) return null;
-  return strip(admin);
-}
-
-// TODO(backend): GET /api/admin/me
+// dipanggil dari getSessionAdmin() ("use cache: private"), jadi tanpa connection()
 export async function getAdminById(id: string): Promise<AdminUser | null> {
-  const admin = mockAdmins.find((a) => a.id === id && a.isActive);
-  return admin ? strip(admin) : null;
+  try {
+    const admin = await request<AdminUser>("/admin/me");
+    return admin.id === id && admin.isActive ? admin : null;
+  } catch (e) {
+    // token kedaluwarsa / akun bukan admin lagi → dianggap belum login
+    if (e instanceof BackendError && (e.status === 401 || e.status === 403)) return null;
+    throw e;
+  }
 }
 
 // ---------------------------------------------------------------------------
 //  Audit log
 // ---------------------------------------------------------------------------
 
-// TODO(backend): POST /api/admin/audit-logs (atau ditulis otomatis oleh endpoint aksi)
-export async function createAuditLog(entry: NewAuditLog): Promise<AuditLog> {
-  const log: AuditLog = { ...entry, id: `log_${randomUUID().slice(0, 8)}`, createdAt: now() };
-  mockAuditLogs.unshift(log);
-  return log;
+export async function createAuditLog(entry: NewAuditLog): Promise<AuditLog | null> {
+  // login berhasil/gagal sudah dicatat backend saat POST /auth/login
+  if (entry.action === "AUTH_LOGIN" || entry.action === "AUTH_LOGIN_FAILED") return null;
+  // pelaku = admin pemilik token, jadi actorId/actorName tidak perlu dikirim
+  return backend<AuditLog>("/admin/audit-logs", {
+    method: "POST",
+    body: { action: entry.action, targetType: entry.targetType, targetId: entry.targetId, targetLabel: entry.targetLabel, reason: entry.reason, ipAddress: entry.ipAddress },
+  });
 }
 
-// TODO(backend): GET /api/admin/audit-logs?limit=&action=
 export async function listAuditLogs({ limit = 50, q }: { limit?: number; q?: string } = {}): Promise<AuditLog[]> {
-  const term = q?.trim().toLowerCase();
-  return clone(
-    mockAuditLogs
-      .filter((l) => !term || `${l.actorName} ${l.targetLabel} ${l.reason ?? ""}`.toLowerCase().includes(term))
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .slice(0, limit)
-  );
+  return backend(`/admin/audit-logs${query({ limit, q: q?.trim() })}`);
 }
 
 // ---------------------------------------------------------------------------
-//  Ringkasan (dashboard) — semua angka agregat, tanpa data anak
+//  Ringkasan (dashboard) — angka agregat user sungguhan, tanpa data anak
 // ---------------------------------------------------------------------------
 
-// TODO(backend): GET /api/admin/stats
-export async function getDashboardStats() {
-  const paid = mockPayments.filter((p) => p.status === "PAID");
-  return {
-    users: {
-      parent: mockUsers.filter((u) => u.role === "PARENT").length,
-      teacher: mockUsers.filter((u) => u.role === "TEACHER").length,
-      psychologist: mockUsers.filter((u) => u.role === "PSYCHOLOGIST").length,
-      suspended: mockUsers.filter((u) => !u.isActive).length,
-      plus: mockUsers.filter((u) => u.plusActive).length,
-    },
-    queues: {
-      verification: mockApplications.filter((a) => a.status === "PENDING").length,
-      payment: mockPayments.filter((p) => p.status === "VERIFYING").length,
-      payout: mockPayouts.filter((p) => p.status === "PENDING").length,
-      report: mockReports.filter((r) => r.status === "OPEN").length,
-    },
-    revenue: {
-      paidTotal: paid.reduce((s, p) => s + p.amount, 0),
-      paidCount: paid.length,
-      platformFee: Math.round(
-        paid.filter((p) => p.purpose === "ENGAGEMENT").reduce((s, p) => s + p.amount, 0) * (mockSettings.platformFeePercent / 100)
-      ),
-      subscription: paid.filter((p) => p.purpose === "SUBSCRIPTION").reduce((s, p) => s + p.amount, 0),
-    },
-    activeEngagements: mockUsers.filter((u) => u.role === "PARENT").reduce((s, u) => s + u.activeEngagements, 0),
-  };
+type DashboardStats = {
+  users: { parent: number; teacher: number; psychologist: number; suspended: number; plus: number };
+  queues: { verification: number; payment: number; payout: number; report: number };
+  revenue: { paidTotal: number; paidCount: number; platformFee: number; subscription: number };
+  activeEngagements: number;
+};
+
+export async function getDashboardStats(): Promise<DashboardStats> {
+  return backend("/admin/stats");
 }
 
 // ---------------------------------------------------------------------------
 //  Verifikasi shadow teacher
 // ---------------------------------------------------------------------------
 
-// TODO(backend): GET /api/admin/teacher-verifications?status=
 export async function listApplications(status?: DecisionStatus): Promise<TeacherApplication[]> {
-  return clone(
-    mockApplications.filter((a) => !status || a.status === status).sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
-  );
+  return backend(`/admin/teacher-verifications${query({ status })}`);
 }
 
-// TODO(backend): GET /api/admin/teacher-verifications/:id
 export async function getApplication(id: string): Promise<TeacherApplication | null> {
-  const app = mockApplications.find((a) => a.id === id);
-  return app ? clone(app) : null;
+  return backendOrNull(`/admin/teacher-verifications/${encodeURIComponent(id)}`);
 }
 
-// TODO(backend): POST /api/admin/teacher-verifications/:id/decision { status, note }
 export async function decideApplication(id: string, status: Exclude<DecisionStatus, "PENDING">, note: string) {
-  const app = find(mockApplications, id);
-  app.status = status;
-  app.decisionNote = note || null;
-  app.decidedAt = now();
-  if (status === "VERIFIED") app.documents.forEach((d) => d.url && (d.status = "VERIFIED"));
-  const user = mockUsers.find((u) => u.id === app.userId);
-  if (user?.teacher) user.teacher.verificationStatus = status === "VERIFIED" ? "VERIFIED" : status === "REJECTED" ? "REJECTED" : "PENDING";
-  return clone(app);
+  return backend<TeacherApplication>(`/admin/teacher-verifications/${encodeURIComponent(id)}/decision`, {
+    method: "POST",
+    body: { status, note },
+  });
 }
 
 // ---------------------------------------------------------------------------
 //  Pembayaran (bukti transfer manual) & tujuan transfer
 // ---------------------------------------------------------------------------
 
-// TODO(backend): GET /api/admin/payments?status=
 export async function listPayments(status?: PaymentStatus): Promise<Payment[]> {
-  return clone(
-    mockPayments
-      .filter((p) => !status || p.status === status)
-      .sort((a, b) => (b.proofSubmittedAt ?? b.createdAt).localeCompare(a.proofSubmittedAt ?? a.createdAt))
-  );
+  return backend(`/admin/payments${query({ status })}`);
 }
 
 export async function getPayment(id: string): Promise<Payment | null> {
-  const p = mockPayments.find((x) => x.id === id);
-  return p ? clone(p) : null;
+  return backendOrNull(`/admin/payments/${encodeURIComponent(id)}`);
 }
 
-// TODO(backend): POST /api/admin/payments/:id/confirm
-export async function confirmPayment(id: string, adminName: string) {
-  const p = find(mockPayments, id);
-  if (p.status !== "VERIFYING") throw new Error("Pembayaran ini tidak sedang menunggu konfirmasi.");
-  Object.assign(p, { status: "PAID", verifiedByName: adminName, verifiedAt: now(), rejectReason: null });
-  return clone(p);
+export async function confirmPayment(id: string) {
+  return backend<Payment>(`/admin/payments/${encodeURIComponent(id)}/confirm`, { method: "POST", body: {} });
 }
 
-// TODO(backend): POST /api/admin/payments/:id/reject { reason } → kembali PENDING (user bisa upload ulang)
-export async function rejectPayment(id: string, reason: string, adminName: string) {
-  const p = find(mockPayments, id);
-  if (p.status !== "VERIFYING") throw new Error("Pembayaran ini tidak sedang menunggu konfirmasi.");
-  Object.assign(p, { status: "PENDING", verifiedByName: adminName, verifiedAt: now(), rejectReason: reason });
-  return clone(p);
+export async function rejectPayment(id: string, reason: string) {
+  return backend<Payment>(`/admin/payments/${encodeURIComponent(id)}/reject`, { method: "POST", body: { reason } });
 }
 
-// TODO(backend): GET /api/admin/payment-methods
 export async function listPaymentMethods(): Promise<PaymentMethod[]> {
-  return clone([...mockPaymentMethods].sort((a, b) => a.order - b.order));
+  return backend("/admin/payment-methods");
 }
 
-// TODO(backend): POST/PATCH /api/admin/payment-methods
 export async function savePaymentMethod(input: Omit<PaymentMethod, "id" | "order"> & { id?: string }) {
-  if (input.id) {
-    const m = find(mockPaymentMethods, input.id);
-    Object.assign(m, input);
-    return clone(m);
-  }
-  const m: PaymentMethod = { ...input, id: `pm_${randomUUID().slice(0, 6)}`, order: mockPaymentMethods.length + 1 };
-  mockPaymentMethods.push(m);
-  return clone(m);
+  const { id, ...body } = input;
+  return id
+    ? backend<PaymentMethod>(`/admin/payment-methods/${encodeURIComponent(id)}`, { method: "PATCH", body })
+    : backend<PaymentMethod>("/admin/payment-methods", { method: "POST", body });
 }
 
 // ---------------------------------------------------------------------------
-//  Pencairan dana (tabel baru `Payout`)
+//  Pencairan dana
 // ---------------------------------------------------------------------------
 
-// TODO(backend): GET /api/admin/payouts?status=
 export async function listPayouts(status?: PayoutStatus): Promise<Payout[]> {
-  return clone(mockPayouts.filter((p) => !status || p.status === status).sort((a, b) => b.requestedAt.localeCompare(a.requestedAt)));
+  return backend(`/admin/payouts${query({ status })}`);
 }
 
-// TODO(backend): POST /api/admin/payouts/:id/transfer { transferRef }
-export async function markPayoutTransferred(id: string, transferRef: string, adminName: string) {
-  const p = find(mockPayouts, id);
-  if (p.status !== "PENDING") throw new Error("Pencairan ini sudah diproses.");
-  if (p.amount > p.availableBalance) throw new Error("Nominal melebihi saldo pengguna saat diajukan.");
-  Object.assign(p, { status: "TRANSFERRED", transferRef, processedByName: adminName, processedAt: now() });
-  return clone(p);
+export async function markPayoutTransferred(id: string, transferRef: string) {
+  return backend<Payout>(`/admin/payouts/${encodeURIComponent(id)}/transfer`, { method: "POST", body: { transferRef } });
 }
 
-// TODO(backend): POST /api/admin/payouts/:id/reject { reason } → saldo dikembalikan
-export async function rejectPayout(id: string, reason: string, adminName: string) {
-  const p = find(mockPayouts, id);
-  if (p.status !== "PENDING") throw new Error("Pencairan ini sudah diproses.");
-  Object.assign(p, { status: "REJECTED", rejectReason: reason, processedByName: adminName, processedAt: now() });
-  return clone(p);
+export async function rejectPayout(id: string, reason: string) {
+  return backend<Payout>(`/admin/payouts/${encodeURIComponent(id)}/reject`, { method: "POST", body: { reason } });
 }
 
 // ---------------------------------------------------------------------------
@@ -258,267 +217,235 @@ export async function rejectPayout(id: string, reason: string, adminName: string
 
 export type UserFilter = { role?: AppUser["role"]; q?: string; status?: "active" | "suspended" };
 
-// TODO(backend): GET /api/admin/users?role=&q=&status=
 export async function listUsers({ role, q, status }: UserFilter = {}): Promise<AppUser[]> {
-  const term = q?.trim().toLowerCase();
-  return clone(
-    mockUsers
-      .filter((u) => !role || u.role === role)
-      .filter((u) => !status || (status === "active" ? u.isActive : !u.isActive))
-      .filter((u) => !term || `${u.fullName} ${u.email ?? ""} ${u.phone ?? ""}`.toLowerCase().includes(term))
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-  );
+  return backend(`/admin/users${query({ role, q: q?.trim(), status })}`);
 }
 
 export async function getUser(id: string): Promise<AppUser | null> {
-  const u = mockUsers.find((x) => x.id === id);
-  return u ? clone(u) : null;
+  return backendOrNull(`/admin/users/${encodeURIComponent(id)}`);
 }
 
-// TODO(backend): PATCH /api/admin/users/:id/status { isActive, reason }
 export async function setUserActive(id: string, isActive: boolean, reason: string) {
-  const u = find(mockUsers, id);
-  u.isActive = isActive;
-  u.suspendedReason = isActive ? null : reason;
-  return clone(u);
+  return backend<AppUser>(`/admin/users/${encodeURIComponent(id)}/status`, { method: "PATCH", body: { isActive, reason } });
 }
 
-// TODO(backend): POST /api/admin/psychologists → User(PSYCHOLOGIST) + PsychologistProfile
+/** Buat akun psikolog. Kata sandi sementara dibuat backend dan wajib diteruskan ke psikolog. */
 export async function createPsychologist(input: NewPsychologistInput) {
-  const email = input.email.toLowerCase();
-  if (mockUsers.some((u) => u.email === email)) throw new Error("Email sudah terdaftar.");
-  if (mockUsers.some((u) => u.phone === input.phone)) throw new Error("Nomor HP sudah terdaftar.");
-  // kata sandi sementara, dikirim ke psikolog dan wajib diganti saat login pertama
-  const tempPassword = `Dbd-${randomBytes(4).toString("hex")}`;
-  const user: AppUser = {
-    id: `u_${randomUUID().slice(0, 8)}`,
-    role: "PSYCHOLOGIST",
-    fullName: input.fullName,
-    email,
-    phone: input.phone,
-    domicile: null,
-    points: 0,
-    isActive: true,
-    suspendedReason: null,
-    plusActive: false,
-    createdAt: now(),
-    lastActiveAt: null,
-    activeEngagements: 0,
-    psychologist: {
-      title: input.title,
-      place: input.place || null,
-      experienceYears: input.experienceYears,
-      basePrice: input.basePrice,
-      discountPercent: input.discountPercent,
-      durationMinutes: input.durationMinutes,
-      categories: input.categories,
-      rating: 0,
-      reviewCount: 0,
-    },
-  };
-  mockUsers.unshift(user);
-  return { user: clone(user), tempPassword };
+  return backend<{ user: AppUser; tempPassword: string }>("/admin/psychologists", {
+    method: "POST",
+    body: { ...input, place: input.place || undefined },
+  });
 }
 
 // ---------------------------------------------------------------------------
 //  Moderasi
 // ---------------------------------------------------------------------------
 
-// TODO(backend): GET /api/admin/reports?status=
 export async function listReports(status?: ReportStatus): Promise<ContentReport[]> {
-  return clone(mockReports.filter((r) => !status || r.status === status).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  return backend(`/admin/reports${query({ status })}`);
 }
 
-// TODO(backend): POST /api/admin/reports/:id/resolve { status, resolution }
-export async function resolveReport(id: string, status: Exclude<ReportStatus, "OPEN">, resolution: string, adminName: string) {
-  const r = find(mockReports, id);
-  Object.assign(r, { status, resolution, handledByName: adminName, handledAt: now() });
-  return clone(r);
+export async function resolveReport(id: string, status: Exclude<ReportStatus, "OPEN">, resolution: string) {
+  return backend<ContentReport>(`/admin/reports/${encodeURIComponent(id)}/resolve`, { method: "POST", body: { status, resolution } });
 }
 
-// TODO(backend): GET /api/admin/community/posts?status=
 export async function listPosts(status?: ModerationStatus): Promise<CommunityPost[]> {
-  return clone(mockPosts.filter((p) => !status || p.status === status).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  return backend(`/admin/community/posts${query({ status })}`);
 }
 
 export async function getPost(id: string): Promise<CommunityPost | null> {
-  const p = mockPosts.find((x) => x.id === id);
-  return p ? clone(p) : null;
+  return backendOrNull(`/admin/community/posts/${encodeURIComponent(id)}`);
 }
 
-// TODO(backend): PATCH /api/admin/community/posts/:id { status, reason }
 export async function setPostStatus(id: string, status: ModerationStatus, reason: string | null) {
-  const p = find(mockPosts, id);
-  p.status = status;
-  p.hiddenReason = status === "HIDDEN" ? reason : null;
-  return clone(p);
+  return backend<CommunityPost>(`/admin/community/posts/${encodeURIComponent(id)}`, { method: "PATCH", body: { status, reason } });
 }
 
-// TODO(backend): PATCH /api/admin/community/comments/:id { status }
-export async function setCommentStatus(postId: string, commentId: string, status: ModerationStatus) {
-  const c = find(find(mockPosts, postId).comments, commentId);
-  c.status = status;
-  return clone(c);
+export async function setCommentStatus(commentId: string, status: ModerationStatus) {
+  return backend<CommunityComment>(`/admin/community/comments/${encodeURIComponent(commentId)}`, { method: "PATCH", body: { status } });
 }
 
 // komentar bisa dicari tanpa tahu postingannya (dipakai dari laporan)
 export async function findCommentPostId(commentId: string) {
-  return mockPosts.find((p) => p.comments.some((c) => c.id === commentId))?.id ?? null;
+  return (await backendOrNull<{ postId: string }>(`/admin/community/comments/${encodeURIComponent(commentId)}`))?.postId ?? null;
 }
 
-// TODO(backend): GET /api/admin/reviews?status=
 export async function listReviews(status?: ModerationStatus): Promise<Review[]> {
-  return clone(mockReviews.filter((r) => !status || r.status === status).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  return backend(`/admin/reviews${query({ status })}`);
 }
 
-// TODO(backend): PATCH /api/admin/reviews/:id { status, reason } (rating teacher dihitung ulang)
 export async function setReviewStatus(id: string, status: ModerationStatus, reason: string | null) {
-  const r = find(mockReviews, id);
-  r.status = status;
-  r.hiddenReason = status === "HIDDEN" ? reason : null;
-  return clone(r);
+  return backend<Review>(`/admin/reviews/${encodeURIComponent(id)}`, { method: "PATCH", body: { status, reason } });
 }
 
 // ---------------------------------------------------------------------------
-//  Konten: legal, FAQ, Doobie
+//  Konten: disimpan di backend sebagai satu dokumen per jenis (GET/PUT /api/admin/content/:key)
 // ---------------------------------------------------------------------------
 
-// TODO(backend): GET/PUT /api/admin/content/legal/:type
+type ContentRow<T> = { key: string; value: T; version: number; updatedAt: string | null; updatedByName: string | null };
+
+const getContent = <T>(key: string) => backend<ContentRow<T>>(`/admin/content/${key}`);
+const putContent = <T>(key: string, value: T) => backend<ContentRow<T>>(`/admin/content/${key}`, { method: "PUT", body: { value } });
+
+const shortId = (prefix: string) => `${prefix}${randomUUID().slice(0, 6)}`;
+
+function findIn<T extends { id: string }>(list: T[], id: string, what = "Data"): T {
+  const item = list.find((x) => x.id === id);
+  if (!item) throw new NotFoundError(`${what} tidak ditemukan`);
+  return item;
+}
+
+// ---------- legal ----------
+
+type LegalValue = Pick<LegalDoc, "type" | "title" | "sections">;
+
+const toLegal = (row: ContentRow<LegalValue>): LegalDoc => ({
+  ...row.value,
+  version: row.version,
+  updatedAt: row.updatedAt ?? new Date(0).toISOString(),
+  updatedByName: row.updatedByName,
+});
+
 export async function listLegal(): Promise<LegalDoc[]> {
-  return clone(mockLegal);
+  const rows = await Promise.all([getContent<LegalValue>("legal.terms"), getContent<LegalValue>("legal.privacy")]);
+  return rows.map(toLegal);
 }
 
 export async function getLegal(type: LegalType): Promise<LegalDoc | null> {
-  const d = mockLegal.find((x) => x.type === type);
-  return d ? clone(d) : null;
+  return toLegal(await getContent<LegalValue>(`legal.${type}`));
 }
 
-export async function updateLegal(type: LegalType, sections: LegalDoc["sections"], adminName: string) {
-  const d = mockLegal.find((x) => x.type === type);
-  if (!d) throw new NotFoundError("Dokumen tidak ditemukan");
-  Object.assign(d, { sections, version: d.version + 1, updatedAt: now(), updatedByName: adminName });
-  return clone(d);
+export async function updateLegal(type: LegalType, sections: LegalDoc["sections"]) {
+  const current = await getContent<LegalValue>(`legal.${type}`);
+  return toLegal(await putContent<LegalValue>(`legal.${type}`, { ...current.value, sections }));
 }
 
-// TODO(backend): /api/admin/content/faqs
+// ---------- FAQ ----------
+
 export async function listFaqs(): Promise<Faq[]> {
-  return clone([...mockFaqs].sort((a, b) => a.order - b.order));
+  return [...(await getContent<Faq[]>("faqs")).value].sort((a, b) => a.order - b.order);
 }
 
 export async function saveFaq(input: Omit<Faq, "id" | "order"> & { id?: string }) {
+  const faqs = await listFaqs();
+  let saved: Faq;
   if (input.id) {
-    const f = find(mockFaqs, input.id);
-    Object.assign(f, input);
-    return clone(f);
+    saved = { ...findIn(faqs, input.id, "FAQ"), ...input, id: input.id };
+  } else {
+    saved = { ...input, id: shortId("faq_"), order: faqs.length + 1 };
   }
-  const f: Faq = { ...input, id: `faq_${randomUUID().slice(0, 6)}`, order: mockFaqs.length + 1 };
-  mockFaqs.push(f);
-  return clone(f);
+  await putContent("faqs", input.id ? faqs.map((f) => (f.id === saved.id ? saved : f)) : [...faqs, saved]);
+  return saved;
 }
 
 export async function deleteFaq(id: string) {
-  const i = mockFaqs.findIndex((f) => f.id === id);
-  if (i < 0) throw new NotFoundError("FAQ tidak ditemukan");
-  return clone(mockFaqs.splice(i, 1)[0]);
+  const faqs = await listFaqs();
+  const faq = findIn(faqs, id, "FAQ");
+  await putContent("faqs", faqs.filter((f) => f.id !== id).map((f, i) => ({ ...f, order: i + 1 })));
+  return faq;
 }
 
-// TODO(backend): /api/admin/content/doobie-topics
+// ---------- Doobie ----------
+
 export async function listDoobieTopics(): Promise<DoobieTopic[]> {
-  return clone([...mockDoobieTopics].sort((a, b) => a.role.localeCompare(b.role) || a.order - b.order));
+  return [...(await getContent<DoobieTopic[]>("doobieTopics")).value].sort((a, b) => a.role.localeCompare(b.role) || a.order - b.order);
 }
 
 export async function saveDoobieTopic(input: Omit<DoobieTopic, "order"> & { isNew: boolean }) {
   const { isNew, ...data } = input;
-  if (!isNew) {
-    const t = find(mockDoobieTopics, data.id);
-    Object.assign(t, data);
-    return clone(t);
+  const topics = await listDoobieTopics();
+  if (isNew) {
+    if (topics.some((t) => t.id === data.id)) throw new Error("ID topik sudah dipakai.");
+    const topic: DoobieTopic = { ...data, order: topics.filter((t) => t.role === data.role).length + 1 };
+    await putContent("doobieTopics", [...topics, topic]);
+    return topic;
   }
-  if (mockDoobieTopics.some((t) => t.id === data.id)) throw new Error("ID topik sudah dipakai.");
-  const t: DoobieTopic = { ...data, order: mockDoobieTopics.filter((x) => x.role === data.role).length + 1 };
-  mockDoobieTopics.push(t);
-  return clone(t);
+  const topic = { ...findIn(topics, data.id, "Topik"), ...data };
+  await putContent("doobieTopics", topics.map((t) => (t.id === topic.id ? topic : t)));
+  return topic;
 }
 
 export async function deleteDoobieTopic(id: string) {
-  const i = mockDoobieTopics.findIndex((t) => t.id === id);
-  if (i < 0) throw new NotFoundError("Topik tidak ditemukan");
-  return clone(mockDoobieTopics.splice(i, 1)[0]);
+  const topics = await listDoobieTopics();
+  const topic = findIn(topics, id, "Topik");
+  await putContent("doobieTopics", topics.filter((t) => t.id !== id));
+  return topic;
 }
 
-// ---------------------------------------------------------------------------
-//  Konten: rewards & voucher
-// ---------------------------------------------------------------------------
+// ---------- rewards & voucher ----------
 
-// TODO(backend): /api/admin/rewards, /missions, /levels, /redemptions
 export async function getRewardsData() {
-  return clone({ rewards: mockRewards, missions: mockMissions, levels: mockLevels, redemptions: mockRedemptions });
+  const [rewards, missions, levels, redemptions] = await Promise.all([
+    getContent<Reward[]>("rewards"),
+    getContent<Mission[]>("missions"),
+    getContent<RewardLevel[]>("levels"),
+    backend<Redemption[]>("/admin/redemptions"),
+  ]);
+  return { rewards: rewards.value, missions: missions.value, levels: levels.value, redemptions };
 }
 
 export async function saveReward(input: Omit<Reward, "id"> & { id?: string }) {
-  if (input.id) {
-    const r = find(mockRewards, input.id);
-    Object.assign(r, input);
-    return clone(r);
-  }
-  const r: Reward = { ...input, id: `${input.role === "teacher" ? "tr" : "r"}-${randomUUID().slice(0, 6)}` };
-  mockRewards.push(r);
-  return clone(r);
+  const rewards = (await getContent<Reward[]>("rewards")).value;
+  const saved: Reward = input.id
+    ? { ...findIn(rewards, input.id, "Hadiah"), ...input, id: input.id }
+    : { ...input, id: shortId(input.role === "teacher" ? "tr-" : "r-") };
+  await putContent("rewards", input.id ? rewards.map((r) => (r.id === saved.id ? saved : r)) : [...rewards, saved]);
+  return saved;
 }
 
 export async function saveMission(input: Omit<Mission, "id"> & { id?: string }) {
-  if (input.id) {
-    const m = find(mockMissions, input.id);
-    Object.assign(m, input);
-    return clone(m);
-  }
-  const m: Mission = { ...input, id: `${input.role === "teacher" ? "t" : "m"}-${randomUUID().slice(0, 6)}` };
-  mockMissions.push(m);
-  return clone(m);
+  const missions = (await getContent<Mission[]>("missions")).value;
+  const saved: Mission = input.id
+    ? { ...findIn(missions, input.id, "Misi"), ...input, id: input.id }
+    : { ...input, id: shortId(input.role === "teacher" ? "t-" : "m-") };
+  await putContent("missions", input.id ? missions.map((m) => (m.id === saved.id ? saved : m)) : [...missions, saved]);
+  return saved;
 }
 
 export async function updateLevels(levels: RewardLevel[]) {
-  mockLevels.splice(0, mockLevels.length, ...levels);
-  return clone(mockLevels);
+  return (await putContent("levels", levels)).value;
 }
 
+/** Batalkan voucher aktif (Madu dikembalikan ke pengguna oleh backend) */
 export async function cancelRedemption(id: string) {
-  const r = find(mockRedemptions, id);
-  if (r.status !== "ACTIVE") throw new Error("Voucher ini sudah tidak aktif.");
-  r.status = "CANCELLED";
-  return clone(r) as Redemption;
+  return backend<Redemption>(`/admin/redemptions/${encodeURIComponent(id)}/cancel`, { method: "POST", body: {} });
 }
 
-// ---------------------------------------------------------------------------
-//  Konten: paket Plus, promo, pengaturan biaya
-// ---------------------------------------------------------------------------
+// ---------- paket Plus, promo, pengaturan biaya ----------
 
-// TODO(backend): /api/admin/plans, /promo-codes, /settings
 export async function getPlusData() {
-  return clone({ plans: mockPlans, promos: mockPromos, settings: mockSettings });
+  const [plans, promos, settings] = await Promise.all([
+    getContent<PlusPlan[]>("plans"),
+    getContent<PromoCode[]>("promos"),
+    getContent<AppSettings>("settings"),
+  ]);
+  return { plans: plans.value, promos: promos.value, settings: settings.value };
 }
 
 export async function updatePlan(role: PlusPlan["role"], key: PlusPlan["key"], data: Pick<PlusPlan, "price" | "note" | "badge">) {
-  const plan = mockPlans.find((p) => p.role === role && p.key === key);
+  const plans = (await getContent<PlusPlan[]>("plans")).value;
+  const plan = plans.find((p) => p.role === role && p.key === key);
   if (!plan) throw new NotFoundError("Paket tidak ditemukan");
-  Object.assign(plan, data);
-  return clone(plan);
+  const saved = { ...plan, ...data };
+  await putContent("plans", plans.map((p) => (p === plan ? saved : p)));
+  return saved;
 }
 
 export async function savePromo(input: Omit<PromoCode, "usageCount">, isNew: boolean) {
-  const existing = mockPromos.find((p) => p.code === input.code);
+  const promos = (await getContent<PromoCode[]>("promos")).value;
+  const existing = promos.find((p) => p.code === input.code);
   if (isNew) {
     if (existing) throw new Error("Kode promo sudah ada.");
     const promo: PromoCode = { ...input, usageCount: 0 };
-    mockPromos.push(promo);
-    return clone(promo);
+    await putContent("promos", [...promos, promo]);
+    return promo;
   }
   if (!existing) throw new NotFoundError("Kode promo tidak ditemukan");
-  Object.assign(existing, input);
-  return clone(existing);
+  const promo = { ...existing, ...input };
+  await putContent("promos", promos.map((p) => (p.code === promo.code ? promo : p)));
+  return promo;
 }
 
 export async function updateSettings(settings: AppSettings) {
-  Object.assign(mockSettings, settings);
-  return clone(mockSettings);
+  return (await putContent("settings", settings)).value;
 }

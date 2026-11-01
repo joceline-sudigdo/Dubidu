@@ -1,4 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ClayCard } from '@/components/parent/clay-card';
@@ -7,11 +8,20 @@ import { ScreenHeader } from '@/components/parent/screen-header';
 import { AppText } from '@/components/ui/app-text';
 import { Colors, Fonts } from '@/constants/theme';
 import { legalDocs } from '@/data/legal';
+import { loadLegal } from '@/lib/sync';
 
 // /legal/terms = Syarat & Ketentuan, /legal/privacy = Kebijakan Privasi
 export default function LegalScreen() {
   const { type } = useLocalSearchParams<{ type: string }>();
   const doc = legalDocs[type === 'privacy' ? 'privacy' : 'terms'];
+  const [, setLoaded] = useState(false);
+
+  // versi terbaru dari web admin; isi bawaan tampil dulu sambil menunggu
+  useEffect(() => {
+    loadLegal()
+      .then(() => setLoaded(true))
+      .catch(() => {});
+  }, []);
 
   return (
     <Screen header={<ScreenHeader title={doc.title} />} edges={['top', 'bottom']}>

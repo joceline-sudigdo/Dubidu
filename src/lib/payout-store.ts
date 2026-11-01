@@ -1,44 +1,67 @@
 import { useSyncExternalStore } from 'react';
 
-import { getSession } from './session';
+import { api, errorMessage } from './api';
+import { showAlert } from './dialog';
 import { addTransaction } from './transactions-store';
 
-// saldo pendapatan teacher & psikolog yang bisa dicairkan (memori, nanti dari backend)
-type Balance = { available: number; held: number; heldNote: string };
-
-let balances: Record<'teacher' | 'psychologist', Balance> = {
-  teacher: { available: 1200000, held: 1620000, heldNote: 'Termin 3 cair setelah laporan akhir dikirim' },
-  psychologist: { available: 3600000, held: 504000, heldNote: '2 sesi menunggu konfirmasi selesai dari orang tua' },
+// saldo pendapatan teacher & psikolog yang bisa dicairkan (GET /api/payouts/balance)
+type Account = { bankName: string; accountNumberMasked: string; accountName: string | null };
+type Balance = {
+  available: number;
+  held: number;
+  heldNote: string;
+  minPayout: number;
+  payoutFee: number;
+  account: Account | null;
 };
+
+let balance: Balance = { available: 0, held: 0, heldNote: '', minPayout: 50000, payoutFee: 2500, account: null };
 const listeners = new Set<() => void>();
 
-const roleKey = () => (getSession().role === 'psychologist' ? 'psychologist' : 'teacher');
-
-export const MIN_PAYOUT = 50000;
-export const PAYOUT_FEE = 2500;
+function set(next: Balance) {
+  balance = next;
+  listeners.forEach((l) => l());
+}
 
 export function useBalance() {
-  const all = useSyncExternalStore(
+  return useSyncExternalStore(
     (l) => {
       listeners.add(l);
       return () => listeners.delete(l);
     },
-    () => balances
+    () => balance
   );
-  return all[roleKey()];
 }
 
-export function withdraw(amount: number, destination: string) {
-  const key = roleKey();
-  const b = balances[key];
-  if (amount < MIN_PAYOUT || amount > b.available) return false;
-  balances = { ...balances, [key]: { ...b, available: b.available - amount } };
-  listeners.forEach((l) => l());
-  addTransaction({
-    title: `Tarik saldo ke ${destination.split(' ')[0]}`,
-    subtitle: `Diterima ${(amount - PAYOUT_FEE).toLocaleString('id-ID')} setelah biaya transfer`,
-    amount: -amount,
-    method: destination,
-  });
-  return true;
+export function getPayoutAccount() {
+  return balance.account;
+}
+
+export async function loadBalance() {
+  set(await api<Balance>('/payouts/balance'));
+}
+
+/** Simpan rekening tujuan pencairan di server */
+export async function savePayoutAccount(bankName: string, accountNumber: string, accountName: string) {
+  const account = await api<Account>('/payouts/account', { method: 'PUT', body: { bankName, accountNumber, accountName } });
+  set({ ...balance, account });
+  return account;
+}
+
+/** Ajukan pencairan; admin mentransfer manual lalu status dikabarkan lewat notifikasi */
+export async function withdraw(amount: number, destination: string) {
+  try {
+    await api('/payouts', { body: { amount } });
+    addTransaction({
+      title: `Tarik saldo ke ${destination.split(' ')[0]}`,
+      subtitle: `Diterima ${(amount - balance.payoutFee).toLocaleString('id-ID')} setelah biaya transfer`,
+      amount: -amount,
+      method: destination,
+    });
+    await loadBalance();
+    return true;
+  } catch (e) {
+    showAlert('Pencairan belum diajukan', errorMessage(e));
+    return false;
+  }
 }

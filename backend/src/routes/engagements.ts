@@ -5,6 +5,7 @@ import { config } from "../config.js";
 import { prisma, type Prisma } from "../db.js";
 import { ensureConversation } from "../lib/access.js";
 import { me, requireAuth, requireRole } from "../lib/auth.js";
+import { getSettings } from "../lib/content.js";
 import { dayTime, hhmm, isoDate } from "../lib/dates.js";
 import { forbidden, HttpError, notFound, param, parse } from "../lib/http.js";
 import { notify } from "../lib/notify.js";
@@ -204,7 +205,8 @@ engagementsRouter.post("/:id/payments", requireRole("PARENT"), async (req, res) 
   const plus = await prisma.subscription.findFirst({
     where: { userId: e.teacherUserId, active: true, endsAt: { gt: new Date() } },
   });
-  const feePercent = plus ? Math.min(config.platformFeePercent, 5) : config.platformFeePercent;
+  const settings = await getSettings();
+  const feePercent = plus ? settings.plusPlatformFeePercent : settings.platformFeePercent;
   const payment = await createPayment({
     userId: user.id,
     purpose: "ENGAGEMENT",

@@ -9,6 +9,8 @@ import { Screen } from '@/components/parent/screen';
 import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
 import { AppText } from '@/components/ui/app-text';
 import { Colors, Fonts } from '@/constants/theme';
+import { api, errorMessage } from '@/lib/api';
+import { logout as signOut } from '@/lib/auth';
 import { showActionSheet, showAlert, showPrompt } from '@/lib/dialog';
 import { toggleSetting, useProfile } from '@/lib/profile-store';
 import { getSession } from '@/lib/session';
@@ -30,7 +32,7 @@ export default function PengaturanScreen() {
   const logout = () =>
     showAlert('Keluar dari akun?', 'Kamu perlu login lagi untuk masuk.', [
       { text: 'Batal', style: 'cancel' },
-      { text: 'Keluar', style: 'destructive', onPress: () => router.replace('/login') },
+      { text: 'Keluar', style: 'destructive', onPress: () => signOut() },
     ]);
 
   // konfirmasi kedua: ketik HAPUS biar nggak kepencet
@@ -41,14 +43,18 @@ export default function PengaturanScreen() {
       value: '',
       placeholder: 'HAPUS',
       submitText: 'Hapus akun',
-      onSubmit: (v) => {
+      onSubmit: async (v) => {
         if (v.trim().toUpperCase() !== 'HAPUS') {
           showAlert('Akun tidak dihapus', 'Teks konfirmasi tidak sesuai.');
           return;
         }
-        router.dismissAll();
-        router.replace('/login');
-        showAlert('Akun berhasil dihapus', 'Terima kasih sudah menjadi bagian dari Dubidu.');
+        try {
+          await api('/auth/me', { method: 'DELETE', body: { confirm: 'HAPUS' } });
+          await signOut();
+          showAlert('Akun berhasil dihapus', 'Terima kasih sudah menjadi bagian dari Dubidu.');
+        } catch (e) {
+          showAlert('Akun belum terhapus', errorMessage(e));
+        }
       },
     });
 
@@ -59,17 +65,8 @@ export default function PengaturanScreen() {
         <Row
           icon="lock"
           label="Ubah kata sandi"
-          onPress={() =>
-            showPrompt({
-              title: 'Ubah kata sandi',
-              message: 'Kami akan mengirim tautan ubah kata sandi ke email kamu.',
-              value: '',
-              placeholder: 'Email terdaftar',
-              keyboardType: 'email-address',
-              submitText: 'Kirim tautan',
-              onSubmit: () => showAlert('Tautan terkirim', 'Cek kotak masuk email kamu.'),
-            })
-          }
+          // kode verifikasi dikirim ke email, sama seperti lupa kata sandi
+          onPress={() => router.push('/lupa-sandi')}
         />
         <Row
           icon="globe"

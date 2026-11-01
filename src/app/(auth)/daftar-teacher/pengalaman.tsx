@@ -11,6 +11,7 @@ import { SecureNote } from '@/components/ui/secure-note';
 import { TextField } from '@/components/ui/text-field';
 import { UploadBox } from '@/components/ui/upload-box';
 import { Colors, Fonts } from '@/constants/theme';
+import { useParentRegistration } from '@/context/parent-registration';
 import { NEED_CATEGORIES } from '@/data/needs';
 
 const EXPERIENCE = ['< 1 tahun', '1-3 tahun', '3-5 tahun', '> 5 tahun'];
@@ -18,11 +19,12 @@ const BIO_MAX = 300;
 
 // langkah 3: pengalaman & spesialisasi kondisi yang biasa ditangani
 export default function PengalamanScreen() {
-  const [experience, setExperience] = useState<string | null>(null);
-  const [specs, setSpecs] = useState<string[]>([]);
+  const { data, update } = useParentRegistration();
+  const [experience, setExperience] = useState<string | null>(data.teacher.experience);
+  const [specs, setSpecs] = useState<string[]>(data.teacher.specializations);
   const [expanded, setExpanded] = useState<string | null>(NEED_CATEGORIES[0].title);
-  const [cv, setCv] = useState<string | null>(null);
-  const [bio, setBio] = useState('');
+  const [cv, setCv] = useState<string | null>(data.teacher.cvUri);
+  const [bio, setBio] = useState(data.teacher.bio);
 
   const toggle = (option: string) =>
     setSpecs((prev) => (prev.includes(option) ? prev.filter((o) => o !== option) : [...prev, option]));
@@ -86,7 +88,10 @@ export default function PengalamanScreen() {
         title="Next"
         disabled={!canSubmit}
         style={styles.button}
-        onPress={() => router.push('/daftar-teacher/persetujuan')}
+        onPress={() => {
+          update('teacher', { experience, specializations: specs, cvUri: cv, bio: bio.trim() });
+          router.push('/daftar-teacher/persetujuan');
+        }}
       />
       <SecureNote />
     </FormScreen>

@@ -3,9 +3,11 @@ import { useSyncExternalStore } from 'react';
 import { doobieFallback, doobieTopics, doobieVoiceReply, type DoobieTopic } from '@/data/doobie';
 import type { PlusRole } from '@/data/plus';
 
+import { api } from './api';
+import { getChildren } from './children-store';
 import { getSession } from './session';
 
-// percakapan dengan Doobie (memori, per role). jawaban diambil dari template data/doobie.ts
+// percakapan dengan Doobie (per role). Topik cepat = template dari web admin, pertanyaan bebas dijawab server
 export type DoobieMessage =
   | { id: string; from: 'me' | 'doobie'; type: 'text'; text: string }
   | { id: string; from: 'me'; type: 'voice'; uri: string; durationMs: number };
@@ -63,10 +65,11 @@ export function askTopic(topic: DoobieTopic) {
 export function askText(text: string) {
   if (state.typing || !text.trim()) return;
   push({ id: newId(), from: 'me', type: 'text', text: text.trim() });
-  // kalau pertanyaannya mirip salah satu topik, pakai jawaban topik itu
-  const lower = text.toLowerCase();
-  const match = doobieTopics[role()].find((t) => t.label.toLowerCase().split(' ').some((w) => w.length > 4 && lower.includes(w)));
-  reply(match ? match.answer : doobieFallback);
+  set({ ...state, typing: true });
+  // POST /doobie/chat; satu paragraf jawaban = satu gelembung chat
+  api<{ reply: string }>('/doobie/chat', { body: { message: text.trim(), childId: getChildren()[0]?.id } })
+    .then(({ reply: answer }) => reply(answer.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)))
+    .catch(() => reply(doobieFallback));
 }
 
 export function sendVoice(uri: string, durationMs: number) {

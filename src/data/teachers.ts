@@ -55,7 +55,12 @@ export const teacherPool: Teacher[] = [
 export const MATCH_COUNT = 5;
 export const MAX_SKIPS = 5;
 
+// skor kecocokan dari server per anak: serverMatch[childId][teacherId] = 0–99
+export const serverMatch: Record<string, Record<string, number>> = {};
+
 export function matchScore(teacher: Teacher, child: Child) {
+  const fromServer = serverMatch[child.id]?.[teacher.id];
+  if (fromServer !== undefined) return fromServer;
   const need = child.needs.reduce((sum, k) => sum + teacher.skills[k], 0) / child.needs.length;
   const rating = (teacher.rating / 5) * 100;
   const location = teacher.city === child.city ? 100 : 60;
@@ -97,19 +102,20 @@ export const connectedTeachers: Teacher[] = [
   { id: 't-citras', name: 'Citra Sari, S.Pd', city: 'Batu', price: 125000, rating: 4.6, reviews: 12, experience: 2, responseRate: 92, sessions: 80, about: 'Menguasai sensori integrasi untuk anak usia TK dan SD awal.', skills: s(60, 64, 70, 90, 70, 72, 60) },
 ];
 
-export const allTeachers = [...teacherPool, ...connectedTeachers];
+// dibaca setiap kali dipanggil: kedua daftar diisi dari server setelah login
+const allTeachers = () => [...teacherPool, ...connectedTeachers];
 
 const baseName = (name: string) => name.split(',')[0].trim().toLowerCase();
 
 export function findTeacher(id: string) {
-  return allTeachers.find((t) => t.id === id);
+  return allTeachers().find((t) => t.id === id);
 }
 
 // cari id teacher dari nama (nama depan saja juga bisa)
 export function teacherIdByName(name: string) {
   const target = baseName(name);
   return (
-    allTeachers.find((t) => baseName(t.name) === target) ??
-    allTeachers.find((t) => baseName(t.name).split(' ')[0] === target.split(' ')[0])
+    allTeachers().find((t) => baseName(t.name) === target) ??
+    allTeachers().find((t) => baseName(t.name).split(' ')[0] === target.split(' ')[0])
   )?.id;
 }

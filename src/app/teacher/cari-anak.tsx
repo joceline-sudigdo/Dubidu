@@ -1,6 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOutLeft, LinearTransition } from 'react-native-reanimated';
 
@@ -14,7 +14,7 @@ import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts } from '@/constants/theme';
 import { CHILD_MAX_SKIPS, childMatchScore, teacherProfile, type SeekingChild } from '@/data/teacher';
-import { connectChild, shownChildren, skipChild, useChildMatching } from '@/lib/child-matching-store';
+import { connectChild, loadChildMatches, shownChildren, skipChild, useChildMatching } from '@/lib/child-matching-store';
 import { showAlert } from '@/lib/dialog';
 import { usePlus } from '@/lib/membership-store';
 
@@ -25,8 +25,13 @@ export default function CariAnakScreen() {
 
   const list = shownChildren(matching);
   const plus = usePlus();
-  // pengguna Plus bebas skip tanpa batas
-  const skipsLeft = plus ? Infinity : CHILD_MAX_SKIPS - matching.skipsUsed;
+
+  useEffect(() => {
+    loadChildMatches();
+  }, []);
+
+  // pengguna Plus bebas skip tanpa batas (server mengirim skipsLeft null)
+  const skipsLeft = plus || matching.skipsLeft === null ? Infinity : matching.skipsLeft;
   const limitReached = skipsLeft <= 0 && !showLast;
 
   const toggleCompare = (id: string) =>

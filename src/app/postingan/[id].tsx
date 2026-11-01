@@ -1,7 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -13,14 +13,7 @@ import { ScreenHeader } from '@/components/parent/screen-header';
 import { PostCard, roleTone } from '@/components/shared/post-card';
 import { AppText } from '@/components/ui/app-text';
 import { Colors, Fonts, Radius } from '@/constants/theme';
-import {
-  addComment,
-  commentCount,
-  deleteComment,
-  formatCount,
-  useCommunity,
-  type PostComment,
-} from '@/lib/community-store';
+import { addComment, commentCount, deleteComment, formatCount, loadComments, reportContent, type PostComment, useCommunity } from '@/lib/community-store';
 import { showActionSheet, showAlert } from '@/lib/dialog';
 import { getSession } from '@/lib/session';
 
@@ -30,6 +23,11 @@ export default function PostinganScreen() {
   const me = getSession();
   const [text, setText] = useState('');
   const [newestFirst, setNewestFirst] = useState(false);
+
+  // komentar dimuat dari server saat postingan dibuka
+  useEffect(() => {
+    if (id) loadComments(id).catch(() => {});
+  }, [id]);
 
   const post = community.posts.find((p) => p.id === id);
   if (!post) {
@@ -118,7 +116,11 @@ function CommentItem({ comment, postId }: { comment: PostComment; postId: string
               label: 'Laporkan komentar',
               icon: 'flag',
               destructive: true,
-              onPress: () => showAlert('Laporan terkirim', 'Tim Dubidu akan meninjau komentar ini.'),
+              onPress: async () => {
+                if (await reportContent('COMMENT', comment.id, 'Komentar tidak pantas')) {
+                  showAlert('Laporan terkirim', 'Tim Dubidu akan meninjau komentar ini.');
+                }
+              },
             },
           ],
     });

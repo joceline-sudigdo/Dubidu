@@ -1,6 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useState, type ComponentProps } from 'react';
+import { useEffect, useState, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ClayCard } from '@/components/parent/clay-card';
@@ -11,8 +11,10 @@ import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { SecureNote } from '@/components/ui/secure-note';
 import { Colors, Fonts, Radius } from '@/constants/theme';
+import { errorMessage } from '@/lib/api';
 import { showActionSheet, showAlert, showPrompt } from '@/lib/dialog';
 import { getMethods, saveMethods, type Method } from '@/lib/payment-methods';
+import { getPayoutAccount, loadBalance, savePayoutAccount } from '@/lib/payout-store';
 import { getSession } from '@/lib/session';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -32,6 +34,39 @@ export default function MetodePembayaranScreen() {
   const [list, setList] = useState(getMethods(role).list);
   const [main, setMain] = useState(getMethods(role).main);
 
+  // teacher & psikolog: satu rekening pencairan yang tersimpan di server
+  useEffect(() => {
+    if (kind !== 'payout') return;
+    loadBalance()
+      .then(() => {
+        const account = getPayoutAccount();
+        const fromServer: Method[] = account
+          ? [{ id: 'server', label: account.bankName, detail: `${account.accountNumberMasked} a.n. ${account.accountName ?? '-'}`, icon: 'bank', color: Colors.primaryDark }]
+          : [];
+        setList(fromServer);
+        setMain(fromServer[0]?.id ?? '');
+      })
+      .catch(() => {});
+  }, [kind]);
+
+  const savePayout = (bank: string, number: string) =>
+    showPrompt({
+      title: 'Nama pemilik rekening',
+      value: getSession().name,
+      placeholder: 'Sesuai buku tabungan',
+      submitText: 'Simpan',
+      onSubmit: async (name) => {
+        try {
+          const account = await savePayoutAccount(bank, number.replace(/\D/g, ''), name.trim());
+          const saved: Method = { id: 'server', label: account.bankName, detail: `${account.accountNumberMasked} a.n. ${account.accountName ?? '-'}`, icon: 'bank', color: Colors.primaryDark };
+          commit([saved], saved.id);
+          showAlert('Rekening disimpan', 'Pencairan berikutnya akan ditransfer ke rekening ini.');
+        } catch (e) {
+          showAlert('Rekening belum tersimpan', errorMessage(e));
+        }
+      },
+    });
+
   const commit = (nextList: Method[], nextMain: string) => {
     saveMethods(role, nextList, nextMain);
     setList(nextList);
@@ -48,6 +83,10 @@ export default function MetodePembayaranScreen() {
       onSubmit: (v) => {
         if (v.replace(/\D/g, '').length < 6) {
           showAlert('Nomor belum valid', 'Periksa kembali nomornya ya.');
+          return;
+        }
+        if (kind === 'payout') {
+          savePayout(m.label, v);
           return;
         }
         const added = { ...m, id: `${m.label}-${Date.now()}`, detail: `${mask(v)}${suffix}` };

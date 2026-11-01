@@ -1,62 +1,72 @@
-import "server-only";
+// Konten & pengaturan yang bisa diubah dari web admin, disimpan di tabel AppContent (key → JSON).
+// Kalau baris belum ada, dipakai nilai bawaan di bawah (= isi awal aplikasi).
 
-import type {
-  AppSettings,
-  DoobieTopic,
-  Faq,
-  LegalDoc,
-  Mission,
-  PlusPlan,
-  PromoCode,
-  Redemption,
-  Reward,
-  RewardLevel,
-} from "@/types/content";
+import { prisma, type Prisma } from "../db.js";
 
-// isi awal = salinan data aplikasi (src/data/legal.ts, bantuan.tsx, doobie.ts, rewards.ts, plus.ts)
+export type LegalDoc = { type: "terms" | "privacy"; title: string; sections: { h: string; p: string }[] };
+export type Faq = { id: string; question: string; answer: string; category: string; order: number; published: boolean };
+export type ContentRole = "parent" | "teacher";
+export type DoobieTopic = { id: string; role: ContentRole; label: string; question: string; answer: string[]; order: number };
+export type Reward = {
+  id: string;
+  role: ContentRole;
+  title: string;
+  subtitle: string;
+  cost: number;
+  category: "Voucher" | "Cashback" | "Kesehatan";
+  icon: string;
+  minLevel: number | null;
+  stock: number | null;
+  active: boolean;
+};
+export type Mission = { id: string; role: ContentRole; title: string; subtitle: string; reward: number; actionLabel: string; active: boolean };
+export type RewardLevel = { level: number; name: string; min: number; perk: string | null };
+export type PlusPlan = { role: ContentRole; key: "bulanan" | "tahunan"; title: string; price: number; note: string; badge: string | null };
+export type PromoCode = {
+  code: string;
+  discountPercent: number;
+  appliesTo: "CONSULTATION" | "SUBSCRIPTION" | "ALL";
+  active: boolean;
+  usageCount: number;
+  expiresAt: string | null;
+};
+export type AppSettings = { platformFeePercent: number; plusPlatformFeePercent: number; payoutFee: number; minPayout: number };
 
-export const mockLegal: LegalDoc[] = [
-  {
-    type: "terms",
-    title: "Syarat & Ketentuan",
-    version: 1,
-    updatedAt: "2026-11-01T00:00:00.000Z",
-    updatedByName: null,
-    sections: [
-      { h: "1. Tentang Dubidu", p: "Dubidu adalah platform yang mempertemukan orang tua dengan shadow teacher dan psikolog mitra untuk mendampingi anak berkebutuhan khusus. Dubidu bukan penyedia layanan medis dan tidak menggantikan diagnosis profesional." },
-      { h: "2. Akun pengguna", p: "Kamu wajib memberikan data yang benar saat mendaftar dan menjaga kerahasiaan kata sandi. Satu akun hanya untuk satu orang. Dubidu berhak menangguhkan akun yang melanggar ketentuan." },
-      { h: "3. Verifikasi pendamping", p: "Shadow teacher dan psikolog melalui verifikasi dokumen identitas, pendidikan, dan sertifikasi. Meski begitu, orang tua tetap disarankan melakukan sesi trial sebelum kontrak dimulai." },
-      { h: "4. Pembayaran & kontrak", p: "Pembayaran kontrak disimpan di rekening bersama (escrow) dan dicairkan ke shadow teacher per termin setelah laporan sesi diterima. Biaya platform 10% (5% untuk pengguna Plus) dipotong dari setiap pencairan." },
-      { h: "5. Dubidu Plus", p: "Langganan Plus diperpanjang otomatis sesuai paket (bulanan/tahunan) dan bisa dihentikan kapan saja dari menu Dubidu Plus. Biaya yang sudah dibayar tidak dapat dikembalikan untuk periode berjalan." },
-      { h: "6. Ikan & hadiah", p: "Ikan adalah poin loyalitas yang tidak dapat diuangkan. Voucher hasil penukaran berlaku 30 hari dan tunduk pada ketentuan mitra penyedia hadiah." },
-      { h: "7. Perilaku di komunitas", p: "Dilarang membagikan foto atau data anak lain tanpa izin, ujaran kebencian, promosi tanpa izin, dan informasi medis yang menyesatkan. Postingan yang melanggar dapat dihapus." },
-    ],
-  },
-  {
-    type: "privacy",
-    title: "Kebijakan Privasi",
-    version: 1,
-    updatedAt: "2026-11-01T00:00:00.000Z",
-    updatedByName: null,
-    sections: [
-      { h: "Data yang kami kumpulkan", p: "Nama, kontak, domisili, foto KTP untuk verifikasi, profil dan kondisi anak, rekam medis yang kamu unggah (opsional), riwayat chat, laporan sesi, dan data transaksi." },
-      { h: "Untuk apa data dipakai", p: "Mencocokkan anak dengan pendamping yang tepat, menampilkan report card, memproses pembayaran, menjaga keamanan akun, dan meningkatkan layanan. Kami tidak menjual data kamu." },
-      { h: "Siapa yang bisa melihat", p: "Profil kebutuhan anak hanya ditampilkan sebagai inisial kepada shadow teacher sampai kamu menyetujui koneksi. Rekam medis hanya bisa dibuka oleh psikolog atau teacher yang kamu izinkan." },
-      { h: "Keamanan", p: "Data dienkripsi saat dikirim dan disimpan. Akses internal dibatasi hanya untuk tim yang membutuhkan, misalnya tim verifikasi dan dukungan pelanggan." },
-      { h: "Hak kamu", p: "Kamu bisa mengubah data profil, mengunduh laporan, menonaktifkan notifikasi, dan meminta penghapusan akun kapan saja dari menu Pengaturan." },
-    ],
-  },
-];
+const LEGAL_TERMS: LegalDoc = {
+  type: "terms",
+  title: "Syarat & Ketentuan",
+  sections: [
+    { h: "1. Tentang Dubidu", p: "Dubidu adalah platform yang mempertemukan orang tua dengan shadow teacher dan psikolog mitra untuk mendampingi anak berkebutuhan khusus. Dubidu bukan penyedia layanan medis dan tidak menggantikan diagnosis profesional." },
+    { h: "2. Akun pengguna", p: "Kamu wajib memberikan data yang benar saat mendaftar dan menjaga kerahasiaan kata sandi. Satu akun hanya untuk satu orang. Dubidu berhak menangguhkan akun yang melanggar ketentuan." },
+    { h: "3. Verifikasi pendamping", p: "Shadow teacher dan psikolog melalui verifikasi dokumen identitas, pendidikan, dan sertifikasi. Meski begitu, orang tua tetap disarankan melakukan sesi trial sebelum kontrak dimulai." },
+    { h: "4. Pembayaran & kontrak", p: "Pembayaran kontrak disimpan di rekening bersama (escrow) dan dicairkan ke shadow teacher per termin setelah laporan sesi diterima. Biaya platform 10% (5% untuk pengguna Plus) dipotong dari setiap pencairan." },
+    { h: "5. Dubidu Plus", p: "Langganan Plus diperpanjang sesuai paket (bulanan/tahunan) dan bisa dihentikan kapan saja dari menu Dubidu Plus. Biaya yang sudah dibayar tidak dapat dikembalikan untuk periode berjalan." },
+    { h: "6. Ikan & hadiah", p: "Ikan adalah poin loyalitas yang tidak dapat diuangkan. Voucher hasil penukaran berlaku 30 hari dan tunduk pada ketentuan mitra penyedia hadiah." },
+    { h: "7. Perilaku di komunitas", p: "Dilarang membagikan foto atau data anak lain tanpa izin, ujaran kebencian, promosi tanpa izin, dan informasi medis yang menyesatkan. Postingan yang melanggar dapat dihapus." },
+  ],
+};
 
-export const mockFaqs: Faq[] = [
+const LEGAL_PRIVACY: LegalDoc = {
+  type: "privacy",
+  title: "Kebijakan Privasi",
+  sections: [
+    { h: "Data yang kami kumpulkan", p: "Nama, kontak, domisili, foto KTP untuk verifikasi, profil dan kondisi anak, rekam medis yang kamu unggah (opsional), riwayat chat, laporan sesi, dan data transaksi." },
+    { h: "Untuk apa data dipakai", p: "Mencocokkan anak dengan pendamping yang tepat, menampilkan report card, memproses pembayaran, menjaga keamanan akun, dan meningkatkan layanan. Kami tidak menjual data kamu." },
+    { h: "Siapa yang bisa melihat", p: "Profil kebutuhan anak hanya ditampilkan sebagai inisial kepada shadow teacher sampai kamu menyetujui koneksi. Rekam medis hanya bisa dibuka oleh psikolog atau teacher yang kamu izinkan." },
+    { h: "Keamanan", p: "Data dienkripsi saat dikirim dan disimpan. Akses internal dibatasi hanya untuk tim yang membutuhkan, misalnya tim verifikasi dan dukungan pelanggan." },
+    { h: "Hak kamu", p: "Kamu bisa mengubah data profil, mengunduh laporan, menonaktifkan notifikasi, dan meminta penghapusan akun kapan saja dari menu Pengaturan." },
+  ],
+};
+
+const FAQS: Faq[] = [
   { id: "faq_1", category: "Matching", order: 1, published: true, question: "Bagaimana sistem matching bekerja?", answer: "Dubidu mencocokkan kebutuhan anak dengan keahlian shadow teacher, lalu mempertimbangkan rating dan lokasi. Kamu akan melihat 5 kandidat paling cocok setiap hari." },
   { id: "faq_2", category: "Keamanan", order: 2, published: true, question: "Apakah shadow teacher sudah terverifikasi?", answer: "Ya. Setiap teacher melewati verifikasi identitas, sertifikat, dan observasi sebelum bisa menerima pendampingan." },
-  { id: "faq_3", category: "Pembayaran", order: 3, published: true, question: "Bagaimana pembayaran dilakukan?", answer: "Orang tua membayar per termin. Dana ditahan aman oleh Dubidu dan baru dicairkan ke teacher setelah sesi dan laporan selesai." },
+  { id: "faq_3", category: "Pembayaran", order: 3, published: true, question: "Bagaimana pembayaran dilakukan?", answer: "Orang tua membayar per termin lewat QRIS atau transfer bank. Dana ditahan aman oleh Dubidu dan baru dicairkan ke teacher setelah sesi dan laporan selesai." },
   { id: "faq_4", category: "Kontrak", order: 4, published: true, question: "Bisakah saya mengganti teacher?", answer: "Bisa. Hubungi tim Dubidu lewat chat bantuan, kami bantu proses penggantian dan penyesuaian kontrak." },
   { id: "faq_5", category: "Matching", order: 5, published: true, question: "Kenapa skip dibatasi 5 kali sehari?", answer: "Supaya proses pencocokan lebih bijak. Pengguna Dubidu Plus bisa melihat lebih banyak kandidat tanpa batas." },
 ];
 
-export const mockDoobieTopics: DoobieTopic[] = [
+const DOOBIE_TOPICS: DoobieTopic[] = [
   { id: "progress", role: "parent", order: 1, label: "Pantau progress anak", question: "Doobie, gimana cara memantau progress anakku?", answer: [
     "Siap! Progress si kecil bisa dipantau dari menu Jadwal → pilih tanggal sesi untuk membuka Report Card harian dari shadow teacher. 📋",
     "Di Report Card ada skor fokus, sosial, dan sensori, catatan teacher, serta tips untuk di rumah. Ketuk \"Lihat Growth Timeline Lengkap\" untuk melihat grafik perkembangan dari minggu ke minggu.",
@@ -69,7 +79,7 @@ export const mockDoobieTopics: DoobieTopic[] = [
   ] },
   { id: "konsultasi", role: "parent", order: 3, label: "Konsultasi", question: "Kapan sebaiknya aku konsultasi ke psikolog?", answer: [
     "Konsultasi bagus dilakukan saat kamu butuh kepastian kondisi anak, sebelum memilih shadow teacher, atau saat ada perubahan perilaku yang bikin khawatir. 🩺",
-    "Caranya: Beranda → Konsultasi Psikolog → pilih psikolog → atur jadwal & jenis sesi (video, chat, atau tatap muka) → bayar lewat QRIS/VA.",
+    "Caranya: Beranda → Konsultasi Psikolog → pilih psikolog → atur jadwal & jenis sesi → bayar lewat QRIS atau transfer bank.",
     "Pengguna Dubidu Plus dapat diskon konsultasi 20%. Siapkan catatan perilaku dan rekam medis (kalau ada) supaya sesi lebih efektif ya!",
   ] },
   { id: "laporan", role: "teacher", order: 1, label: "Laporan harian", question: "Doobie, bagaimana cara menulis laporan harian yang baik?", answer: [
@@ -89,7 +99,7 @@ export const mockDoobieTopics: DoobieTopic[] = [
   ] },
 ];
 
-export const mockRewards: Reward[] = [
+const REWARDS: Reward[] = [
   { id: "r-kopi", role: "parent", title: "Voucher Kopi Rp25rb", subtitle: "Fore & Kopi Kenangan", cost: 300, category: "Voucher", icon: "coffee", minLevel: null, stock: 120, active: true },
   { id: "r-belanja", role: "parent", title: "Voucher Belanja Rp50rb", subtitle: "Superindo / Alfagift", cost: 600, category: "Voucher", icon: "shopping-bag", minLevel: null, stock: 80, active: true },
   { id: "r-cashback", role: "parent", title: "Cashback Sesi 10%", subtitle: "Sesi shadow teacher", cost: 400, category: "Cashback", icon: "percent", minLevel: null, stock: null, active: true },
@@ -104,7 +114,7 @@ export const mockRewards: Reward[] = [
   { id: "tr-konsul", role: "teacher", title: "Supervisi Psikolog", subtitle: "1x Sesi 45 Menit", cost: 2500, category: "Kesehatan", icon: "heart", minLevel: 5, stock: 10, active: true },
 ];
 
-export const mockMissions: Mission[] = [
+const MISSIONS: Mission[] = [
   { id: "m-report", role: "parent", title: "Isi laporan perkembangan", subtitle: "Evaluasi mingguan si kecil", reward: 30, actionLabel: "Klaim", active: true },
   { id: "m-review", role: "parent", title: "Beri ulasan teacher", subtitle: "Review sesi terakhir", reward: 50, actionLabel: "Kerjakan", active: true },
   { id: "m-webinar", role: "parent", title: "Ikut kelas komunitas", subtitle: "Webinar Sensory Play", reward: 40, actionLabel: "Daftar", active: true },
@@ -115,7 +125,7 @@ export const mockMissions: Mission[] = [
   { id: "t-invite", role: "teacher", title: "Ajak rekan pendamping", subtitle: "Bagikan kode undangan", reward: 200, actionLabel: "Bagikan", active: true },
 ];
 
-export const mockLevels: RewardLevel[] = [
+const LEVELS: RewardLevel[] = [
   { level: 1, name: "Tunas", min: 0, perk: null },
   { level: 2, name: "Mekar", min: 300, perk: null },
   { level: 3, name: "Bersinar", min: 800, perk: null },
@@ -123,27 +133,96 @@ export const mockLevels: RewardLevel[] = [
   { level: 5, name: "Legenda", min: 4000, perk: "Psikolog gratis" },
 ];
 
-export const mockRedemptions: Redemption[] = [
-  { id: "rd_01", rewardId: "r-kopi", rewardTitle: "Voucher Kopi Rp25rb", userName: "Devi Anggraini", role: "parent", code: "DBD-KOPI-3812", cost: 300, status: "ACTIVE", redeemedAt: "2026-10-24T03:00:00.000Z", expiresAt: "2026-11-23T03:00:00.000Z" },
-  { id: "rd_02", rewardId: "tr-boost", rewardTitle: "Boost Profil 7 Hari", userName: "Pras Karunia, S.Pd", role: "teacher", code: "DBD-BOOST-2290", cost: 500, status: "USED", redeemedAt: "2026-10-18T03:00:00.000Z", expiresAt: "2026-11-17T03:00:00.000Z" },
-  { id: "rd_03", rewardId: "r-belanja", rewardTitle: "Voucher Belanja Rp50rb", userName: "Sarah Wijaya", role: "parent", code: "DBD-BELANJ-7741", cost: 600, status: "ACTIVE", redeemedAt: "2026-10-29T03:00:00.000Z", expiresAt: "2026-11-28T03:00:00.000Z" },
-];
-
-export const mockPlans: PlusPlan[] = [
+const PLANS: PlusPlan[] = [
   { role: "parent", key: "bulanan", title: "Bulanan", price: 59000, note: "per bulan", badge: null },
   { role: "parent", key: "tahunan", title: "Tahunan", price: 590000, note: "per tahun · setara Rp49.100/bln", badge: "Hemat 17%" },
   { role: "teacher", key: "bulanan", title: "Bulanan", price: 49000, note: "per bulan", badge: null },
   { role: "teacher", key: "tahunan", title: "Tahunan", price: 490000, note: "per tahun · setara Rp40.800/bln", badge: "Hemat 17%" },
 ];
 
-export const mockPromos: PromoCode[] = [
-  { code: "DUBIDUSAYANG", discountPercent: 10, appliesTo: "CONSULTATION", active: true, usageCount: 37, expiresAt: null },
-  { code: "PLUSBARU", discountPercent: 20, appliesTo: "SUBSCRIPTION", active: false, usageCount: 112, expiresAt: "2026-09-30T16:59:00.000Z" },
+const PROMOS: PromoCode[] = [
+  { code: "DUBIDUSAYANG", discountPercent: 10, appliesTo: "CONSULTATION", active: true, usageCount: 0, expiresAt: null },
 ];
 
-export const mockSettings: AppSettings = {
-  platformFeePercent: 10,
-  plusPlatformFeePercent: 5,
-  payoutFee: 2500,
-  minPayout: 50000,
+const SETTINGS: AppSettings = { platformFeePercent: 10, plusPlatformFeePercent: 5, payoutFee: 2500, minPayout: 50000 };
+
+export const CONTENT_DEFAULTS = {
+  "legal.terms": LEGAL_TERMS,
+  "legal.privacy": LEGAL_PRIVACY,
+  faqs: FAQS,
+  doobieTopics: DOOBIE_TOPICS,
+  rewards: REWARDS,
+  missions: MISSIONS,
+  levels: LEVELS,
+  plans: PLANS,
+  promos: PROMOS,
+  settings: SETTINGS,
 };
+
+export type ContentKey = keyof typeof CONTENT_DEFAULTS;
+export type ContentValue<K extends ContentKey> = (typeof CONTENT_DEFAULTS)[K];
+export const CONTENT_KEYS = Object.keys(CONTENT_DEFAULTS) as ContentKey[];
+/** Konten yang boleh dibaca aplikasi tanpa hak admin (promo tidak: kode promo jangan bocor) */
+export const PUBLIC_CONTENT_KEYS: ContentKey[] = ["legal.terms", "legal.privacy", "faqs", "doobieTopics", "rewards", "missions", "levels", "plans", "settings"];
+
+export const isContentKey = (key: string): key is ContentKey => key in CONTENT_DEFAULTS;
+
+/** Nilai + metadata versi (untuk halaman admin) */
+export async function getContentRow<K extends ContentKey>(key: K) {
+  const row = await prisma.appContent.findUnique({ where: { key } });
+  return {
+    key,
+    value: (row?.value ?? CONTENT_DEFAULTS[key]) as ContentValue<K>,
+    version: row?.version ?? 1,
+    updatedAt: row?.updatedAt ?? null,
+    updatedById: row?.updatedById ?? null,
+  };
+}
+
+export async function getContent<K extends ContentKey>(key: K): Promise<ContentValue<K>> {
+  return (await getContentRow(key)).value;
+}
+
+export async function setContent<K extends ContentKey>(key: K, value: ContentValue<K>, updatedById: string | null) {
+  const json = value as unknown as Prisma.InputJsonValue;
+  return prisma.appContent.upsert({
+    where: { key },
+    create: { key, value: json, updatedById, version: 2 },
+    update: { value: json, updatedById, version: { increment: 1 } },
+  });
+}
+
+export const getSettings = () => getContent("settings");
+
+/** Harga Plus per role & paket (MONTHLY/YEARLY) dari konten "plans" */
+export async function plusPrices(role: "PARENT" | "TEACHER") {
+  const plans = await getContent("plans");
+  const r: ContentRole = role === "PARENT" ? "parent" : "teacher";
+  const price = (key: PlusPlan["key"]) => plans.find((p) => p.role === r && p.key === key)?.price;
+  const fallback = PLANS.filter((p) => p.role === r);
+  return {
+    MONTHLY: price("bulanan") ?? fallback[0]!.price,
+    YEARLY: price("tahunan") ?? fallback[1]!.price,
+  };
+}
+
+/** Diskon % kode promo untuk tujuan tertentu, atau null kalau tidak berlaku */
+export async function promoPercent(code: string, purpose: "CONSULTATION" | "SUBSCRIPTION") {
+  const promos = await getContent("promos");
+  const promo = promos.find((p) => p.code === code.trim().toUpperCase());
+  if (!promo || !promo.active) return null;
+  if (promo.appliesTo !== "ALL" && promo.appliesTo !== purpose) return null;
+  if (promo.expiresAt && new Date(promo.expiresAt) < new Date()) return null;
+  return promo.discountPercent;
+}
+
+/** Tambah 1 ke usageCount kode promo setelah pembayaran lunas */
+export async function countPromoUse(code: string) {
+  const promos = await getContent("promos");
+  const next = promos.map((p) => (p.code === code ? { ...p, usageCount: p.usageCount + 1 } : p));
+  await prisma.appContent.upsert({
+    where: { key: "promos" },
+    create: { key: "promos", value: next as unknown as Prisma.InputJsonValue },
+    update: { value: next as unknown as Prisma.InputJsonValue },
+  });
+}

@@ -1,11 +1,12 @@
 import Feather from '@expo/vector-icons/Feather';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOutLeft, LinearTransition } from 'react-native-reanimated';
 
 import { ChildSwitcher } from '@/components/parent/child-switcher';
 import { ClayCard } from '@/components/parent/clay-card';
+import { EmptyState } from '@/components/parent/empty-state';
 import { MatchLimit } from '@/components/parent/match-limit';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
@@ -15,7 +16,7 @@ import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts } from '@/constants/theme';
 import { matchScore, MAX_SKIPS, SKILL_LABELS, type Teacher } from '@/data/teachers';
-import { connectTeacher, shownFor, skipTeacher, useMatching } from '@/lib/matching-store';
+import { connectTeacher, loadMatches, shownFor, skipTeacher, useMatching } from '@/lib/matching-store';
 import { showAlert } from '@/lib/dialog';
 import { usePlus } from '@/lib/membership-store';
 import { useChildren } from '@/lib/children-store';
@@ -27,10 +28,24 @@ export default function CariTeacherScreen() {
   const [compare, setCompare] = useState<string[]>([]);
   const [showLast, setShowLast] = useState(false);
 
-  const list = shownFor(matching, child);
   const plus = usePlus();
-  // pengguna Plus bebas skip tanpa batas
-  const skipsLeft = plus ? Infinity : MAX_SKIPS - matching.skipsUsed;
+
+  // daftar teacher paling cocok dihitung server, dimuat ulang saat anak diganti
+  useEffect(() => {
+    if (child) loadMatches(child);
+  }, [child]);
+
+  if (!child) {
+    return (
+      <Screen header={<ScreenHeader title="Teacher Matching" />}>
+        <EmptyState title="Belum ada data anak" subtitle="Lengkapi profil anak dulu untuk mencari shadow teacher." />
+      </Screen>
+    );
+  }
+  const list = shownFor(matching, child);
+
+  // pengguna Plus bebas skip tanpa batas (server mengirim skipsLeft null)
+  const skipsLeft = plus || matching.skipsLeft === null ? Infinity : matching.skipsLeft;
   const limitReached = skipsLeft <= 0 && !showLast;
 
   const toggleCompare = (id: string) =>

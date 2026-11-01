@@ -49,7 +49,7 @@ export async function login(_state: LoginState, formData: FormData): Promise<Log
   }
 
   clearLoginAttempts(email);
-  await createSession(admin.id);
+  await createSession(admin.id, admin.token);
   await createAuditLog({
     actorId: admin.id,
     actorName: admin.fullName,

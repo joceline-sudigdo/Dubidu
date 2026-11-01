@@ -11,26 +11,16 @@ import { Colors, Fonts, Radius } from '@/constants/theme';
 import { getSession } from '@/lib/session';
 import { claimCheckin, hasPoints, usePoints } from '@/lib/points-store';
 
-const WEEK = [
-  { day: 'Sen', reward: 10, done: true },
-  { day: 'Sel', reward: 15, done: true },
-  { day: 'Rab', reward: 20, done: true },
-  { day: 'Kam', reward: 25, today: true },
-  { day: 'Jum', reward: 30 },
-  { day: 'Sab', reward: 40 },
-  { day: 'Min', reward: 100, bonus: true },
-];
-
-const TODAY_REWARD = WEEK.find((d) => d.today)!.reward;
-
 export function CheckinCard() {
   const role = getSession().role;
   const points = usePoints();
   if (!hasPoints(role)) return null;
   const claimed = points.checkinClaimed[role];
+  const week = points.week;
 
-  const claim = () => {
-    if (claimCheckin(TODAY_REWARD)) celebrateFish(TODAY_REWARD, 'Check-in hari ini berhasil!');
+  const claim = async () => {
+    const earned = await claimCheckin();
+    if (earned) celebrateFish(earned, 'Check-in hari ini berhasil!');
   };
 
   return (
@@ -46,7 +36,7 @@ export function CheckinCard() {
         </Pressable>
       </View>
       <View style={styles.week}>
-        {WEEK.map((d) => {
+        {week.map((d) => {
           const done = d.done || (d.today && claimed);
           return (
             <View key={d.day} style={[styles.dayCol, d.today && styles.dayToday, d.bonus && styles.dayBonus]}>

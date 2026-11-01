@@ -16,7 +16,7 @@ import { ChatIcon } from '@/components/ui/chat-icon';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { consultations, MODE_LABEL, RECOMMENDATIONS } from '@/data/psychologist';
 import { showAlert } from '@/lib/dialog';
-import { finishSession, reportOf, sendReport, statusOf, usePsikolog } from '@/lib/psikolog-store';
+import { finishSession, joinConsultation, reportOf, sendReport, statusOf, usePsikolog } from '@/lib/psikolog-store';
 
 const NEED_TONES: Tone[] = ['blue', 'red', 'green'];
 
@@ -41,7 +41,14 @@ export default function KonsultasiDetailScreen() {
       ]);
       return;
     }
-    router.push({ pathname: '/psikolog/panggilan/[id]', params: { id: c.id } });
+    // video / voice call berjalan di ruang Daily (atau Jitsi), setelah kembali sesi bisa ditandai selesai
+    joinConsultation(c.id).then((opened) => {
+      if (!opened) return;
+      showAlert('Sesi sudah selesai?', 'Tandai selesai untuk lanjut menulis hasil observasi.', [
+        { text: 'Belum', style: 'cancel' },
+        { text: 'Selesai', onPress: () => finishSession(c.id) },
+      ]);
+    });
   };
 
   const submit = () => {

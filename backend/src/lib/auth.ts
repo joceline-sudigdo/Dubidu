@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import jwt, { type SignOptions } from "jsonwebtoken";
 
 import { config } from "../config.js";
-import type { Role } from "../db.js";
+import { prisma, type Role } from "../db.js";
 import { HttpError } from "./http.js";
 
 export type AuthUser = { id: string; role: Role };
@@ -26,8 +26,10 @@ export function verifyToken(token: string): AuthUser {
   return { id: String(payload.sub), role: payload.role as Role };
 }
 
-/** Wajib login. Header: `Authorization: Bearer <token>` */
-export function requireAuth(req: Request, _res: Response, next: NextFunction) {
+const ACTIVE_EVERY_MS = 10 * 60 * 1000;
+
+/** Wajib login. Header: `Authorization: Bearer <token>`. Akun yang dinonaktifkan admin langsung ditolak. */
+export async function requireAuth(req: Request, _res: Response, next: NextFunction) {
   const header = req.headers.authorization ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
   if (!token) throw new HttpError(401, "Silakan login terlebih dahulu");
@@ -35,6 +37,13 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
     req.user = verifyToken(token);
   } catch {
     throw new HttpError(401, "Sesi login sudah habis, silakan login ulang");
+  }
+  const user = await prisma.user.findUnique({ where: { id: req.user.id }, select: { isActive: true, lastActiveAt: true } });
+  if (!user) throw new HttpError(401, "Akun tidak ditemukan, silakan login ulang");
+  if (!user.isActive) throw new HttpError(403, "Akun dinonaktifkan, hubungi admin");
+  // "terakhir aktif" untuk web admin, cukup diperbarui paling sering 10 menit sekali
+  if (!user.lastActiveAt || Date.now() - user.lastActiveAt.getTime() > ACTIVE_EVERY_MS) {
+    await prisma.user.update({ where: { id: req.user.id }, data: { lastActiveAt: new Date() } });
   }
   next();
 }

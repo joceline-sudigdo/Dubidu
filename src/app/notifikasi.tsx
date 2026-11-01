@@ -13,6 +13,8 @@ import { AppText } from '@/components/ui/app-text';
 import { EdgeScroll } from '@/components/parent/edge-scroll';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { notifications as initial, type NotificationItem } from '@/data/parent';
+import { api } from '@/lib/api';
+import { appLink } from '@/lib/sync';
 
 type Filter = 'all' | NotificationItem['category'];
 
@@ -36,14 +38,14 @@ export default function NotifikasiScreen() {
   const unread = items.filter((n) => n.unread).length;
   const visible = filter === 'all' ? items : items.filter((n) => n.category === filter);
 
-  const markAllRead = () => setItems((list) => list.map((n) => ({ ...n, unread: false })));
+  const markAllRead = () => {
+    setItems((list) => list.map((n) => ({ ...n, unread: false })));
+    api('/notifications/read-all', { body: {} }).catch(() => {});
+  };
   const open = (n: NotificationItem) => {
     setItems((list) => list.map((x) => (x.id === n.id ? { ...x, unread: false } : x)));
-    if (n.id === 'n-obs') router.push({ pathname: '/observasi/[id]', params: { id: 'obs-elisya' } });
-    else if (n.category === 'chat') router.push({ pathname: '/chat/[id]', params: { id: 'larasati' } });
-    else if (n.category === 'laporan') router.push('/report-card');
-    else if (n.id === 'n1') router.push('/konsultasi');
-    else if (n.id === 'n4') router.push('/cari-teacher');
+    if (n.unread) api(`/notifications/${n.id}/read`, { body: {} }).catch(() => {});
+    if (n.link) router.push(appLink(n.link, 'parent') as never);
   };
 
   return (

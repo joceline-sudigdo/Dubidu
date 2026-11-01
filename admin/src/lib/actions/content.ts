@@ -27,14 +27,14 @@ const role = (fd: FormData): ContentRole => (text(fd, "role") === "teacher" ? "t
 // ---------- legal ----------
 export async function updateLegalAction(_: ActionState, fd: FormData): Promise<ActionState> {
   const type = text(fd, "type") as LegalType;
-  return adminAction(async (admin) => {
+  return adminAction(async () => {
     if (type !== "terms" && type !== "privacy") throw new Error("Dokumen tidak dikenal.");
     const hs = fd.getAll("h").map((v) => String(v).trim());
     const ps = fd.getAll("p").map((v) => String(v).trim());
     const sections = hs.map((h, i) => ({ h, p: ps[i] ?? "" })).filter((s) => s.h || s.p);
     if (sections.length === 0) throw new Error("Dokumen minimal punya satu bagian.");
     if (sections.some((s) => !s.h || !s.p)) throw new Error("Setiap bagian wajib punya judul dan isi.");
-    const doc = await updateLegal(type, sections, admin.fullName);
+    const doc = await updateLegal(type, sections);
     revalidatePath("/konten/legal");
     return {
       action: "CONTENT_UPDATED",

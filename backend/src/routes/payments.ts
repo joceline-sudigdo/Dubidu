@@ -7,6 +7,7 @@ import { config } from "../config.js";
 import { prisma, type PaymentPurpose, type Role } from "../db.js";
 import { ensureConversation } from "../lib/access.js";
 import { me, requireAuth, requireRole } from "../lib/auth.js";
+import { countPromoUse, plusPrices } from "../lib/content.js";
 import { hhmm, shortDate } from "../lib/dates.js";
 import { forbidden, HttpError, notFound, param, parse } from "../lib/http.js";
 import { createMeetingRoom } from "../lib/meeting.js";
@@ -69,6 +70,7 @@ export async function markPaid(paymentId: string, method: string, extra: { payme
       data: { status: "CONFIRMED" },
       include: { psychologist: true },
     });
+    if (c.promoCode) await countPromoUse(c.promoCode).catch((err) => console.error("Gagal mencatat pemakaian promo:", err));
     if (c.type !== "CHAT") {
       try {
         const meeting = await createMeetingRoom(c);
@@ -387,10 +389,6 @@ paymentsRouter.post("/:id/pay", async (req, res) => {
 //  Dubidu Plus (langganan)
 // ---------------------------------------------------------------------------
 
-export const PLUS_PRICES: Record<Exclude<Role, "PSYCHOLOGIST" | "ADMIN">, Record<"MONTHLY" | "YEARLY", number>> = {
-  PARENT: { MONTHLY: 59000, YEARLY: 590000 },
-  TEACHER: { MONTHLY: 49000, YEARLY: 490000 },
-};
 
 export const subscriptionRouter = Router();
 subscriptionRouter.use(requireAuth, requireRole("PARENT", "TEACHER"));
@@ -412,7 +410,7 @@ subscriptionRouter.get("/", async (req, res) => {
     plan: active?.plan ?? null,
     until: active ? shortDate(active.endsAt) : null,
     consultationsUsed,
-    prices: PLUS_PRICES[user.role as "PARENT" | "TEACHER"],
+    prices: await plusPrices(user.role as "PARENT" | "TEACHER"),
   });
 });
 
@@ -420,7 +418,7 @@ subscriptionRouter.get("/", async (req, res) => {
 subscriptionRouter.post("/", async (req, res) => {
   const user = me(req);
   const { plan } = parse(z.object({ plan: z.enum(["MONTHLY", "YEARLY"]) }), req.body);
-  const price = PLUS_PRICES[user.role as "PARENT" | "TEACHER"][plan];
+  const price = (await plusPrices(user.role as "PARENT" | "TEACHER"))[plan];
 
   const current = await prisma.subscription.findFirst({
     where: { userId: user.id, active: true, endsAt: { gt: new Date() } },

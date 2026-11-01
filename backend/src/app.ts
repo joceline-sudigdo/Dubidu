@@ -14,13 +14,16 @@ import { chatRouter, quickQuestionsRouter } from "./routes/chat.js";
 import { checkinsRouter } from "./routes/checkins.js";
 import { childrenRouter } from "./routes/children.js";
 import { communityRouter } from "./routes/community.js";
+import { contentRouter } from "./routes/content.js";
 import { doobieRouter } from "./routes/doobie.js";
 import { engagementsRouter, scheduleRouter, sessionsRouter } from "./routes/engagements.js";
 import { homeRouter } from "./routes/home.js";
 import { matchingRouter } from "./routes/matching.js";
 import { metaRouter } from "./routes/meta.js";
+import { contentReportsRouter } from "./routes/moderation.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { expireStalePayments, paymentsRouter, paymentWebhookRouter, subscriptionRouter } from "./routes/payments.js";
+import { payoutsRouter } from "./routes/payouts.js";
 import { consultationsRouter, psychologistsRouter } from "./routes/psychologists.js";
 import { reportsRouter } from "./routes/reports.js";
 import { reviewsRouter, teachersRouter } from "./routes/teachers.js";
@@ -64,6 +67,7 @@ export function createApp() {
   // webhook Midtrans & halaman finish TANPA login → harus dipasang sebelum router yang memakai requireAuth global
   api.use("/payments", paymentWebhookRouter);
   api.use("/", metaRouter); // /meta/needs, /meta/app, /uploads
+  api.use("/", contentRouter); // /content/:key (tanpa login), /rewards
   api.use("/children", childrenRouter);
   api.use("/home", homeRouter);
   api.use("/matching", matchingRouter);
@@ -84,6 +88,8 @@ export function createApp() {
   api.use("/doobie", doobieRouter);
   api.use("/teachers", teachersRouter);
   api.use("/reviews", reviewsRouter);
+  api.use("/payouts", payoutsRouter);
+  api.use("/content-reports", contentReportsRouter);
   api.use("/admin", adminRouter);
   app.use("/api", api);
 

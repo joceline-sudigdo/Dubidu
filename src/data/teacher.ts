@@ -321,6 +321,8 @@ export type SeekingChild = {
   parentReviews: number;
   budget: number;
   distanceKm: number;
+  // id pengajuan dari orang tua (halaman Permintaan), kalau anak ini datang dari permintaan
+  requestId?: string | null;
 };
 
 export const seekingChildren: SeekingChild[] = [
@@ -339,7 +341,11 @@ export const seekingChildren: SeekingChild[] = [
 export const CHILD_MATCH_COUNT = 5;
 export const CHILD_MAX_SKIPS = 5;
 
+// skor kecocokan dari server: serverChildMatch[childId] = 0–99
+export const serverChildMatch: Record<string, number> = {};
+
 export function childMatchScore(child: SeekingChild) {
+  if (serverChildMatch[child.id] !== undefined) return serverChildMatch[child.id];
   const skill = child.needs.reduce((sum, k) => sum + teacherProfile.skills[k], 0) / child.needs.length;
   const location = child.city === teacherProfile.city ? 100 : child.distanceKm < 30 ? 75 : 45;
   const rating = (child.parentRating / 5) * 100;

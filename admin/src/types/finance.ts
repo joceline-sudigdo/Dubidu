@@ -52,6 +52,7 @@ export type Payout = {
   amount: number;
   fee: number;
   bankName: string;
+  accountNumber?: string; // nomor lengkap, hanya untuk dialog transfer
   accountNumberMasked: string; // "•••• 4821"
   accountName: string;
   status: PayoutStatus;

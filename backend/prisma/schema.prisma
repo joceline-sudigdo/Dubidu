@@ -58,6 +58,7 @@ enum Skill {
 enum VerificationStatus {
   UNVERIFIED // belum upload dokumen
   PENDING // dokumen sudah diupload, menunggu admin
+  REVISION // admin minta perbaikan dokumen / data (belum ditolak)
   VERIFIED
   REJECTED
 }
@@ -163,24 +164,30 @@ enum QuickAnswer {
 
 /// Semua pengguna (orang tua, shadow teacher, psikolog, admin) ada di satu tabel.
 model User {
-  id           String   @id @default(cuid())
-  role         Role
-  fullName     String
-  nickname     String? // "Devi", "Pras" — dipakai di sapaan "Halo, Devi"
-  email        String?  @unique
-  phone        String?  @unique
-  passwordHash String
-  avatarUrl    String?
-  domicile     String? // "Malang, Jawa Timur"
-  latitude     Float?
-  longitude    Float?
-  ktpUrl       String? // foto KTP orang tua (registrasi step "identity")
-  points       Int      @default(0) // saldo Madu
-  isActive     Boolean  @default(true)
+  id                  String    @id @default(cuid())
+  role                Role
+  fullName            String
+  nickname            String? // "Devi", "Pras" — dipakai di sapaan "Halo, Devi"
+  email               String?   @unique
+  phone               String?   @unique
+  passwordHash        String
+  avatarUrl           String?
+  domicile            String? // "Malang, Jawa Timur"
+  latitude            Float?
+  longitude           Float?
+  ktpUrl              String? // foto KTP orang tua (registrasi step "identity")
+  points              Int       @default(0) // saldo Madu
+  isActive            Boolean   @default(true)
+  suspendedReason     String? // alasan akun dinonaktifkan admin
+  lastActiveAt        DateTime?
+  // rekening pencairan dana (teacher & psikolog)
+  payoutBankName      String?
+  payoutAccountNumber String?
+  payoutAccountName   String?
   // akun contoh (seed demo). Hanya terlihat oleh sesama akun demo; user sungguhan tidak pernah melihatnya.
-  isDemo       Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  isDemo              Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   teacherProfile        TeacherProfile?
   devices               DeviceToken[]
@@ -209,6 +216,10 @@ model User {
   consultationsAsParent Consultation[]            @relation("ConsultationParent")
   questionsAsked        QuickQuestion[]           @relation("QuestionTeacher")
   questionsReceived     QuickQuestion[]           @relation("QuestionParent")
+  payouts               Payout[]                  @relation("PayoutUser")
+  contentReports        ContentReport[]           @relation("ReportReporter")
+  teacherAssessments    TeacherAssessment[]
+  redemptions           Redemption[]
 
   @@index([role])
   @@index([isDemo, role])
@@ -232,6 +243,9 @@ model TeacherProfile {
   radiusKm           Int                @default(10)
   verificationStatus VerificationStatus @default(UNVERIFIED)
   verifiedAt         DateTime?
+  submittedAt        DateTime? // terakhir mengajukan verifikasi
+  decisionNote       String? // catatan admin (alasan revisi / tolak)
+  decidedAt          DateTime?
   rating             Float              @default(0)
   reviewCount        Int                @default(0)
   sessionTarget      Int                @default(16) // target sesi per bulan (kartu "Sesi selesai")
@@ -241,6 +255,24 @@ model TeacherProfile {
   specializations TeacherSpecialization[]
   skills          TeacherSkill[]
   documents       TeacherDocument[]
+  assessments     TeacherAssessment[]
+}
+
+/// Tinjauan psikolog atas pengajuan teacher (tab Verifikasi di aplikasi psikolog) → rekomendasi untuk admin.
+model TeacherAssessment {
+  id             String         @id @default(cuid())
+  teacherId      String
+  teacher        TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  psychologistId String
+  psychologist   User           @relation(fields: [psychologistId], references: [id], onDelete: Cascade)
+  recommendation String // "verified" | "revision" | "rejected"
+  issues         String[]
+  note           String
+  interview      String? // "Kamis, 8 Okt · 13:00 (online)"
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([teacherId, psychologistId])
 }
 
 /// Level keahlian teacher per bidang (0–100). Diisi teacher (selfLevel), bisa disesuaikan admin saat verifikasi.
@@ -484,14 +516,16 @@ model ReportPhoto {
 
 /// Ulasan untuk teacher / psikolog (rating di profil).
 model Review {
-  id           String   @id @default(cuid())
+  id           String           @id @default(cuid())
   authorId     String
-  author       User     @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  author       User             @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   targetUserId String
-  target       User     @relation("ReviewTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  target       User             @relation("ReviewTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
   rating       Int // 1–5
   comment      String?
-  createdAt    DateTime @default(now())
+  status       ModerationStatus @default(VISIBLE)
+  hiddenReason String?
+  createdAt    DateTime         @default(now())
 
   @@unique([authorId, targetUserId])
 }
@@ -686,13 +720,15 @@ model Subscription {
 // ----------------------------------------------------------------------------
 
 model CommunityPost {
-  id        String   @id @default(cuid())
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  text      String
-  topic     String // "ADHD" | "Autism" | "Speech Delay" | ...
-  photos    String[]
-  createdAt DateTime @default(now())
+  id           String           @id @default(cuid())
+  authorId     String
+  author       User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  text         String
+  topic        String // "ADHD" | "Autism" | "Speech Delay" | ...
+  photos       String[]
+  status       ModerationStatus @default(VISIBLE)
+  hiddenReason String?
+  createdAt    DateTime         @default(now())
 
   likes    PostLike[]
   comments PostComment[]
@@ -710,13 +746,14 @@ model PostLike {
 }
 
 model PostComment {
-  id        String        @id @default(cuid())
+  id        String           @id @default(cuid())
   postId    String
-  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post      CommunityPost    @relation(fields: [postId], references: [id], onDelete: Cascade)
   authorId  String
-  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author    User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
   text      String
-  createdAt DateTime      @default(now())
+  status    ModerationStatus @default(VISIBLE)
+  createdAt DateTime         @default(now())
 }
 
 // ----------------------------------------------------------------------------
@@ -824,4 +861,122 @@ model MatchInsight {
 
   @@id([childId, teacherUserId])
   @@index([teacherUserId])
+}
+
+// ----------------------------------------------------------------------------
+//  ADMIN PANEL: moderasi, pencairan dana, konten, audit log
+// ----------------------------------------------------------------------------
+
+enum ModerationStatus {
+  VISIBLE
+  HIDDEN
+}
+
+enum ReportTargetType {
+  POST
+  COMMENT
+  USER
+  CONVERSATION
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+/// Laporan dari tombol "Laporkan" di aplikasi. Untuk CONVERSATION admin hanya melihat alasan, bukan isi chat.
+model ContentReport {
+  id           String           @id @default(cuid())
+  reporterId   String
+  reporter     User             @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetType   ReportTargetType
+  targetId     String
+  targetLabel  String
+  targetUserId String?
+  reason       String
+  detail       String?
+  status       ReportStatus     @default(OPEN)
+  resolution   String?
+  handledById  String?
+  handledAt    DateTime?
+  createdAt    DateTime         @default(now())
+
+  @@index([status, createdAt])
+}
+
+enum PayoutStatus {
+  PENDING
+  TRANSFERRED
+  REJECTED
+}
+
+/// Pencairan saldo pendapatan teacher / psikolog ke rekening, diproses manual oleh admin.
+model Payout {
+  id               String       @id @default(cuid())
+  userId           String
+  user             User         @relation("PayoutUser", fields: [userId], references: [id], onDelete: Cascade)
+  amount           Int // nominal yang ditarik dari saldo
+  fee              Int // biaya transfer
+  bankName         String
+  accountNumber    String
+  accountName      String
+  status           PayoutStatus @default(PENDING)
+  availableBalance Int // saldo saat diajukan
+  transferRef      String?
+  rejectReason     String?
+  processedById    String?
+  processedAt      DateTime?
+  createdAt        DateTime     @default(now())
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+}
+
+/// Konten & pengaturan yang bisa diubah dari web admin (legal, FAQ, Doobie, rewards, paket Plus, promo, biaya).
+/// key: "legal.terms" | "legal.privacy" | "faqs" | "doobieTopics" | "rewards" | "missions" | "levels" | "plans" | "promos" | "settings"
+model AppContent {
+  key         String   @id
+  value       Json
+  version     Int      @default(1)
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+}
+
+enum RedemptionStatus {
+  ACTIVE
+  USED
+  CANCELLED
+}
+
+/// Penukaran Madu dengan voucher.
+model Redemption {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rewardId    String
+  rewardTitle String
+  code        String           @unique
+  cost        Int
+  status      RedemptionStatus @default(ACTIVE)
+  expiresAt   DateTime
+  createdAt   DateTime         @default(now())
+
+  @@index([userId, createdAt])
+}
+
+/// Jejak setiap aksi admin (siapa, aksi, target, alasan, waktu).
+model AdminAuditLog {
+  id          String   @id @default(cuid())
+  actorId     String?
+  actorName   String
+  action      String
+  targetType  String
+  targetId    String?
+  targetLabel String
+  reason      String?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
 }

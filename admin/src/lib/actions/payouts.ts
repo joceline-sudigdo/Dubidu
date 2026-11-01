@@ -21,10 +21,10 @@ function refresh() {
 // admin sudah mentransfer dana ke rekening pengguna → catat nomor referensi
 export async function transferPayoutAction(_: ActionState, fd: FormData): Promise<ActionState> {
   const id = text(fd, "id");
-  return adminAction(async (admin) => {
+  return adminAction(async () => {
     const ref = requireText(text(fd, "transferRef"), "Nomor referensi transfer", 4);
     const p = await findPayout(id);
-    await markPayoutTransferred(id, ref, admin.fullName);
+    await markPayoutTransferred(id, ref);
     refresh();
     return {
       action: "PAYOUT_TRANSFERRED",
@@ -39,10 +39,10 @@ export async function transferPayoutAction(_: ActionState, fd: FormData): Promis
 // tolak pencairan → saldo dikembalikan ke pengguna
 export async function rejectPayoutAction(_: ActionState, fd: FormData): Promise<ActionState> {
   const id = text(fd, "id");
-  return adminAction(async (admin) => {
+  return adminAction(async () => {
     const reason = requireText(text(fd, "reason"), "Alasan penolakan", 5);
     const p = await findPayout(id);
-    await rejectPayout(id, reason, admin.fullName);
+    await rejectPayout(id, reason);
     refresh();
     return { action: "PAYOUT_REJECTED", targetType: "PAYOUT", targetId: id, targetLabel: `${p.userName} · ${formatRupiah(p.amount)}`, reason };
   });

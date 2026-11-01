@@ -74,6 +74,8 @@ export type NotificationItem = {
   tagTone: Tone;
   action?: string;
   actionPrimary?: boolean;
+  // layar tujuan saat notifikasi dibuka (dari server)
+  link?: string;
 };
 
 export const notifications: NotificationItem[] = [

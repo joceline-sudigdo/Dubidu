@@ -49,7 +49,7 @@ function PayoutActions({ p }: { p: Payout }) {
         triggerTone="success"
         triggerSize="sm"
         title="Tandai sudah ditransfer"
-        description={`Transfer ${formatRupiah(p.amount - p.fee)} ke ${p.bankName} ${p.accountNumberMasked} a.n. ${p.accountName}, lalu catat nomor referensinya.`}
+        description={`Transfer ${formatRupiah(p.amount - p.fee)} ke ${p.bankName} ${p.accountNumber ?? p.accountNumberMasked} a.n. ${p.accountName}, lalu catat nomor referensinya.`}
         submitLabel="Simpan"
         submitTone="success"
         reason={{ label: "Catatan" }}>

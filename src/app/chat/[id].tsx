@@ -3,8 +3,9 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useRef, useState, type ComponentRef } from 'react';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import {
+  ActivityIndicator,
   Keyboard,
   KeyboardAvoidingView,
   Pressable,
@@ -26,7 +27,8 @@ import { contracts } from '@/data/contracts';
 import { consultations } from '@/data/psychologist';
 import { students } from '@/data/teacher';
 import { findTeacher, teacherIdByName } from '@/data/teachers';
-import { addMessage, clearThread, useChatThreads } from '@/lib/chat-store';
+import { addMessage, clearThread, getThread, loadMessages, loadThreads, pollMessages, useChatThreads } from '@/lib/chat-store';
+import { reportContent } from '@/lib/community-store';
 import { showActionSheet, showAlert } from '@/lib/dialog';
 
 const EMOJIS = ['😊', '😄', '🥰', '🙏', '👍', '👏', '🤗', '😅', '😢', '😮', '❤️', '💪', '🎉', '✨', '🌟', '📚', '🧸', '🍎'];
@@ -40,8 +42,31 @@ function nowTime() {
 
 export default function ChatDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const thread = useChatThreads().find((t) => t.id === id);
+  const [failed, setFailed] = useState(false);
+
+  // muat isi chat dari server, lalu cek pesan baru selama layar terbuka
+  useEffect(() => {
+    if (!id) return;
+    (getThread(id) ? Promise.resolve() : loadThreads())
+      .then(() => loadMessages(id))
+      .catch(() => setFailed(true));
+    return pollMessages(id);
+  }, [id]);
+
+  if (!thread) {
+    return (
+      <SafeAreaView style={styles.loading}>
+        {failed ? <AppText variant="caption">Percakapan tidak ditemukan.</AppText> : <ActivityIndicator color={Colors.primary} />}
+      </SafeAreaView>
+    );
+  }
+  return <ChatRoom id={thread.id} />;
+}
+
+function ChatRoom({ id }: { id: string }) {
   const threads = useChatThreads();
-  const thread = threads.find((t) => t.id === id) ?? threads[0];
+  const thread = threads.find((t) => t.id === id)!;
   const messages = thread.messages;
   const [text, setText] = useState('');
   const [approved, setApproved] = useState<string[]>([]);
@@ -141,9 +166,15 @@ export default function ChatDetailScreen() {
           icon: 'flag',
           destructive: true,
           onPress: () =>
-            showAlert('Laporkan percakapan?', 'Tim Dubidu akan meninjau percakapan ini.', [
+            showAlert('Laporkan percakapan?', 'Tim Dubidu akan meninjau laporanmu tanpa membuka isi chat.', [
               { text: 'Batal', style: 'cancel' },
-              { text: 'Laporkan', style: 'destructive', onPress: () => showAlert('Laporan terkirim') },
+              {
+                text: 'Laporkan',
+                style: 'destructive',
+                onPress: async () => {
+                  if (await reportContent('CONVERSATION', thread.id, 'Perilaku tidak pantas di chat')) showAlert('Laporan terkirim');
+                },
+              },
             ]),
         },
         {
@@ -375,6 +406,12 @@ function ScheduleRow({ icon, text }: { icon: 'calendar' | 'clock' | 'map-pin'; t
 }
 
 const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.background,
+  },
   root: {
     flex: 1,
     backgroundColor: Colors.surface,

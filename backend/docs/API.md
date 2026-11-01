@@ -35,7 +35,7 @@ Base URL: `https://dubidu-api.vercel.app/api` (lokal: `http://localhost:4000/api
 | Method | Path | Body / Query | Keterangan |
 |---|---|---|---|
 | POST | `/auth/register` | `{ role: "PARENT"\|"TEACHER", fullName, contact, password, nickname?, domicile?, latitude?, longitude?, child?: { name, birthDate?: "2016-05-21", gender?: "MALE"\|"FEMALE", schoolLevel?: "TK"\|"SD"\|"SMP", grade?, domicile?, diagnosis?, conditions: string[] } }` | `contact` = email **atau** no. HP. Balikan `{ token, user, children }` |
-| POST | `/auth/login` | `{ contact, password }` | `{ token, user }` |
+| POST | `/auth/login` | `{ contact, password, portal?: "admin" }` | `{ token, user }`. Akun nonaktif → 403 |
 | GET 🔒 | `/auth/me` | | profil + `children` + `plan` + `stats` |
 | PATCH 🔒 | `/auth/me` | `{ fullName?, nickname?, domicile?, avatarUrl?, ktpUrl?, latitude?, longitude?, pushToken? }` | |
 | POST 🔒 | `/auth/change-password` | `{ oldPassword, newPassword }` | |
@@ -185,23 +185,48 @@ Bidang keahlian (kunci): `speech`, `communication`, `adhd`, `sensory`, `social`,
 | POST 🔒 | `/teachers/me/documents` | `{ type: "KTP"\|"IJAZAH"\|"SERTIFIKAT"\|"CV"\|"LAINNYA", url }` |
 | POST 🔒 | `/reviews` | (orang tua) `{ targetUserId, rating 1–5, comment? }` |
 
-## Admin
+## Admin (web admin, folder `admin/`)
+
+Semua respons berbentuk persis seperti tipe di `admin/src/types/*`. Data anak, laporan perkembangan, dan isi chat tidak dikirim ke admin.
 
 | Method | Path | Keterangan |
 |---|---|---|
-| GET 🔒 | `/admin/stats?demo=false` | angka user sungguhan (default) + `demoUsers`; `demo=true` untuk angka data demo |
-| GET 🔒 | `/admin/teachers?status=PENDING` | antrian verifikasi |
-| PATCH 🔒 | `/admin/teachers/:userId/verification` | `{ status: "VERIFIED"\|"REJECTED", note? }` — VERIFIED ditolak (400) kalau teacher belum mengisi level keahlian |
-| PATCH 🔒 | `/admin/teachers/:userId/skills` | `{ skills: { speech: 80, ... } }` — admin menyesuaikan level setelah cek dokumen/interview (nilai ini yang dipakai matching). `GET /admin/teachers` menampilkan `skillLevels: { speech: { self, level, adminAdjusted } }` |
-| POST 🔒 | `/admin/psychologists` | buat akun psikolog |
-| PATCH 🔒 | `/admin/users/:id` | `{ isActive }` |
-| GET 🔒 | `/admin/users?role=&q=&demo=&page=&pageSize=` | daftar user (cari nama/email/HP). `demo=true`/`false` untuk memfilter; tiap user punya `isDemo` → tampilkan label "Demo" |
-| GET 🔒 | `/admin/payments?status=VERIFYING&page=` | transaksi (+ bukti transfer, metode) + ringkasan pendapatan. `VERIFYING` = antrian cek bukti |
-| POST 🔒 | `/admin/payments/:id/confirm` | dana sudah masuk di mutasi → lunas + semua efeknya |
-| POST 🔒 | `/admin/payments/:id/reject` | `{ reason }` → user diminta upload ulang |
-| GET/POST 🔒 | `/admin/payment-methods` | kelola QRIS (`type: "QRIS", label, accountName, qrImageUrl`) & rekening (`type: "BANK_TRANSFER", label, bankName, accountNumber, accountName`) |
-| PATCH/DELETE 🔒 | `/admin/payment-methods/:id` | ubah / nonaktifkan |
-| GET 🔒 | `/admin/consultations?status=&page=` | semua konsultasi |
-| GET 🔒 | `/admin/engagements?status=&page=` | semua kontrak pendampingan |
+| GET 🔒 | `/admin/me` | admin yang sedang login |
+| GET 🔒 | `/admin/stats?demo=true` | `{ users, queues, revenue, activeEngagements }` — default angka user sungguhan |
+| GET/POST 🔒 | `/admin/audit-logs?limit=&q=` | daftar / tulis audit log (`{ action, targetType, targetId?, targetLabel, reason?, ipAddress? }`). Login admin (berhasil & gagal) dicatat otomatis |
+| GET 🔒 | `/admin/teacher-verifications?status=PENDING\|REVISION\|VERIFIED\|REJECTED` | antrian verifikasi (+ dokumen, level keahlian, rekomendasi psikolog) |
+| GET 🔒 | `/admin/teacher-verifications/:id` | detail (id = TeacherProfile) |
+| POST 🔒 | `/admin/teacher-verifications/:id/decision` | `{ status: "VERIFIED"\|"REVISION"\|"REJECTED", note }` — VERIFIED ditolak (400) kalau level keahlian belum diisi; REVISION/REJECTED wajib catatan |
+| PATCH 🔒 | `/admin/teachers/:userId/skills` | `{ skills: { speech: 80, ... } }` — level yang dipakai matching |
+| GET 🔒 | `/admin/users?role=&q=&status=active\|suspended&demo=` | daftar pengguna (maks. 200) |
+| GET 🔒 | `/admin/users/:id` | detail pengguna |
+| PATCH 🔒 | `/admin/users/:id/status` | `{ isActive, reason }` — suspend langsung memblokir token lama & push |
+| POST 🔒 | `/admin/psychologists` | buat akun psikolog → `{ user, tempPassword }` (password sementara dibuat otomatis bila tidak dikirim) |
+| GET 🔒 | `/admin/payments?status=VERIFYING` · `/admin/payments/:id` | bukti transfer manual |
+| POST 🔒 | `/admin/payments/:id/confirm` · `/admin/payments/:id/reject` `{ reason }` | lunaskan / minta upload ulang |
+| GET/POST 🔒 | `/admin/payment-methods` · PATCH/DELETE `/admin/payment-methods/:id` | tujuan transfer QRIS & rekening |
+| GET 🔒 | `/admin/payouts?status=PENDING` | pengajuan pencairan teacher & psikolog (berisi nomor rekening lengkap) |
+| POST 🔒 | `/admin/payouts/:id/transfer` `{ transferRef }` · `/admin/payouts/:id/reject` `{ reason }` | tandai sudah ditransfer / tolak (saldo kembali) |
+| GET 🔒 | `/admin/reports?status=OPEN` · POST `/admin/reports/:id/resolve` `{ status, resolution }` | laporan dari tombol "Laporkan" |
+| GET 🔒 | `/admin/community/posts?status=` · `/admin/community/posts/:id` | postingan + komentar + jumlah laporan |
+| PATCH 🔒 | `/admin/community/posts/:id` `{ status: VISIBLE\|HIDDEN, reason }` · `/admin/community/comments/:id` `{ status }` | sembunyikan / tampilkan |
+| GET 🔒 | `/admin/reviews?status=` · PATCH `/admin/reviews/:id` `{ status, reason }` | ulasan (rating dihitung ulang) |
+| GET/PUT 🔒 | `/admin/content/:key` | konten: `legal.terms`, `legal.privacy`, `faqs`, `doobieTopics`, `rewards`, `missions`, `levels`, `plans`, `promos`, `settings` (`PUT { value }`, versi naik 1) |
+| GET 🔒 | `/admin/redemptions` · POST `/admin/redemptions/:id/cancel` | voucher hasil tukar Madu (batal = Madu dikembalikan) |
+| GET 🔒 | `/admin/consultations?status=&page=` · `/admin/engagements?status=&page=` | daftar operasional |
 
-Web admin: login biasa lewat `POST /auth/login` dengan akun ADMIN, lalu kirim token di header. Isi `CORS_ORIGINS` dengan alamat web admin (mis. `https://admin-dubidu.vercel.app`).
+Web admin login lewat `POST /auth/login` dengan `portal: "admin"` (hanya akun ADMIN). Isi `CORS_ORIGINS` di server hanya kalau web admin memanggil API dari browser; panel admin di folder `admin/` memanggil dari server Next.js sehingga tidak perlu.
+
+## Fitur pengguna untuk web admin
+
+| Method | Path | Keterangan |
+|---|---|---|
+| GET 🔒 | `/payouts/balance` | (teacher/psikolog) `{ available, held, heldNote, minPayout, payoutFee, account }` |
+| PUT 🔒 | `/payouts/account` | `{ bankName, accountNumber, accountName }` rekening pencairan |
+| GET/POST 🔒 | `/payouts` | riwayat / ajukan pencairan `{ amount }` |
+| POST 🔒 | `/content-reports` | `{ targetType: POST\|COMMENT\|USER\|CONVERSATION, targetId, reason, detail? }` |
+| GET | `/content/:key` | konten publik (tanpa login): legal, FAQ terbit, topik Doobie, rewards, misi, level, paket Plus, pengaturan biaya |
+| GET 🔒 | `/rewards` · `/rewards/redemptions` · POST `/rewards/:id/redeem` | katalog hadiah, voucher saya, tukar Madu |
+| GET 🔒 | `/psychologists/me/teacher-applicants` | (psikolog) pendaftar teacher untuk ditinjau |
+| PUT 🔒 | `/psychologists/me/teacher-applicants/:teacherUserId` | `{ status?: verified\|revision\|rejected, issues?, note?, interview? }` rekomendasi untuk admin |
+| DELETE 🔒 | `/auth/me` | `{ confirm: "HAPUS" }` hapus akun (data pribadi dikosongkan, riwayat transaksi tetap) |

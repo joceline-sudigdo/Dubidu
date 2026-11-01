@@ -92,9 +92,9 @@ export default function RewardsScreen() {
       { text: 'Batal', style: 'cancel' },
       {
         text: 'Tukar',
-        onPress: () => {
-          redeemReward(r.id, r.title, r.cost);
-          showAlert('Penukaran berhasil', 'Vouchernya sudah masuk ke bagian Voucher Saya.');
+        onPress: async () => {
+          const code = await redeemReward(r.id, r.title, r.cost);
+          if (code) showAlert('Penukaran berhasil', `Kode voucher kamu: ${code}. Vouchernya juga tersimpan di bagian Voucher Saya.`);
         },
       },
     ]);

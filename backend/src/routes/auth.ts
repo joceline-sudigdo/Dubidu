@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { config } from "../config.js";
 import { prisma } from "../db.js";
+import { writeAudit } from "../lib/audit.js";
 import { me, requireAuth, signToken } from "../lib/auth.js";
 import { HttpError, parse } from "../lib/http.js";
 import { resetPasswordEmail, sendMail } from "../lib/mail.js";
@@ -93,18 +94,35 @@ authRouter.post("/register", async (req, res) => {
   });
 });
 
-/** POST /api/auth/login  { contact, password } */
+/**
+ * POST /api/auth/login  { contact, password, portal? }
+ * portal "admin" (dipakai web admin): hanya akun ADMIN yang boleh masuk, dan setiap percobaan dicatat di audit log.
+ */
 authRouter.post("/login", async (req, res) => {
-  const body = parse(z.object({ contact: contactSchema, password: z.string().min(1) }), req.body);
+  const body = parse(
+    z.object({ contact: contactSchema, password: z.string().min(1), portal: z.enum(["app", "admin"]).default("app") }),
+    req.body,
+  );
   const { email, phone } = body.contact.includes("@")
     ? { email: body.contact, phone: undefined }
     : { email: undefined, phone: body.contact.replace(/[^\d+]/g, "").replace(/^\+62/, "0") };
 
   const user = await prisma.user.findFirst({ where: email ? { email } : { phone } });
-  if (!user || !(await bcrypt.compare(body.password, user.passwordHash))) {
-    throw new HttpError(401, "Email/nomor HP atau password salah");
+  const valid = Boolean(user && (await bcrypt.compare(body.password, user.passwordHash)));
+  if (body.portal === "admin" && (!valid || user?.role !== "ADMIN" || !user.isActive)) {
+    await writeAudit(req, null, {
+      action: "AUTH_LOGIN_FAILED",
+      targetType: "ADMIN",
+      targetLabel: body.contact,
+      reason: !valid ? "Email atau kata sandi salah" : user?.role !== "ADMIN" ? "Bukan akun admin" : "Akun admin nonaktif",
+    });
+    throw new HttpError(401, "Email atau kata sandi salah");
   }
+  if (!user || !valid) throw new HttpError(401, "Email/nomor HP atau password salah");
   if (!user.isActive) throw new HttpError(403, "Akun dinonaktifkan, hubungi admin");
+  if (body.portal === "admin") {
+    await writeAudit(req, user, { action: "AUTH_LOGIN", targetType: "ADMIN", targetId: user.id, targetLabel: user.email ?? user.fullName });
+  }
 
   res.json({ token: signToken(user), user: publicUser(user) });
 });
@@ -155,6 +173,39 @@ authRouter.patch("/me", requireAuth, async (req, res) => {
   const data = parse(updateMeSchema, req.body);
   const user = await prisma.user.update({ where: { id: me(req).id }, data });
   res.json({ user: publicUser(user) });
+});
+
+/**
+ * DELETE /api/auth/me { confirm: "HAPUS" } — hapus akun atas permintaan pengguna.
+ * Data pribadi dikosongkan & akun dinonaktifkan; riwayat transaksi tetap tersimpan untuk pembukuan.
+ */
+authRouter.delete("/me", requireAuth, async (req, res) => {
+  parse(z.object({ confirm: z.literal("HAPUS") }), req.body);
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: me(req).id } });
+  if (user.role === "ADMIN") throw new HttpError(400, "Akun admin tidak bisa dihapus dari aplikasi");
+  await prisma.$transaction([
+    prisma.deviceToken.deleteMany({ where: { userId: user.id } }),
+    prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isActive: false,
+        suspendedReason: "Dihapus atas permintaan pengguna",
+        fullName: "Pengguna Dubidu",
+        nickname: null,
+        email: null,
+        phone: null,
+        avatarUrl: null,
+        ktpUrl: null,
+        domicile: null,
+        latitude: null,
+        longitude: null,
+        payoutBankName: null,
+        payoutAccountNumber: null,
+        payoutAccountName: null,
+      },
+    }),
+  ]);
+  res.status(204).end();
 });
 
 /** POST /api/auth/change-password { oldPassword, newPassword } */
