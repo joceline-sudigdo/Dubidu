@@ -11,6 +11,7 @@ const ACTION: Record<AuditAction, { label: string; tone: StatusTone }> = {
   ADMIN_CREATED: { label: "Admin dibuat", tone: "brand" },
   TEACHER_VERIFIED: { label: "Teacher diverifikasi", tone: "success" },
   TEACHER_REVISION_REQUESTED: { label: "Minta revisi", tone: "warning" },
+  TEACHER_SKILLS_ADJUSTED: { label: "Sesuaikan keahlian", tone: "neutral" },
   TEACHER_REJECTED: { label: "Teacher ditolak", tone: "danger" },
   PAYMENT_CONFIRMED: { label: "Pembayaran dikonfirmasi", tone: "success" },
   PAYMENT_REJECTED: { label: "Bukti transfer ditolak", tone: "danger" },

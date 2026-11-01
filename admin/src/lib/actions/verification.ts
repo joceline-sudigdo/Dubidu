@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 
-import { decideApplication, getApplication } from "@/lib/api";
+import { decideApplication, getApplication, setTeacherSkills } from "@/lib/api";
+import { SKILLS } from "@/lib/labels";
 
-import { adminAction, requireText, text, type ActionState } from "./helpers";
+import { adminAction, num, requireText, text, type ActionState } from "./helpers";
 
 const ACTION = {
   VERIFIED: "TEACHER_VERIFIED",
@@ -36,5 +37,25 @@ export async function decideTeacher(_: ActionState, fd: FormData): Promise<Actio
     revalidatePath(`/verifikasi/${id}`);
     revalidatePath("/");
     return { action: ACTION[decision], targetType: "TEACHER", targetId: app.userId, targetLabel: app.fullName, reason };
+  });
+}
+
+// admin menyesuaikan level keahlian setelah cek dokumen / interview
+export async function adjustTeacherSkills(_: ActionState, fd: FormData): Promise<ActionState> {
+  const id = text(fd, "id");
+  return adminAction(async () => {
+    const app = await getApplication(id);
+    if (!app) throw new Error("Pengajuan tidak ditemukan.");
+    const skills = Object.fromEntries(SKILLS.map((s) => [s.key, Math.max(0, Math.min(100, Math.round(num(fd, s.key))))]));
+    await setTeacherSkills(app.userId, skills);
+    revalidatePath(`/verifikasi/${id}`);
+    return {
+      action: "TEACHER_SKILLS_ADJUSTED",
+      targetType: "TEACHER",
+      targetId: app.userId,
+      targetLabel: app.fullName,
+      reason: text(fd, "reason") || SKILLS.map((s) => `${s.label} ${skills[s.key]}`).join(", "),
+      message: "Level keahlian tersimpan.",
+    };
   });
 }

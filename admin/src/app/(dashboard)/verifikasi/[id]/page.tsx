@@ -9,11 +9,11 @@ import { DetailCard, InfoRow, Notice } from "@/components/shared/detail-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { TableSkeleton } from "@/components/shared/table-skeleton";
-import { decideTeacher } from "@/lib/actions/verification";
+import { adjustTeacherSkills, decideTeacher } from "@/lib/actions/verification";
 import { getApplication } from "@/lib/api";
 import { getCurrentAdmin } from "@/lib/dal";
 import { formatDateTime, formatRupiah } from "@/lib/format";
-import { DECISION, RECOMMENDATION, REVISION_ISSUES } from "@/lib/labels";
+import { DECISION, RECOMMENDATION, REVISION_ISSUES, SKILLS } from "@/lib/labels";
 
 export const metadata: Metadata = { title: "Tinjau Pengajuan" };
 
@@ -37,6 +37,7 @@ async function TinjauContent({ params }: Pick<PageProps<"/verifikasi/[id]">, "pa
   if (!app) notFound();
 
   const missing = app.documents.filter((d) => !d.url);
+  const hasSkills = Object.keys(app.skillLevels ?? {}).length > 0;
   const review = app.psychologistReview;
   const open = app.status === "PENDING" || app.status === "REVISION";
 
@@ -69,6 +70,61 @@ async function TinjauContent({ params }: Pick<PageProps<"/verifikasi/[id]">, "pa
                 <span className="font-normal leading-relaxed">{app.bio}</span>
               </InfoRow>
             </dl>
+          </DetailCard>
+
+          <DetailCard title="Level keahlian">
+            {!hasSkills && (
+              <div className="mb-3">
+                <Notice tone="warning">
+                  Teacher belum mengisi level keahlian (Profil → Level Keahlian di aplikasi). Verifikasi akan ditolak sampai
+                  level diisi, atau isi sendiri lewat tombol di bawah setelah interview.
+                </Notice>
+              </div>
+            )}
+            <ul className="space-y-2.5">
+              {SKILLS.map((s) => {
+                const v = app.skillLevels?.[s.key];
+                return (
+                  <li key={s.key} className="grid grid-cols-[8rem_1fr_auto] items-center gap-3 text-sm">
+                    <span className="font-medium">{s.label}</span>
+                    <span className="h-2 overflow-hidden rounded-full bg-surface">
+                      <span className="block h-full rounded-full bg-brand" style={{ width: `${v?.level ?? 0}%` }} />
+                    </span>
+                    <span className="w-28 text-right tabular-nums">
+                      {v ? v.level : "—"}
+                      {v && v.self !== v.level && <span className="text-xs text-muted-foreground"> (diri: {v.self})</span>}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="mt-4">
+              <ActionDialog
+                action={adjustTeacherSkills}
+                hidden={{ id: app.id }}
+                triggerLabel={hasSkills ? "Sesuaikan level" : "Isi level keahlian"}
+                title="Level keahlian (0–100)"
+                description="Nilai ini yang dipakai matching. Penilaian diri teacher tetap tersimpan sebagai pembanding."
+                submitLabel="Simpan level"
+                reason={{ label: "Catatan", placeholder: "Misal: hasil interview psikolog" }}>
+                <div className="grid grid-cols-2 gap-3">
+                  {SKILLS.map((s) => (
+                    <label key={s.key} className="space-y-1 text-sm">
+                      <span className="font-medium">{s.label}</span>
+                      <input
+                        type="number"
+                        name={s.key}
+                        min={0}
+                        max={100}
+                        step={5}
+                        defaultValue={app.skillLevels?.[s.key]?.level ?? 0}
+                        className="h-9 w-full rounded-lg border bg-background px-3"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </ActionDialog>
+            </div>
           </DetailCard>
 
           <DetailCard title={`Dokumen (${app.documents.length - missing.length}/${app.documents.length})`}>

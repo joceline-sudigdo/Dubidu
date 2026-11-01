@@ -77,6 +77,17 @@ export const param = (sp: Record<string, string | string[] | undefined>, key: st
   return (Array.isArray(v) ? v[0] : v) ?? "";
 };
 
+// 7 bidang keahlian teacher (urutan & label sama dengan aplikasi)
+export const SKILLS = [
+  { key: "speech", label: "Speech Delay" },
+  { key: "communication", label: "Komunikasi" },
+  { key: "adhd", label: "ADHD & Fokus" },
+  { key: "sensory", label: "Sensori" },
+  { key: "social", label: "Interaksi Sosial" },
+  { key: "autism", label: "Autisme" },
+  { key: "academic", label: "Akademik" },
+] as const;
+
 // pilihan catatan saat meminta revisi verifikasi teacher
 export const REVISION_ISSUES = [
   "Pengalaman belum relevan",

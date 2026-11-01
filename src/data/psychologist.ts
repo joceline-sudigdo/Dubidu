@@ -8,6 +8,7 @@ import type { Gender } from './teacher';
 // ===== akun psikolog yang login =====
 
 export const psychologistProfile = {
+  profileId: '', // id PsychologistProfile di server (untuk jadwal)
   name: 'Amanda Putri, M.Psi.',
   shortName: 'Amanda',
   title: 'M.Psi., Psikolog',

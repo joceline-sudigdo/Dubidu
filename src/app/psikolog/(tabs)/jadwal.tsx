@@ -8,6 +8,7 @@ import { Screen } from '@/components/parent/screen';
 import { TabHeader } from '@/components/parent/screen-header';
 import { Segmented } from '@/components/parent/segmented';
 import { ConsultationCard } from '@/components/psikolog/consultation-card';
+import { SlotEditor } from '@/components/psikolog/slot-editor';
 import { AppText } from '@/components/ui/app-text';
 import { Colors, Fonts } from '@/constants/theme';
 import { consultations } from '@/data/psychologist';
@@ -25,6 +26,7 @@ export default function PsikologJadwalScreen() {
   return (
     <Screen>
       <TabHeader title="Jadwal" />
+      <SlotEditor />
       <Segmented labels={[`Mendatang (${upcoming.length})`, `Selesai (${done.length})`]} value={tab} onChange={setTab} />
 
       {list.length === 0 ? (

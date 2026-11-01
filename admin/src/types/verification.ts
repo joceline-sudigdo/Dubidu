@@ -37,6 +37,8 @@ export type TeacherApplication = {
   experienceYears: number;
   pricePerSession: number;
   specializations: string[]; // label NeedOption
+  // level keahlian 0–100: self = penilaian teacher, level = nilai yang dipakai matching
+  skillLevels: Record<string, { self: number; level: number; adminAdjusted: boolean }>;
   bio: string;
   documents: TeacherDocument[];
   psychologistReview: PsychologistReview | null;
