@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { BearAvatar } from '@/components/parent/bear-avatar';
 import { ClayCard } from '@/components/parent/clay-card';
+import { EmptyState } from '@/components/parent/empty-state';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
@@ -24,10 +25,18 @@ export default function KonsultasiDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const c = consultations.find((x) => x.id === id) ?? consultations[0];
   const store = usePsikolog();
-  const status = statusOf(store, c);
-  const report = reportOf(store, c);
   const [note, setNote] = useState('');
   const [recs, setRecs] = useState<string[]>([]);
+
+  if (!c) {
+    return (
+      <Screen header={<ScreenHeader title="Detail Konsultasi" />}>
+        <EmptyState title="Konsultasi tidak ditemukan" subtitle="Mungkin belum dibayar atau sudah dibatalkan." />
+      </Screen>
+    );
+  }
+  const status = statusOf(store, c);
+  const report = reportOf(store, c);
 
   const toggleRec = (r: string) => setRecs((list) => (list.includes(r) ? list.filter((x) => x !== r) : [...list, r]));
 

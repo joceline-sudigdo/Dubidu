@@ -354,6 +354,7 @@ export const chatThreads: ChatThread[] = [
 ];
 
 export const quickQuestion = {
+  id: '', // id pertanyaan di server
   from: 'Larasati Sudigdo',
   text: 'Mam, bolehkan cheryl makan es krim untuk siang ini?',
 };

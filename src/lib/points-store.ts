@@ -84,9 +84,14 @@ export function addPoints(title: string, amount: number) {
 /** Kartu check-in dari server (GET /home/parent|teacher → checkin) + anak yang di-check-in */
 export function setCheckinWeek(
   role: PlusRole,
-  checkin: { days: { day: string; reward: number; status: string }[]; todayDone: boolean },
+  // null = belum ada anak / murid (akun baru) → kartu check-in bawaan, belum bisa diklaim
+  checkin: { days: { day: string; reward: number; status: string }[]; todayDone: boolean } | null,
   childId: string | null
 ) {
+  if (!checkin) {
+    set({ ...state, week: DEFAULT_WEEK, checkinChildId: null, checkinClaimed: { ...state.checkinClaimed, [role]: false } });
+    return;
+  }
   const todayIndex = (new Date().getDay() + 6) % 7; // Sen = 0
   const week = checkin.days.map((d, i) => ({ day: d.day, reward: d.reward, done: d.status === 'done', today: i === todayIndex, bonus: i === 6 }));
   set({ ...state, week, checkinChildId: childId, checkinClaimed: { ...state.checkinClaimed, [role]: checkin.todayDone } });
@@ -95,7 +100,11 @@ export function setCheckinWeek(
 /** Klaim Madu hari ini (POST /checkins). Balikan: jumlah Madu yang didapat, atau 0 kalau gagal. */
 export async function claimCheckin(mood = 'SENANG') {
   const role = currentRole();
-  if (state.checkinClaimed[role] || !state.checkinChildId) return 0;
+  if (state.checkinClaimed[role]) return 0;
+  if (!state.checkinChildId) {
+    showAlert('Check-in belum tersedia', role === 'teacher' ? 'Check-in harian bisa diklaim setelah kamu punya anak dampingan.' : 'Tambahkan profil anak dulu untuk mulai check-in harian.');
+    return 0;
+  }
   try {
     const res = await api<{ pointsEarned: number; points: number }>('/checkins', { body: { childId: state.checkinChildId, mood } });
     set({

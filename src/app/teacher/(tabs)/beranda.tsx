@@ -23,7 +23,7 @@ const STATUS_LABEL = { pending: 'Pending', accepted: 'Diterima', rejected: 'Dito
 const STATUS_COLOR = { pending: Colors.textSecondary, accepted: Colors.green, rejected: Colors.red } as const;
 
 export default function TeacherBerandaScreen() {
-  const [studentId, setStudentId] = useState(students[0].id);
+  const [studentId, setStudentId] = useState(students[0]?.id ?? '');
   const progress = me.target.done / me.target.total;
 
   return (
@@ -34,12 +34,18 @@ export default function TeacherBerandaScreen() {
             <AppText style={styles.hello}>
               Halo, <AppText style={[styles.hello, { color: Colors.primary }]}>{me.shortName}</AppText>
             </AppText>
-            <View style={[styles.verified, Shadow.soft]}>
-              <MaterialCommunityIcons name="check-decagram" size={14} color={Colors.primary} />
-              <AppText style={styles.verifiedText}>Verified</AppText>
-            </View>
+            {me.verified && (
+              <View style={[styles.verified, Shadow.soft]}>
+                <MaterialCommunityIcons name="check-decagram" size={14} color={Colors.primary} />
+                <AppText style={styles.verifiedText}>Verified</AppText>
+              </View>
+            )}
           </View>
-          <AppText variant="caption">Siap membantu anak-anak hari ini?</AppText>
+          <AppText variant="caption">
+            {me.verified
+              ? 'Siap membantu anak-anak hari ini?'
+              : 'Profilmu sedang diverifikasi tim Dubidu. Lengkapi profil & dokumen sambil menunggu.'}
+          </AppText>
         </View>
         <Pressable
           accessibilityLabel="Notifikasi"
