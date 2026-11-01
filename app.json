@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Dubidu",
-    "slug": "dubidu",
+    "slug": "duwbiduw",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -9,7 +9,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.dubidu.app"
+      "bundleIdentifier": "id.dubidu.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +19,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.dubidu.app"
+      "package": "id.dubidu.app"
     },
     "web": {
       "output": "server",
@@ -47,13 +47,22 @@
       [
         "expo-notifications",
         {
-          "color": "#3D7ABD"
+          "icon": "./assets/images/android-icon-monochrome.png",
+          "color": "#3D7ABD",
+          "defaultChannel": "default"
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "owner": "sutoyo",
+    "extra": {
+      "eas": {
+        "projectId": "01e9c7f6-2427-42fe-aa0e-cf75175d0164"
+      }
     }
   }
 }
