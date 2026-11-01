@@ -57,9 +57,10 @@ adminRouter.get("/stats", async (req, res) => {
   const now = new Date();
   const [parent, teacher, psychologist, suspended, plus, verification, payment, payout, report, paidByPurpose, fees, activeEngagements] =
     await Promise.all([
-      prisma.user.count({ where: { role: "PARENT", isDemo } }),
-      prisma.user.count({ where: { role: "TEACHER", isDemo } }),
-      prisma.user.count({ where: { role: "PSYCHOLOGIST", isDemo } }),
+      // per role = akun aktif saja; akun nonaktif dihitung terpisah di "suspended"
+      prisma.user.count({ where: { role: "PARENT", isDemo, isActive: true } }),
+      prisma.user.count({ where: { role: "TEACHER", isDemo, isActive: true } }),
+      prisma.user.count({ where: { role: "PSYCHOLOGIST", isDemo, isActive: true } }),
       prisma.user.count({ where: { isActive: false, isDemo, role: { not: "ADMIN" } } }),
       prisma.user.count({ where: { isDemo, subscriptions: { some: { active: true, endsAt: { gt: now } } } } }),
       prisma.teacherProfile.count({ where: { verificationStatus: "PENDING", user: { isDemo } } }),
