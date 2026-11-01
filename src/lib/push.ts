@@ -1,7 +1,5 @@
-import Constants from 'expo-constants';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
-import { AndroidImportance } from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { api, secureGet, secureRemove, secureSet } from './api';
@@ -11,23 +9,39 @@ import { api, secureGet, secureRemove, secureSet } from './api';
 
 const PUSH_KEY = 'dubidu.push-token';
 
-if (Platform.OS !== 'web') {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    }),
-  });
+// Expo Go (terutama Android) tidak mendukung push dan modul nativenya tidak lengkap,
+// jadi expo-notifications baru dimuat saat dibutuhkan dan hanya di luar Expo Go.
+const pushSupported = Platform.OS !== 'web' && Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
+
+type NotificationsModule = typeof import('expo-notifications');
+let notifications: NotificationsModule | null = null;
+
+function loadNotifications() {
+  if (!pushSupported) return null;
+  if (!notifications) {
+    // require (bukan import di atas) supaya modul ini tidak dimuat sama sekali di Expo Go
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    notifications = require('expo-notifications') as NotificationsModule;
+    notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  }
+  return notifications;
 }
 
 /** Minta izin & kirim Expo push token ke backend. Dipanggil setelah login. */
 export async function registerForPush() {
-  if (Platform.OS === 'web' || !Device.isDevice) return null;
+  const Notifications = loadNotifications();
+  if (!Notifications || !Device.isDevice) return null;
 
   if (Platform.OS === 'android') {
     // id saluran HARUS sama dengan yang dipakai backend (lib/notify.ts)
+    const { AndroidImportance } = Notifications;
     await Notifications.setNotificationChannelAsync('default', { name: 'Umum', importance: AndroidImportance.DEFAULT });
     await Notifications.setNotificationChannelAsync('chat', { name: 'Chat', importance: AndroidImportance.HIGH });
     await Notifications.setNotificationChannelAsync('booking', { name: 'Jadwal & Pembayaran', importance: AndroidImportance.HIGH });
@@ -56,7 +70,8 @@ export async function unregisterPush() {
 
 /** Notifikasi ditekan → buka layar sesuai `data.link` dari backend (contoh "/chat/abc") */
 export function listenNotificationTaps(open: (link: string) => void) {
-  if (Platform.OS === 'web') return () => {};
+  const Notifications = loadNotifications();
+  if (!Notifications) return () => {};
   const sub = Notifications.addNotificationResponseReceivedListener((response) => {
     const link = response.notification.request.content.data?.link;
     if (typeof link === 'string' && link.startsWith('/')) open(link);
