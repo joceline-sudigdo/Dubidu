@@ -30,7 +30,7 @@ export const metadata: Metadata = { title: "Ringkasan" };
 export default function RingkasanPage() {
   return (
     <>
-      <PageHeader title="Ringkasan" description="Antrean yang perlu ditangani, kondisi pengguna, dan pendapatan. Semua angka agregat, tanpa data anak." />
+      <PageHeader title="Ringkasan" description="Antrean yang perlu ditangani, kondisi pengguna, dan pendapatan. Semua angka agregat dari akun sungguhan (akun demo tidak dihitung), tanpa data anak." />
       <Suspense fallback={<StatsSkeleton />}>
         <Stats />
       </Suspense>

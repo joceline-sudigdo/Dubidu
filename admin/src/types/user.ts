@@ -18,6 +18,7 @@ export type AppUser = {
   plusActive: boolean; // ada Subscription aktif
   createdAt: string;
   lastActiveAt: string | null; // kolom baru
+  isDemo: boolean; // akun contoh dari data demo, tidak dihitung di Ringkasan
   teacher?: {
     title: string | null;
     experienceYears: number;

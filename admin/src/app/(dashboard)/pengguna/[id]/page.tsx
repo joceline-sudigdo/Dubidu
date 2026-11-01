@@ -44,6 +44,7 @@ async function UserDetail({ params }: Pick<PageProps<"/pengguna/[id]">, "params"
         description={`${ROLE[u.role]} · bergabung ${formatDateTime(u.createdAt)}`}
         actions={
           <div className="flex items-center gap-2">
+            {u.isDemo && <StatusBadge label="Akun demo" tone="neutral" />}
             {u.plusActive && <StatusBadge label="Plus" tone="warning" />}
             <StatusBadge label={u.isActive ? "Aktif" : "Nonaktif"} tone={u.isActive ? "success" : "danger"} className="px-3 py-1.5 text-sm" />
           </div>
