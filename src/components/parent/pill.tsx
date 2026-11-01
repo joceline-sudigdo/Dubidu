@@ -71,6 +71,7 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
+    flexShrink: 1,
   },
   labelMd: {
     fontSize: 14,

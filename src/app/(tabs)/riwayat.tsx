@@ -73,7 +73,7 @@ function MatchCard({ match }: { match: ActiveMatch }) {
             <MaterialCommunityIcons name="check-decagram" size={17} color={Colors.primary} />
           </View>
           <View style={styles.tags}>
-            <TagRow tags={match.tags} solid />
+            <TagRow tags={match.tags} solid stacked />
           </View>
         </View>
       </View>
@@ -223,10 +223,9 @@ const styles = StyleSheet.create({
     fontSize: 17,
     flexShrink: 1,
   },
+  // blok biasa (bukan row + wrap) supaya baris badge selebar kolom kartu, tidak tembus keluar
   tags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    alignSelf: 'stretch',
     marginTop: 8,
   },
   infoBox: {

@@ -207,9 +207,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
   },
   tags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    alignSelf: 'stretch',
   },
   profileLink: {
     flexDirection: 'row',

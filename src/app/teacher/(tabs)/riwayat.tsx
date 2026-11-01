@@ -99,7 +99,7 @@ function StudentCard({ student }: { student: Student }) {
             {student.name} · {student.age} tahun
           </AppText>
           <View style={styles.tags}>
-            <TagRow tags={student.tags} solid />
+            <TagRow tags={student.tags} solid stacked />
           </View>
         </View>
       </View>
@@ -184,10 +184,9 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 18,
   },
+  // blok biasa (bukan row + wrap) supaya baris badge selebar kolom kartu, tidak tembus keluar
   tags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    alignSelf: 'stretch',
     marginTop: 8,
   },
   infoBox: {
