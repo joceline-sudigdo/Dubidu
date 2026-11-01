@@ -8,7 +8,8 @@
     "scheme": "duwbiduw",
     "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "id.dubidu.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +18,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "id.dubidu.app"
     },
     "web": {
       "output": "server",
@@ -40,11 +42,27 @@
         {
           "microphonePermission": "Izinkan Dubidu memakai mikrofon untuk mengirim voice note ke Doobie."
         }
-      ]
+      ],
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/android-icon-monochrome.png",
+          "color": "#3D7ABD",
+          "defaultChannel": "default"
+        }
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "owner": "sutoyo",
+    "extra": {
+      "eas": {
+        "projectId": "01e9c7f6-2427-42fe-aa0e-cf75175d0164"
+      }
     }
   }
 }
