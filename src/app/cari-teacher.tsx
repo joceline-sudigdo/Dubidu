@@ -1,7 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOutLeft, LinearTransition } from 'react-native-reanimated';
 
 import { ChildSwitcher } from '@/components/parent/child-switcher';
@@ -16,7 +16,15 @@ import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts } from '@/constants/theme';
 import { matchScore, MAX_SKIPS, SKILL_LABELS, type Teacher } from '@/data/teachers';
-import { connectTeacher, loadMatches, shownFor, skipTeacher, useMatching } from '@/lib/matching-store';
+import {
+  connectTeacher,
+  isDemoMatching,
+  loadMatches,
+  resetDemoMatching,
+  shownFor,
+  skipTeacher,
+  useMatching,
+} from '@/lib/matching-store';
 import { showAlert } from '@/lib/dialog';
 import { usePlus } from '@/lib/membership-store';
 import { useChildren } from '@/lib/children-store';
@@ -47,6 +55,14 @@ export default function CariTeacherScreen() {
   // pengguna Plus bebas skip tanpa batas (server mengirim skipsLeft null)
   const skipsLeft = plus || matching.skipsLeft === null ? Infinity : matching.skipsLeft;
   const limitReached = skipsLeft <= 0 && !showLast;
+
+  // akun demo: ulang alur lewati 5× → halaman batas dari awal
+  const demo = isDemoMatching();
+  const resetDemo = () => {
+    setShowLast(false);
+    setCompare([]);
+    resetDemoMatching(child);
+  };
 
   const toggleCompare = (id: string) =>
     setCompare((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id].slice(-2)));
@@ -92,7 +108,7 @@ export default function CariTeacherScreen() {
         ) : undefined
       }>
       {limitReached ? (
-        <MatchLimit onShowLast={() => setShowLast(true)} />
+        <MatchLimit onShowLast={() => setShowLast(true)} onResetDemo={demo ? resetDemo : undefined} />
       ) : (
         <>
           <ChildSwitcher
@@ -123,6 +139,14 @@ export default function CariTeacherScreen() {
                 </AppText>
               </View>
             </View>
+            {demo ? (
+              <Pressable onPress={resetDemo} hitSlop={8} style={styles.reset}>
+                <Feather name="rotate-ccw" size={14} color={Colors.primary} />
+                <AppText variant="caption" style={styles.resetText}>
+                  Ulang demo skip
+                </AppText>
+              </Pressable>
+            ) : null}
           </ClayCard>
 
           {list.map((t) => (
@@ -170,6 +194,17 @@ const styles = StyleSheet.create({
   },
   white: {
     backgroundColor: '#FFFFFF',
+  },
+  reset: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginTop: 4,
+  },
+  resetText: {
+    fontFamily: Fonts.bodyBold,
+    color: Colors.primary,
   },
   hint: {
     flexDirection: 'row',

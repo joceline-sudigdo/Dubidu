@@ -52,6 +52,15 @@ export const teacherPool: Teacher[] = [
   { id: 't-wulan', name: 'Wulan Sari, S.Psi', city: 'Surabaya', price: 150000, rating: 4.8, reviews: 36, experience: 5, responseRate: 92, sessions: 280, about: 'Fokus pada anak spektrum autisme dengan pendekatan visual schedule.', skills: s(72, 76, 64, 80, 88, 93, 66) },
 ];
 
+// teacher contoh untuk akun demo orang tua (disalin sebelum teacherPool dikosongkan saat logout).
+// Ayas Sudigdo selalu tampil di Teacher Matching akun demo.
+export const AYAS: Teacher = {
+  id: 't-ayas', name: 'Ayas Sudigdo, S.Pd', city: 'Malang', price: 145000, rating: 4.9, reviews: 24, experience: 4, responseRate: 99, sessions: 230,
+  about: 'Mendampingi anak speech delay dan autisme di sekolah inklusi dengan pendekatan bermain dan visual support.',
+  skills: s(88, 92, 76, 74, 90, 86, 72),
+};
+export const demoTeachers: Teacher[] = [AYAS, ...teacherPool];
+
 export const MATCH_COUNT = 5;
 export const MAX_SKIPS = 5;
 

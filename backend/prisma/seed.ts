@@ -75,6 +75,7 @@ const DEMO_SKILLS: Record<string, number[]> = {
   "citra@dubidu.id": [60, 68, 80, 95, 72, 78, 62],
   "siti@dubidu.id": [78, 82, 62, 70, 90, 91, 60],
   "bayu@dubidu.id": [58, 64, 70, 60, 65, 52, 90],
+  "ayas@dubidu.id": [88, 92, 76, 74, 90, 86, 72],
 };
 
 /** Perbarui level keahlian teacher demo yang sudah ada (mis. di Neon). Akun sungguhan tidak disentuh. */
@@ -93,6 +94,34 @@ async function syncDemoTeacherSkills() {
     updated++;
   }
   if (updated) console.log(`✔ level keahlian ${updated} teacher demo`);
+}
+
+/** Teacher demo ke-10. Dibuat juga di database yang sudah berisi data demo (mis. Neon) bila belum ada. */
+async function ensureDemoTeacherAyas(passwordHash: string) {
+  const email = "ayas@dubidu.id";
+  if (await prisma.user.findUnique({ where: { email } })) return;
+  const needs = ["Speech delay", "Sulit menyampaikan kebutuhan", "Sulit berinteraksi dengan teman", "Kurang kontak mata"];
+  const options = await prisma.needOption.findMany({ where: { label: { in: needs } } });
+  await prisma.user.create({
+    data: {
+      role: "TEACHER", fullName: "Ayas Sudigdo", nickname: "Ayas", email, passwordHash, isDemo: true,
+      domicile: "Klojen, Malang", latitude: -7.9616, longitude: 112.6386,
+      teacherProfile: {
+        create: {
+          title: "S.Pd", headline: "Speech Delay & Komunikasi Sosial",
+          about: "Mendampingi anak speech delay dan autisme di sekolah inklusi dengan pendekatan bermain dan visual support.",
+          education: "S1 Pendidikan Luar Biasa – Universitas Negeri Malang", experienceYears: 4,
+          childAgeMin: 5, childAgeMax: 15, pricePerSession: 145000, availability: "Senin–Jumat, pagi–siang", area: "Klojen",
+          verificationStatus: "VERIFIED", verifiedAt: new Date(), rating: 4.9, reviewCount: 24,
+          specializations: { create: options.map((o) => ({ needOptionId: o.id })) },
+          skills: {
+            create: SKILL_ORDER.map((skill, i) => ({ skill, selfLevel: DEMO_SKILLS[email]![i]!, level: DEMO_SKILLS[email]![i]! })),
+          },
+        },
+      },
+    },
+  });
+  console.log("✔ teacher demo Ayas Sudigdo");
 }
 
 async function seedDemo() {
@@ -276,6 +305,7 @@ async function seedDemo() {
     availability: "Senin, Rabu, Jumat sore", area: "Blimbing", rating: 0, reviews: 0, loc: near(-0.015, 0.02), status: "PENDING",
     specs: ["Kesulitan membaca & menulis"],
   });
+  await ensureDemoTeacherAyas(hash);
 
   // --- psikolog --------------------------------------------------------------
   type P = { fullName: string; email: string; title: string; place: string; exp: number; badge: string; tags: string[]; categories: string[]; base: number; disc: number; dur: number; rating: number; reviews: number };
@@ -491,7 +521,10 @@ async function main() {
   if (process.env.SEED_DEMO === "false") return;
   if ((await prisma.user.count()) > 0) {
     console.log("• database sudah berisi user, data demo tidak dibuat ulang");
-    await syncDemoTeacherSkills();
+    if (await prisma.user.count({ where: { isDemo: true } })) {
+      await ensureDemoTeacherAyas(await bcrypt.hash("dubidu123", 10));
+      await syncDemoTeacherSkills();
+    }
     return;
   }
   await seedDemo();

@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { config } from "../config.js";
 import { prisma, type PaymentPurpose, type Role } from "../db.js";
-import { ensureConversation } from "../lib/access.js";
+import { ensureConversation, isDemoUser } from "../lib/access.js";
 import { me, requireAuth, requireRole } from "../lib/auth.js";
 import { countPromoUse, plusPrices } from "../lib/content.js";
 import { hhmm, shortDate } from "../lib/dates.js";
@@ -412,6 +412,18 @@ subscriptionRouter.get("/", async (req, res) => {
     consultationsUsed,
     prices: await plusPrices(user.role as "PARENT" | "TEACHER"),
   });
+});
+
+/** DELETE /api/subscription — khusus akun demo: Plus langsung berhenti (akun asli tetap aktif sampai akhir periode) */
+subscriptionRouter.delete("/", async (req, res) => {
+  const user = me(req);
+  if (!(await isDemoUser(user.id))) throw forbidden("Langganan tetap aktif sampai akhir periode");
+  const now = new Date();
+  await prisma.subscription.updateMany({
+    where: { userId: user.id, active: true, endsAt: { gt: now } },
+    data: { active: false, endsAt: now },
+  });
+  res.json({ active: false });
 });
 
 /** POST /api/subscription { plan: MONTHLY|YEARLY } → { subscription, payment } */

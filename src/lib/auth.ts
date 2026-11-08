@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 
+import { toIsoDate } from '@/components/ui/date-field';
 import type { ParentRegistration } from '@/context/parent-registration';
 import accounts from '@/data/dummy-accounts.json';
 
@@ -92,7 +93,7 @@ export async function registerParent(data: ParentRegistration) {
       child: {
         name: data.child.name.split(' ')[0],
         fullName: data.child.name,
-        birthDate: data.child.birthDate || undefined,
+        birthDate: toIsoDate(data.child.birthDate),
         gender: data.child.gender ? data.child.gender.toUpperCase() : undefined,
         schoolLevel: data.child.schoolLevel ?? undefined,
         domicile: data.child.domicile || data.identity.domicile || undefined,

@@ -2,11 +2,13 @@ import { router } from 'expo-router';
 import { useSyncExternalStore } from 'react';
 
 import type { Child } from '@/data/parent';
-import { connectedTeachers, MAX_SKIPS, serverMatch, teacherPool, type Skill, type Teacher } from '@/data/teachers';
+import { AYAS, connectedTeachers, demoTeachers, MATCH_COUNT, MAX_SKIPS, serverMatch, teacherPool, type Skill, type Teacher } from '@/data/teachers';
 
 import { api, errorMessage } from './api';
 import { loadThreads } from './chat-store';
 import { showAlert } from './dialog';
+import { getPlan } from './membership-store';
+import { getSession } from './session';
 
 // Teacher Matching: 5 teacher paling cocok per anak dihitung server (GET /matching/teachers).
 // Batas skip harian juga dicek server (skipsLeft null = Dubidu Plus, tanpa batas).
@@ -68,10 +70,52 @@ const toTeacher = (c: Card): Teacher => ({
   skills: c.skills,
 });
 
+// --- akun demo orang tua -------------------------------------------------------
+// Antrian kandidat & jumlah "Lewati" hari ini dihitung di perangkat, supaya alur
+// lewati 5× → halaman batas → Dubidu Plus selalu bisa didemokan (teacher demo di server sedikit).
+// Teacher yang dilewati pindah ke belakang antrian, jadi daftar tidak pernah habis.
+const demoQueue: Record<string, Teacher[]> = {};
+let demoSkips = { day: '', count: 0 };
+
+const isDemo = () => getSession().isDemo;
+const today = () => new Date().toDateString();
+
+function demoSkipsLeft() {
+  if (demoSkips.day !== today()) demoSkips = { day: today(), count: 0 };
+  return Math.max(0, MAX_SKIPS - demoSkips.count);
+}
+
+function demoList(child: Child, server: Teacher[]) {
+  const names = new Set(server.map((t) => t.name.split(',')[0]));
+  const extras = demoTeachers.filter((t) => !names.has(t.name.split(',')[0]));
+  // kartu contoh juga masuk teacherPool supaya profil & bandingkan bisa membacanya
+  for (const t of extras) if (!teacherPool.some((x) => x.id === t.id)) teacherPool.push(t);
+  serverMatch[child.id] = { [AYAS.id]: 97, ...serverMatch[child.id] };
+
+  const prev = demoQueue[child.id];
+  const queue = prev
+    ? prev.map((t) => server.find((x) => x.id === t.id) ?? t)
+    : [...extras.filter((t) => t.id === AYAS.id), ...server, ...extras.filter((t) => t.id !== AYAS.id)];
+  for (const t of server) if (!queue.some((x) => x.id === t.id)) queue.push(t);
+  demoQueue[child.id] = queue;
+  return queue.slice(0, MATCH_COUNT);
+}
+
+export const isDemoMatching = isDemo;
+
+/** Ulang demo: kuota lewati kembali penuh & urutan kartu seperti awal */
+export function resetDemoMatching(child: Child) {
+  for (const key of Object.keys(demoQueue)) delete demoQueue[key];
+  demoSkips = { day: today(), count: 0 };
+  set({ ...state, skipsLeft: MAX_SKIPS });
+  return loadMatches(child);
+}
+
 // kartu teacher juga disimpan di teacherPool supaya profil & bandingkan bisa membacanya
 function remember(child: Child, list: MatchList) {
-  const teachers = list.cards.map(toTeacher);
-  for (const t of teachers) {
+  const fromServer = list.cards.map(toTeacher);
+  const teachers = isDemo() ? demoList(child, fromServer) : fromServer;
+  for (const t of fromServer) {
     const i = teacherPool.findIndex((x) => x.id === t.id);
     if (i >= 0) teacherPool[i] = t;
     else teacherPool.push(t);
@@ -80,7 +124,7 @@ function remember(child: Child, list: MatchList) {
   const connected = list.cards.filter((c) => c.connected).map((c) => c.id);
   set({
     ...state,
-    skipsLeft: list.skipsLeft,
+    skipsLeft: isDemo() ? demoSkipsLeft() : list.skipsLeft,
     shown: { ...state.shown, [child.id]: teachers },
     loading: { ...state.loading, [child.id]: false },
     connected: [...new Set([...state.connected, ...connected])],
@@ -102,6 +146,16 @@ export function shownFor(current: State, child: Child) {
 }
 
 export async function skipTeacher(child: Child, teacher: Teacher) {
+  if (isDemo()) {
+    if (!getPlan('parent')) {
+      if (demoSkipsLeft() <= 0) return;
+      demoSkips.count++;
+    }
+    const queue = [...(demoQueue[child.id] ?? []).filter((t) => t.id !== teacher.id), teacher];
+    demoQueue[child.id] = queue;
+    set({ ...state, skipsLeft: demoSkipsLeft(), shown: { ...state.shown, [child.id]: queue.slice(0, MATCH_COUNT) } });
+    return;
+  }
   // langsung hilang dari layar, daftar pengganti datang dari server
   set({ ...state, shown: { ...state.shown, [child.id]: shownFor(state, child).filter((t) => t.id !== teacher.id) } });
   try {
@@ -114,6 +168,12 @@ export async function skipTeacher(child: Child, teacher: Teacher) {
 
 /** Kirim pesan penawaran (server membuat chat + pengajuan), lalu buka room chat-nya */
 export async function connectTeacher(teacher: Teacher, child: Child) {
+  // teacher contoh (akun demo) tidak ada di server: cukup tandai sudah dihubungi
+  if (teacher.id.startsWith('t-')) {
+    set({ ...state, connected: [...new Set([...state.connected, teacher.id])] });
+    showAlert('Penawaran terkirim', `${teacher.name.split(',')[0]} akan membalas penawaranmu untuk ${child.name} lewat chat.`);
+    return;
+  }
   try {
     const { conversationId } = await api<{ conversationId: string }>(`/matching/teachers/${teacher.id}/connect`, {
       body: { childId: child.id },
@@ -161,5 +221,7 @@ export async function loadTeacher(id: string) {
 }
 
 export function resetMatching() {
+  for (const key of Object.keys(demoQueue)) delete demoQueue[key];
+  demoSkips = { day: '', count: 0 };
   set(EMPTY);
 }

@@ -14,6 +14,13 @@
     "password": "dubidu123"
   },
   {
+    "role": "teacher",
+    "name": "Ayas Sudigdo, S.Pd",
+    "email": "ayas@dubidu.id",
+    "phone": "",
+    "password": "dubidu123"
+  },
+  {
     "role": "psychologist",
     "name": "Amanda Putri, M.Psi., Psikolog",
     "email": "amanda@dubidu.id",

@@ -116,7 +116,14 @@ async function loadOwnChild(req: Parameters<typeof me>[0], childId: string) {
 
 /** Semua kartu teacher untuk anak ini, urut kecocokan (AI dipakai untuk kandidat teratas). */
 async function rankTeachers(child: ChildRow, opts: { onlyIds?: string[]; waitAi?: number } = {}) {
-  const skipped = await prisma.matchSkip.findMany({ where: { actorId: child.parentId, childId: child.id }, select: { teacherUserId: true } });
+  // teacher yang pernah dilewati ditaruh paling belakang (yang paling lama dilewati muncul lebih dulu),
+  // jadi daftar tidak pernah habis walau jumlah teacher sedikit (mis. akun demo)
+  const skips = await prisma.matchSkip.findMany({
+    where: { actorId: child.parentId, childId: child.id },
+    select: { teacherUserId: true, createdAt: true },
+  });
+  const skippedAt = new Map(skips.map((s) => [s.teacherUserId, s.createdAt.getTime()]));
+  const recycledOrder = (id: string) => skippedAt.get(id) ?? -Infinity;
   const applications = await prisma.application.findMany({ where: { childId: child.id }, select: { teacherUserId: true, status: true } });
   const appByTeacher = new Map(applications.map((a) => [a.teacherUserId, a.status]));
 
@@ -125,14 +132,14 @@ async function rankTeachers(child: ChildRow, opts: { onlyIds?: string[]; waitAi?
       verificationStatus: "VERIFIED",
       // hanya teacher dari "dunia" yang sama (demo ↔ demo, nyata ↔ nyata)
       user: { isActive: true, isDemo: child.parent.isDemo },
-      ...(opts.onlyIds ? { userId: { in: opts.onlyIds } } : { userId: { notIn: skipped.map((s) => s.teacherUserId) } }),
+      ...(opts.onlyIds ? { userId: { in: opts.onlyIds } } : {}),
     },
     include: TEACHER_INCLUDE,
   });
 
   const scored = teachers
     .map((t) => ({ t, ...pairScore(child, t) }))
-    .sort((a, b) => b.score - a.score || b.t.rating - a.t.rating);
+    .sort((a, b) => recycledOrder(a.t.userId) - recycledOrder(b.t.userId) || b.score - a.score || b.t.rating - a.t.rating);
 
   const top = opts.onlyIds ? scored : scored.slice(0, AI_CANDIDATES);
   const { insights, pending } = await getAiInsightsWithin(
@@ -170,7 +177,7 @@ async function rankTeachers(child: ChildRow, opts: { onlyIds?: string[]; waitAi?
         applicationStatus: appByTeacher.get(t.userId) ?? null,
       };
     })
-    .sort((a, b) => b.matchPercent - a.matchPercent || b.rating - a.rating);
+    .sort((a, b) => recycledOrder(a.id) - recycledOrder(b.id) || b.matchPercent - a.matchPercent || b.rating - a.rating);
 
   return { cards, aiPending: pending };
 }
@@ -209,7 +216,7 @@ matchingRouter.post("/teachers/:teacherId/skip", requireRole("PARENT"), async (r
   await prisma.matchSkip.upsert({
     where: { actorId_childId_teacherUserId: { actorId: me(req).id, childId, teacherUserId: teacher.userId } },
     create: { actorId: me(req).id, childId, teacherUserId: teacher.userId },
-    update: {},
+    update: { createdAt: new Date() }, // dilewati lagi → tetap dihitung sebagai skip hari ini
   });
   res.json(await teacherListResponse(child, me(req).id));
 });

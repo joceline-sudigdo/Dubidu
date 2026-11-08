@@ -38,15 +38,22 @@ export function getPlan(role: PlusRole) {
   return plans[role];
 }
 
+// Plus yang dihentikan akun demo di perangkat ini: tidak ditimpa lagi oleh data server sampai logout
+const stopped = new Set<PlusRole>();
+
 export function setPlans(next: Partial<typeof plans>) {
-  set({ ...plans, ...next });
+  if (next.parent === null && next.teacher === null) stopped.clear(); // logout
+  const kept = Object.fromEntries(Object.entries(next).filter(([role]) => !stopped.has(role as PlusRole)));
+  set({ ...plans, ...kept });
 }
 
 export function subscribePlus(role: PlusRole, plan: PlusPlan) {
+  stopped.delete(role);
   set({ ...plans, [role]: plan });
 }
 
 export function cancelPlus(role: PlusRole) {
+  stopped.add(role);
   set({ ...plans, [role]: null });
 }
 

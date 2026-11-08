@@ -15,8 +15,9 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { formatRupiah } from '@/data/parent';
 import { plusBenefits, plusCompare, plusPlans, type PlusPlan } from '@/data/plus';
+import { api } from '@/lib/api';
 import { showAlert } from '@/lib/dialog';
-import { isPlusRole, usePlus } from '@/lib/membership-store';
+import { cancelPlus, isPlusRole, usePlus } from '@/lib/membership-store';
 import { getSession } from '@/lib/session';
 
 const GOLD = '#8A6A0C';
@@ -41,14 +42,29 @@ export default function PlusScreen() {
 
   const subscribe = () => router.push({ pathname: '/checkout', params: { plan } });
 
+  const downgrade = teacher
+    ? 'kuota skip kembali 5 anak per hari dan biaya platform kembali 10%.'
+    : 'kuota skip kembali 5 teacher per hari dan diskon psikolog tidak berlaku lagi.';
+
+  // akun demo: Plus langsung berhenti supaya alur langganan bisa dicoba ulang.
+  // Kalau server belum punya endpoint-nya, langganan tetap dihentikan di perangkat ini.
+  const stopNow = async () => {
+    await api('/subscription', { method: 'DELETE' }).catch(() => {});
+    cancelPlus(role);
+    showAlert('Langganan dihentikan', `Akunmu kembali ke paket Gratis: ${downgrade}`);
+  };
+
   // pembayaran Plus lewat transfer, tidak diperpanjang otomatis: cukup tidak membayar periode berikutnya
   const stop = () =>
-    showAlert(
-      'Berhenti langganan?',
-      `Dubidu Plus tidak diperpanjang otomatis. Paketmu tetap aktif sampai akhir periode, setelah itu ${
-        teacher ? 'kuota skip kembali 5 anak per hari dan biaya platform kembali 10%.' : 'kuota skip kembali 5 teacher per hari dan diskon psikolog tidak berlaku lagi.'
-      }`
-    );
+    getSession().isDemo
+      ? showAlert('Berhenti langganan?', `Ini akun demo, jadi Dubidu Plus langsung berhenti sekarang. Setelah itu ${downgrade}`, [
+          { text: 'Batal', style: 'cancel' },
+          { text: 'Berhenti sekarang', style: 'destructive', onPress: stopNow },
+        ])
+      : showAlert(
+          'Berhenti langganan?',
+          `Dubidu Plus tidak diperpanjang otomatis. Paketmu tetap aktif sampai akhir periode, setelah itu ${downgrade}`
+        );
 
   return (
     <Screen header={<ScreenHeader title="Dubidu Plus" />} edges={['top', 'bottom']}>

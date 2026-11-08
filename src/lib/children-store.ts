@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
+import { toIsoDate } from '@/components/ui/date-field';
 import type { Child } from '@/data/parent';
 import type { Skill } from '@/data/teachers';
 
@@ -54,7 +55,7 @@ export async function addChild(input: { name: string; birthDate?: string; gender
     body: {
       name: input.name.split(' ')[0],
       fullName: input.name,
-      birthDate: input.birthDate || undefined,
+      birthDate: toIsoDate(input.birthDate),
       gender: input.gender ? input.gender.toUpperCase() : undefined,
       schoolLevel: input.schoolLevel,
       domicile: input.domicile || undefined,

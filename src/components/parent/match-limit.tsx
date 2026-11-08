@@ -23,8 +23,11 @@ export function MatchLimit({
   onShowLast,
   noun = 'teacher',
   homeHref = '/beranda',
+  onResetDemo,
 }: {
   onShowLast: () => void;
+  /** khusus akun demo: kuota lewati diisi ulang */
+  onResetDemo?: () => void;
   noun?: 'teacher' | 'anak';
   homeHref?: '/beranda' | '/teacher/beranda';
 }) {
@@ -72,6 +75,12 @@ export function MatchLimit({
           Lihat {MAX_SKIPS} {noun} terakhir
         </AppText>
       </Pressable>
+      {onResetDemo ? (
+        <Pressable onPress={onResetDemo} hitSlop={8} style={styles.reset}>
+          <Feather name="rotate-ccw" size={16} color={Colors.primary} />
+          <AppText variant="link">Ulang demo skip</AppText>
+        </Pressable>
+      ) : null}
       <Pressable onPress={() => router.replace(homeHref)} hitSlop={8}>
         <AppText style={styles.home}>Kembali ke Beranda</AppText>
       </Pressable>
@@ -80,6 +89,11 @@ export function MatchLimit({
 }
 
 const styles = StyleSheet.create({
+  reset: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   wrap: {
     alignItems: 'center',
     gap: 12,
