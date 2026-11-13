@@ -1,6 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, useLocalSearchParams } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
@@ -30,6 +31,16 @@ export default function TinjauScreen() {
   const interview = interviewOf(store, a);
   const [picking, setPicking] = useState(false);
   const missing = a.documents.filter((d) => !d.uploaded).length;
+
+  // PDF (ijazah, sertifikat) dibuka di penampil dokumen; foto (KTP) di penampil gambar
+  const openDocument = (d: (typeof a.documents)[number]) => {
+    if (!d.uploaded) return showAlert(d.label, 'Dokumen ini belum diunggah pendaftar.');
+    if (d.url && /\.pdf($|\?)/i.test(d.url)) {
+      WebBrowser.openBrowserAsync(d.url).catch(() => showAlert('Dokumen belum bisa dibuka', 'Coba lagi beberapa saat lagi.'));
+      return;
+    }
+    openImages([d.url ? { source: d.url, caption: d.label } : { source: null, caption: `${d.label} · file pendaftar` }]);
+  };
   // dokumen yang belum diunggah otomatis ditandai sebagai kekurangan
   const [issues, setIssues] = useState<string[]>(
     result?.issues ?? a.documents.filter((d) => !d.uploaded).map(documentIssue)
@@ -141,7 +152,7 @@ export default function TinjauScreen() {
           return (
             <Pressable
               key={d.label}
-              onPress={() => (d.uploaded ? openImages([{ source: null, caption: `${d.label} · file pendaftar`}]) : showAlert(d.label, 'Dokumen ini belum diunggah pendaftar.'))}
+              onPress={() => openDocument(d)}
               style={[styles.docRow, i < a.documents.length - 1 && styles.border]}>
               <View style={[styles.docIcon, { backgroundColor: d.uploaded ? Colors.green : Colors.disabled }]}>
                 <Feather name={d.uploaded ? 'check' : 'clock'} size={18} color="#FFFFFF" />

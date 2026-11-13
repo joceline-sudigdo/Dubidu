@@ -193,7 +193,8 @@ export type Applicant = {
   skills: string[];
   about: string;
   interview: string | null;
-  documents: { label: string; uploaded: boolean }[];
+  // url = file yang diunggah pendaftar (foto atau PDF), null untuk data contoh
+  documents: { label: string; uploaded: boolean; url?: string | null }[];
   // pengajuan yang sudah selesai ditinjau sebelumnya
   result?: VerifyResult;
 };

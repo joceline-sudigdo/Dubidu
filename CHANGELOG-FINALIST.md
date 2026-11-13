@@ -13,9 +13,9 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 
 | Kategori | Jumlah perubahan |
 | --- | --- |
-| Bug fixing | 22 |
+| Bug fixing | 24 |
 | Deployment & stabilisasi | 5 |
-| UI/UX polishing | 16 |
+| UI/UX polishing | 18 |
 | Performance improvement | 6 |
 | Keamanan dasar | 6 |
 | Dokumentasi | 5 |
@@ -46,6 +46,8 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Skip hanya bisa di sebagian kartu matching | Tombol Lewati nonaktif untuk teacher/anak yang pernah dihubungi | Semua kartu bisa dilewati; Connect menampilkan status "Menghubungkan..." sehingga tidak terkirim dobel | `src/components/parent/teacher-match-card.tsx`, `child-match-card.tsx`, `src/app/cari-teacher.tsx`, `src/app/teacher/cari-anak.tsx` |
 | Data kosong tampil janggal | Muncul "0 tahun", "Kelas -", dan "- - AUTISM" | Bagian yang belum diisi disembunyikan | `src/app/teacher/anak/[id].tsx`, `src/app/teacher/(tabs)/riwayat.tsx`, `src/app/kontrak/[id].tsx`, `src/lib/sync.ts` |
 | Teks keluar dari kartu | Nominal pendapatan, nama + gelar panjang, kota + harga, dan nilai Info Layanan bisa melewati batas kartu | Dibungkus / dikecilkan otomatis | beranda teacher & psikolog, `profil-teacher/[id].tsx`, `teacher-match-card.tsx` |
+| Psikolog tidak bisa melihat dokumen pendaftar | Mengetuk dokumen di halaman Tinjau hanya membuka penampil kosong | Dokumen dibuka dari file aslinya: PDF di penampil dokumen, foto (KTP) di penampil gambar | `src/app/psikolog/tinjau/[id].tsx`, `src/data/psychologist.ts` |
+| Batas ukuran upload tidak sama dengan server | Aplikasi menulis maks. 5 MB, server menolak di atas 4 MB, sehingga file 4–5 MB gagal tanpa alasan jelas | Aplikasi memakai batas 4 MB yang sama dengan server | `src/components/ui/upload-box.tsx` |
 
 ## 2. Deployment & stabilisasi
 
@@ -77,6 +79,8 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Kartu Dubidu Plus | Chip fitur rata tengah; "Skip ∞" menjadi "Unlimited skip" |
 | Tab Riwayat | Label ringkas "Diasuh/Didampingi (n)" & "Pengajuan (n)"; tebal huruf kedua tab sama sehingga teks tidak melompat |
 | Daftar akun demo | Menampilkan peran tiap akun (Orang Tua / Shadow Teacher / Psikolog) dengan ikon |
+| Ijazah & sertifikat sebagai dokumen PDF | Pendaftaran teacher kini membuka pemilih dokumen (PDF) untuk ijazah & sertifikat, bukan galeri foto; dokumen tampil sebagai kartu nama file yang bisa dibuka. KTP tetap foto, CV boleh foto atau PDF (`src/components/ui/upload-box.tsx`, `src/app/(auth)/daftar-teacher/pendidikan.tsx`, `src/lib/auth.ts`) |
+| Pill & kartu di baris geser tidak terpotong | Filter (Semua/Masuk/Keluar), chip anak, kartu Pengajuan Aktif, dan topik Doobie sebelumnya terpotong bagian bawah/bayangannya oleh ScrollView; kini diberi ruang tanpa mengubah jarak antarelemen (`src/components/parent/edge-scroll.tsx`, `src/components/shared/doobie-card.tsx`) |
 
 ## 4. Performance improvement
 

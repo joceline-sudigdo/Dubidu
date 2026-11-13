@@ -139,15 +139,16 @@ export async function registerTeacher({ account, identity, teacher }: ParentRegi
       specializations: teacher.specializations,
     },
   });
-  const docs: [string | null, string, string][] = [
-    [identity.ktpUri, 'KTP', 'ktp'],
-    [teacher.ijazahUri, 'IJAZAH', 'ijazah'],
-    [teacher.certificateUri, 'SERTIFIKAT', 'sertifikat'],
-    [teacher.cvUri, 'CV', 'cv'],
+  // ijazah & sertifikat selalu dokumen PDF; KTP foto; CV boleh foto atau PDF
+  const docs: [string | null, string, string, boolean][] = [
+    [identity.ktpUri, 'KTP', 'ktp', false],
+    [teacher.ijazahUri, 'IJAZAH', 'ijazah', true],
+    [teacher.certificateUri, 'SERTIFIKAT', 'sertifikat', true],
+    [teacher.cvUri, 'CV', 'cv', false],
   ];
-  for (const [uri, type, folder] of docs) {
+  for (const [uri, type, folder, pdf] of docs) {
     if (!uri) continue;
-    const url = await uploadFile(uri, folder, uri.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+    const url = await uploadFile(uri, folder, pdf || uri.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
     await api('/teachers/me/documents', { body: { type, url } });
   }
   // pendaftaran selesai → kembali ke login (akun aktif penuh setelah diverifikasi admin)

@@ -115,9 +115,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // ruang bawah untuk bayangan pill topik (ScrollView memotong isi di luar batasnya)
   topicRow: {
     gap: 8,
-    paddingBottom: 4,
+    paddingTop: 2,
+    paddingBottom: 12,
   },
   topicIdle: {
     backgroundColor: '#FFFFFF',

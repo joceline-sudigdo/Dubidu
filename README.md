@@ -135,7 +135,7 @@ npx vercel@latest link        # sekali, buat project "dubidu-api"
 npx vercel@latest --prod      # setiap ada perubahan
 ```
 
-Environment Variables diisi di vercel.com → project → Settings → Environment Variables (lihat `backend/.env.example`). Di Vercel chat tidak realtime (pakai `?after=` untuk cek pesan baru) dan upload maks ±4 MB (wajib Cloudinary).
+Environment Variables diisi di vercel.com → project → Settings → Environment Variables (lihat `backend/.env.example`). Di Cloudinary aktifkan **Settings → Security → Allow delivery of PDF and ZIP files** supaya dokumen PDF (ijazah, sertifikat) bisa dibuka psikolog & admin. Di Vercel chat tidak realtime (pakai `?after=` untuk cek pesan baru) dan upload maks ±4 MB (wajib Cloudinary).
 
 ---
 
@@ -203,7 +203,7 @@ Profil build ada di `eas.json`: `development` (development build), `preview` (AP
 | Peran          | Fitur utama                                                                                                                                                                                                                               |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Orang tua      | registrasi profil kebutuhan anak, smart matching shadow teacher (bandingkan, skip, hubungkan), kontrak & pembayaran (QRIS / transfer), report card & growth timeline, laporan observasi psikolog, konsultasi psikolog, tambah anak (Plus) |
-| Shadow teacher | pendaftaran & verifikasi, cari anak, tawaran jadwal di chat, laporan harian & akhir, pencairan pendapatan                                                                                                                                 |
+| Shadow teacher | pendaftaran & verifikasi (ijazah & sertifikat dalam PDF), cari anak, tawaran jadwal di chat, laporan harian & akhir, pencairan pendapatan                                                                                                                                 |
 | Psikolog       | jadwal & sesi konsultasi (video/voice/onsite), kirim hasil observasi, rekomendasi verifikasi shadow teacher, pencairan pendapatan                                                                                                         |
 | Semua          | chat (gambar & jadwal), komunitas (posting foto + caption lewat kartu geser, komentar, simpan), Doobie (asisten topik + voice note), Doobie Rewards (ikan, misi, voucher), Dubidu Plus, notifikasi, unduh PDF                         |
 
@@ -341,7 +341,7 @@ Rencana validasi: level keahlian diselaraskan dengan rubrik kompetensi yang disu
 
 | Jenis             | Nama                                                                                                                                                                             | Lisensi / ketentuan                    |
 | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| Framework mobile  | Expo SDK (expo-router, expo-image, expo-audio, expo-notifications, expo-print, expo-secure-store, dll.), React Native, React                                                     | MIT                                    |
+| Framework mobile  | Expo SDK (expo-router, expo-image, expo-audio, expo-notifications, expo-print, expo-secure-store, expo-document-picker, dll.), React Native, React                                                     | MIT                                    |
 | Animasi & gesture | react-native-reanimated, react-native-worklets, react-native-gesture-handler                                                                                                     | MIT                                    |
 | Web admin         | Next.js, Tailwind CSS, shadcn/ui, Base UI, lucide-react                                                                                                                          | MIT / ISC                              |
 | Backend           | Express, Prisma, Socket.IO, Zod, jsonwebtoken, bcryptjs, multer, nodemailer, helmet, express-rate-limit, expo-server-sdk, Anthropic SDK, jsqr, pngjs                             | MIT / Apache 2.0                       |

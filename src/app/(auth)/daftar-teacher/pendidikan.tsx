@@ -60,7 +60,13 @@ export default function PendidikanScreen() {
         <AppText variant="label" style={styles.label}>
           Ijazah Terakhir
         </AppText>
-        <UploadBox title="Ketuk untuk unggah ijazah" icon="upload-cloud" value={ijazah} onChange={setIjazah} />
+        <UploadBox
+          title="Ketuk untuk unggah ijazah"
+          icon="upload-cloud"
+          accept="document"
+          value={ijazah}
+          onChange={setIjazah}
+        />
       </View>
       <View style={styles.group}>
         <AppText variant="label" style={styles.label}>
@@ -68,6 +74,7 @@ export default function PendidikanScreen() {
         </AppText>
         <UploadBox
           title="Ketuk untuk unggah sertifikat pelatihan"
+          accept="document"
           icon="award"
           value={certificate}
           onChange={setCertificate}
