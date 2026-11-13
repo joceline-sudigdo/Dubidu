@@ -35,10 +35,10 @@ export default function TeacherJadwalScreen() {
       </Screen>
     );
   }
-  return <JadwalContent />;
+  return <StudentSchedule />;
 }
 
-function JadwalContent() {
+function StudentSchedule() {
   const [student, setStudent] = useState(students[0]);
   const sessions = teacherSessions
     .filter((s) => s.student === student.id)
@@ -181,7 +181,7 @@ function SessionCard({ session }: { session: TeacherSession }) {
       </View>
       {done ? (
         <Pressable
-          onPress={() => router.push({ pathname: '/report-card/[id]', params: { id: 's1' } })}
+          onPress={() => session.reportId && router.push({ pathname: '/report-card/[id]', params: { id: session.reportId } })}
           style={[styles.outline, Shadow.soft]}>
           <AppText style={styles.outlineText}>Lihat Laporan</AppText>
         </Pressable>
@@ -192,7 +192,7 @@ function SessionCard({ session }: { session: TeacherSession }) {
           onPress={() =>
             router.push({
               pathname: '/teacher/laporan-harian',
-              params: { student: session.student, session: String(session.number) },
+              params: { student: session.student, session: String(session.number), sessionId: session.id ?? '' },
             })
           }
         />

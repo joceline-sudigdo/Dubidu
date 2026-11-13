@@ -1,6 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
 import { BearAvatar } from '@/components/parent/bear-avatar';
@@ -15,21 +16,33 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { findContract, nextSessionDates, termins } from '@/data/contracts';
 import { DAYS, formatRupiah, MONTHS } from '@/data/parent';
+import { loadContract } from '@/lib/contracts-sync';
 import { showAlert } from '@/lib/dialog';
 import { platformFeeRate, usePlus } from '@/lib/membership-store';
 import { getSession } from '@/lib/session';
 
 export default function DetailKontrakScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const [, setLoaded] = useState(0);
+  const [missing, setMissing] = useState(false);
   const contract = findContract(id);
   const isTeacher = getSession().role === 'teacher';
   const fee = platformFeeRate(usePlus());
+
+  // dibuka dari notifikasi sebelum daftar kontrak termuat → ambil langsung dari server
+  useEffect(() => {
+    if (id && !findContract(id)) {
+      loadContract(id)
+        .then(() => setLoaded((n) => n + 1))
+        .catch(() => setMissing(true));
+    }
+  }, [id]);
 
   if (!contract) {
     return (
       <Screen header={<ScreenHeader title="Detail Kontrak" />} fill>
         <EmptyFill>
-          <EmptyState title="Kontrak tidak ditemukan" />
+          {missing ? <EmptyState title="Kontrak tidak ditemukan" /> : <ActivityIndicator color={Colors.primary} />}
         </EmptyFill>
       </Screen>
     );

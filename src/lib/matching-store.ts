@@ -2,7 +2,18 @@ import { router } from 'expo-router';
 import { useSyncExternalStore } from 'react';
 
 import type { Child } from '@/data/parent';
-import { AYAS, connectedTeachers, demoTeachers, MATCH_COUNT, MAX_SKIPS, serverMatch, teacherPool, type Skill, type Teacher } from '@/data/teachers';
+import {
+  AYAS,
+  connectedTeachers,
+  demoTeachers,
+  MATCH_COUNT,
+  MAX_SKIPS,
+  serverMatch,
+  SKILL_LABELS,
+  teacherPool,
+  type Skill,
+  type Teacher,
+} from '@/data/teachers';
 
 import { api, errorMessage } from './api';
 import { loadThreads } from './chat-store';
@@ -52,6 +63,8 @@ type Card = {
   skills: Record<Skill, number>;
   matchPercent: number;
   connected: boolean;
+  reasons?: string[];
+  caution?: string | null;
 };
 
 type MatchList = { skipsLeft: number | null; cards: Card[] };
@@ -68,6 +81,8 @@ const toTeacher = (c: Card): Teacher => ({
   sessions: c.sessions,
   about: c.about ?? '',
   skills: c.skills,
+  reasons: c.reasons,
+  caution: c.caution,
 });
 
 // --- akun demo orang tua -------------------------------------------------------
@@ -85,9 +100,27 @@ function demoSkipsLeft() {
   return Math.max(0, MAX_SKIPS - demoSkips.count);
 }
 
+// kartu contoh (bukan dari server) diberi alasan dengan pola yang sama seperti alasan dari server
+function demoReasons(t: Teacher, child: Child): Teacher {
+  if (t.reasons?.length) return t;
+  const strong = (Object.entries(t.skills) as [Skill, number][])
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2)
+    .map(([k, v]) => `${SKILL_LABELS[k]} (${v})`);
+  return {
+    ...t,
+    reasons: [
+      `Kuat di ${strong.join(' & ')}, sesuai kebutuhan ${child.name}`,
+      `Berdomisili di ${t.city}`,
+      `Rating ${t.rating} dari ${t.reviews} ulasan orang tua`,
+    ],
+    caution: null,
+  };
+}
+
 function demoList(child: Child, server: Teacher[]) {
   const names = new Set(server.map((t) => t.name.split(',')[0]));
-  const extras = demoTeachers.filter((t) => !names.has(t.name.split(',')[0]));
+  const extras = demoTeachers.filter((t) => !names.has(t.name.split(',')[0])).map((t) => demoReasons(t, child));
   // kartu contoh juga masuk teacherPool supaya profil & bandingkan bisa membacanya
   for (const t of extras) if (!teacherPool.some((x) => x.id === t.id)) teacherPool.push(t);
   serverMatch[child.id] = { [AYAS.id]: 97, ...serverMatch[child.id] };

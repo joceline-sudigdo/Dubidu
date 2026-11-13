@@ -32,6 +32,22 @@ function MethodFields({ m }: { m?: PaymentMethod }) {
       <Field label="Nama bank" name="bankName" defaultValue={m?.bankName ?? ""} placeholder="BCA" hint="Khusus transfer bank" />
       <Field label="Nomor rekening" name="accountNumber" defaultValue={m?.accountNumber ?? ""} inputMode="numeric" hint="Khusus transfer bank" />
       <Field label="Nama pemilik / merchant" name="accountName" defaultValue={m?.accountName} required className="sm:col-span-2" />
+      <Field
+        label="URL gambar QR"
+        name="qrImageUrl"
+        defaultValue={m?.qrImageUrl ?? ""}
+        placeholder="https://res.cloudinary.com/…"
+        hint="Khusus QRIS. Kosongkan untuk memakai gambar yang sudah tersimpan"
+        className="sm:col-span-2"
+      />
+      <TextareaField
+        label="Teks QRIS (opsional)"
+        name="qrisPayload"
+        defaultValue={m?.qrisPayload ?? ""}
+        placeholder="00020101021126…6304XXXX"
+        hint="Dibaca otomatis dari gambar QR. Isi manual hanya kalau gambar gagal terbaca: scan QR dengan aplikasi pembaca QR, lalu tempel seluruh teksnya"
+        className="sm:col-span-2"
+      />
       <TextareaField label="Petunjuk untuk pengguna" name="instructions" defaultValue={m?.instructions ?? ""} className="sm:col-span-2" />
       <CheckboxField label="Tampilkan di aplikasi" name="active" defaultChecked={m?.active ?? true} className="sm:col-span-2" />
     </div>
@@ -89,6 +105,14 @@ async function MethodList() {
             {m.accountNumber && <p className="font-mono font-semibold tracking-wide">{m.accountNumber}</p>}
             <p className="text-muted-foreground">a.n. {m.accountName}</p>
           </div>
+          {m.type === "QRIS" &&
+            (m.qrisDynamic ? (
+              <p className="text-xs font-medium text-success">QRIS dinamis aktif: nominal terisi otomatis{m.qrisMerchant ? ` · ${m.qrisMerchant}` : ""}</p>
+            ) : (
+              <p className="text-xs font-medium text-warning-foreground">
+                QR belum terbaca sebagai QRIS: aplikasi menampilkan gambar QR biasa. Isi &quot;Teks QRIS&quot; lewat tombol Ubah.
+              </p>
+            ))}
           {m.instructions && <p className="text-xs text-muted-foreground">{m.instructions}</p>}
           <div className="mt-auto">
             <ActionDialog

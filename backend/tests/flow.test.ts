@@ -7,6 +7,12 @@ import { after, before, describe, it } from "node:test";
 
 import { createApp } from "../src/app.js";
 import { prisma } from "../src/db.js";
+import { crc16, normalizeQris } from "../src/lib/qris.js";
+
+// QRIS statis contoh (merchant fiktif) dengan CRC yang benar
+const tlv = (tag: string, value: string) => `${tag}${String(value.length).padStart(2, "0")}${value}`;
+const qrisBody = `${tlv("00", "01")}${tlv("01", "11")}${tlv("26", tlv("00", "ID.CO.CONTOH.WWW") + tlv("01", "936000000000000001"))}${tlv("52", "8299")}${tlv("53", "360")}${tlv("58", "ID")}${tlv("59", "DUBIDU TES")}${tlv("60", "MALANG")}6304`;
+const STATIC_QRIS = qrisBody + crc16(qrisBody);
 
 let base = "";
 let server: ReturnType<ReturnType<typeof createApp>["listen"]>;
@@ -19,6 +25,7 @@ before(async () => {
   delete process.env.DAILY_API_KEY; // video call memakai cadangan Jitsi
   // bersihkan sisa data uji dari run sebelumnya (hanya akun @test.id) supaya tes bisa diulang
   await prisma.user.deleteMany({ where: { email: { endsWith: "@test.id" } } });
+  await prisma.paymentMethod.deleteMany({ where: { label: { endsWith: " Tes" } } });
   server = createApp().listen(0);
   await new Promise((r) => server.once("listening", r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api`;
@@ -309,7 +316,11 @@ describe("DUBIDU API", () => {
       seen.add(first);
       list = await api(`/matching/teachers/${first}/skip`, { token: sari, body: { childId: nadia } });
       assert.equal(list.status, 200, JSON.stringify(list.data));
-      assert.ok(list.data.cards.every((c: { id: string }) => !seen.has(c.id))); // yang dilewati tidak muncul lagi
+      // yang dilewati pindah ke belakang antrean: kartu yang belum pernah dilewati selalu tampil lebih dulu
+      const ids: string[] = list.data.cards.map((c: { id: string }) => c.id);
+      assert.notEqual(ids[0], first);
+      const firstSkipped = ids.findIndex((id) => seen.has(id));
+      if (firstSkipped >= 0) assert.ok(ids.slice(firstSkipped).every((id) => seen.has(id)));
     }
     assert.equal(list.data.skipsLeft, 0);
     const blocked = await api(`/matching/teachers/${list.data.cards[0].id}/skip`, { token: sari, body: { childId: nadia } });
@@ -625,6 +636,16 @@ describe("DUBIDU API", () => {
     assert.equal(old.data.status, "FAILED"); // ganti paket → tagihan lama dibatalkan
   });
 
+  it("akun demo terkunci: tidak bisa dihapus, diganti, atau direset kata sandinya", async () => {
+    const token = await login("devi@dubidu.id");
+    assert.equal((await api("/auth/me", { method: "DELETE", token, body: { confirm: "HAPUS" } })).status, 403);
+    assert.equal((await api("/auth/change-password", { token, body: { oldPassword: "dubidu123", newPassword: "gantisandi99" } })).status, 403);
+    const forgot = await api("/auth/forgot-password", { body: { email: "devi@dubidu.id" } });
+    assert.equal(forgot.status, 200);
+    assert.equal(forgot.data.testCode, undefined); // tidak ada kode yang dibuat untuk akun demo
+    assert.ok(await login("devi@dubidu.id")); // akun demo tetap bisa dipakai penguji lain
+  });
+
   it("web admin: pencairan dana, laporan & moderasi, konten, audit log", async () => {
     const admin = await login("admin@dubidu.id", "admin12345");
 
@@ -679,9 +700,16 @@ describe("DUBIDU API", () => {
       const admin = await login("admin@dubidu.id", "admin12345");
       const qris = await api("/admin/payment-methods", {
         token: admin,
-        body: { type: "QRIS", label: "QRIS GoPay Tes", accountName: "DUBIDU Tes", qrImageUrl: "https://example.com/qris.png" },
+        body: { type: "QRIS", label: "QRIS GoPay Tes", accountName: "DUBIDU Tes", qrImageUrl: "https://example.com/qris.png", qrisPayload: STATIC_QRIS },
       });
       assert.equal(qris.status, 201, JSON.stringify(qris.data));
+      assert.equal(qris.data.qrisDynamic, true);
+      assert.equal(qris.data.qrisMerchant, "DUBIDU TES");
+      const badQris = await api("/admin/payment-methods", {
+        token: admin,
+        body: { type: "QRIS", label: "QRIS Rusak Tes", accountName: "X Y", qrImageUrl: "https://example.com/q.png", qrisPayload: "000201bukanqris" },
+      });
+      assert.equal(badQris.status, 400); // teks QRIS dicek format & CRC-nya
       const badBank = await api("/admin/payment-methods", { token: admin, body: { type: "BANK_TRANSFER", label: "BCA", accountName: "X Y" } });
       assert.equal(badBank.status, 400); // bank wajib nomor rekening
 
@@ -693,7 +721,12 @@ describe("DUBIDU API", () => {
       assert.equal(checkout.data.mode, "manual");
       assert.ok(checkout.data.uniqueCode >= 1 && checkout.data.uniqueCode <= 999);
       assert.equal(checkout.data.amountDue, 590000 + checkout.data.uniqueCode);
-      assert.ok(checkout.data.methods.some((m: { id: string }) => m.id === qris.data.id));
+      // QRIS dinamis: nominal tagihan (termasuk kode unik) sudah ada di dalam QR
+      const qrMethod = checkout.data.methods.find((m: { id: string }) => m.id === qris.data.id);
+      assert.ok(qrMethod.qrString.startsWith("000201010212"));
+      assert.ok(qrMethod.qrString.includes(`5406${checkout.data.amountDue}`));
+      assert.equal(normalizeQris(qrMethod.qrString), qrMethod.qrString);
+      assert.equal(qrMethod.qrisPayload, undefined);
       const again = await api(`/payments/${paymentId}/checkout`, { token: parentToken, body: {} });
       assert.equal(again.data.amountDue, checkout.data.amountDue); // kode unik tidak berubah
 

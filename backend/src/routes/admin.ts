@@ -7,11 +7,12 @@ import { z } from "zod";
 import { config } from "../config.js";
 import { prisma, type Prisma, type Skill } from "../db.js";
 import { writeAudit } from "../lib/audit.js";
-import { me, requireAuth, requireRole } from "../lib/auth.js";
+import { forgetUserStatus, me, requireAuth, requireRole } from "../lib/auth.js";
 import { CONTENT_DEFAULTS, getContentRow, getSettings, isContentKey, setContent } from "../lib/content.js";
 import { HttpError, notFound, param, parse } from "../lib/http.js";
 import { SKILL_KEY } from "../lib/matching.js";
 import { notify } from "../lib/notify.js";
+import { normalizeQris, qrisFromImageUrl, qrisMerchantName } from "../lib/qris.js";
 import { addPoints } from "../lib/points.js";
 import { markPaid } from "./payments.js";
 import { balanceOf } from "./payouts.js";
@@ -341,6 +342,7 @@ adminRouter.patch("/users/:id/status", async (req, res) => {
     where: { id: target.id },
     data: { isActive: body.isActive, suspendedReason: body.isActive ? null : body.reason },
   });
+  forgetUserStatus(target.id);
   // akun nonaktif tidak menerima push lagi
   if (!body.isActive) await prisma.deviceToken.deleteMany({ where: { userId: target.id } });
   const row = await prisma.user.findUniqueOrThrow({ where: { id: target.id }, include: USER_INCLUDE });
@@ -511,25 +513,50 @@ const methodSchema = z
     accountNumber: z.string().trim().regex(/^[0-9 -]{5,30}$/, "Nomor rekening hanya angka").nullable().optional(),
     // URL gambar QRIS (unggah dulu lewat POST /api/uploads?folder=qris)
     qrImageUrl: z.string().trim().min(1).nullable().optional(),
+    // teks QRIS statis (opsional): kosong = dibaca otomatis dari gambar QR
+    qrisPayload: z.string().trim().max(600).nullable().optional(),
     instructions: z.string().max(500).nullable().optional(),
     active: z.boolean().default(true),
     order: z.number().int().optional(),
   })
-  .refine((m) => (m.type === "QRIS" ? Boolean(m.qrImageUrl) : Boolean(m.bankName && m.accountNumber)), {
-    message: "QRIS wajib gambar QR; transfer bank wajib nama bank & nomor rekening",
+  .refine((m) => (m.type === "QRIS" ? Boolean(m.qrImageUrl || m.qrisPayload) : Boolean(m.bankName && m.accountNumber)), {
+    message: "QRIS wajib gambar QR atau teks QRIS; transfer bank wajib nama bank & nomor rekening",
   });
 
 /** GET /api/admin/payment-methods */
 adminRouter.get("/payment-methods", async (_req, res) => {
-  res.json(await prisma.paymentMethod.findMany({ orderBy: [{ order: "asc" }, { createdAt: "asc" }] }));
+  const rows = await prisma.paymentMethod.findMany({ orderBy: [{ order: "asc" }, { createdAt: "asc" }] });
+  res.json(rows.map(presentMethod));
 });
 
 /** POST /api/admin/payment-methods — tambah QRIS GoPay / rekening bank */
 adminRouter.post("/payment-methods", async (req, res) => {
   const data = parse(methodSchema, req.body);
   const order = data.order ?? (await prisma.paymentMethod.count()) + 1;
-  res.status(201).json(await prisma.paymentMethod.create({ data: { ...data, order } }));
+  const qrisPayload = await resolveQrisPayload(data);
+  res.status(201).json(presentMethod(await prisma.paymentMethod.create({ data: { ...data, order, qrisPayload } })));
 });
+
+/**
+ * Teks QRIS statis untuk metode QRIS: dari isian admin (dicek format & CRC-nya),
+ * atau dibaca dari gambar QR. null = QR belum terbaca → aplikasi menampilkan gambar QR biasa.
+ */
+async function resolveQrisPayload(m: { type: string; qrImageUrl?: string | null; qrisPayload?: string | null }, previous?: { qrImageUrl: string | null; qrisPayload: string | null }) {
+  if (m.type !== "QRIS") return null;
+  if (m.qrisPayload && m.qrisPayload !== previous?.qrisPayload) {
+    const valid = normalizeQris(m.qrisPayload);
+    if (!valid) throw new HttpError(400, "Teks QRIS tidak valid. Salin seluruh teks hasil scan QR (diawali 000201).");
+    return valid;
+  }
+  // gambar tidak berubah → pakai teks yang sudah tersimpan
+  if (previous?.qrisPayload && previous.qrImageUrl === m.qrImageUrl) return previous.qrisPayload;
+  return m.qrImageUrl ? qrisFromImageUrl(m.qrImageUrl) : null;
+}
+
+/** Metode pembayaran + status QRIS dinamis untuk web admin */
+function presentMethod<T extends { qrisPayload: string | null }>(m: T) {
+  return { ...m, qrisDynamic: Boolean(m.qrisPayload), qrisMerchant: m.qrisPayload ? qrisMerchantName(m.qrisPayload) : null };
+}
 
 /** PATCH /api/admin/payment-methods/:id */
 adminRouter.patch("/payment-methods/:id", async (req, res) => {
@@ -537,7 +564,8 @@ adminRouter.patch("/payment-methods/:id", async (req, res) => {
   if (!current) throw notFound("Metode pembayaran");
   const { id: _id, createdAt: _c, ...base } = current;
   const merged = parse(methodSchema, { ...base, ...req.body });
-  res.json(await prisma.paymentMethod.update({ where: { id: current.id }, data: merged }));
+  const qrisPayload = await resolveQrisPayload(merged, current);
+  res.json(presentMethod(await prisma.paymentMethod.update({ where: { id: current.id }, data: { ...merged, qrisPayload } })));
 });
 
 /** DELETE /api/admin/payment-methods/:id — dinonaktifkan (riwayat pembayaran tetap utuh) */

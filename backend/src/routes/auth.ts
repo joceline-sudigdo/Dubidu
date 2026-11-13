@@ -7,7 +7,7 @@ import { z } from "zod";
 import { config } from "../config.js";
 import { prisma } from "../db.js";
 import { writeAudit } from "../lib/audit.js";
-import { me, requireAuth, signToken } from "../lib/auth.js";
+import { forgetUserStatus, me, requireAuth, signToken } from "../lib/auth.js";
 import { HttpError, parse } from "../lib/http.js";
 import { resetPasswordEmail, sendMail } from "../lib/mail.js";
 import { warmMatchesForChild } from "../lib/aiMatching.js";
@@ -15,6 +15,9 @@ import { presentChild, publicUser } from "../lib/present.js";
 import { childInput, createChild } from "./children.js";
 
 export const authRouter = Router();
+
+// akun demo dipakai bersama oleh banyak penguji, jadi tidak boleh dihapus / diganti password-nya
+const DEMO_LOCKED = "Akun demo dipakai bersama, jadi tidak bisa dihapus atau diganti kata sandinya. Daftar akun sendiri untuk mencoba fitur ini.";
 
 const contactSchema = z
   .string()
@@ -183,6 +186,7 @@ authRouter.delete("/me", requireAuth, async (req, res) => {
   parse(z.object({ confirm: z.literal("HAPUS") }), req.body);
   const user = await prisma.user.findUniqueOrThrow({ where: { id: me(req).id } });
   if (user.role === "ADMIN") throw new HttpError(400, "Akun admin tidak bisa dihapus dari aplikasi");
+  if (user.isDemo) throw new HttpError(403, DEMO_LOCKED);
   await prisma.$transaction([
     prisma.deviceToken.deleteMany({ where: { userId: user.id } }),
     prisma.user.update({
@@ -205,6 +209,7 @@ authRouter.delete("/me", requireAuth, async (req, res) => {
       },
     }),
   ]);
+  forgetUserStatus(user.id);
   res.status(204).end();
 });
 
@@ -212,6 +217,7 @@ authRouter.delete("/me", requireAuth, async (req, res) => {
 authRouter.post("/change-password", requireAuth, async (req, res) => {
   const body = parse(z.object({ oldPassword: z.string(), newPassword: password }), req.body);
   const user = await prisma.user.findUniqueOrThrow({ where: { id: me(req).id } });
+  if (user.isDemo) throw new HttpError(403, DEMO_LOCKED);
   if (!(await bcrypt.compare(body.oldPassword, user.passwordHash))) {
     throw new HttpError(400, "Password lama salah");
   }
@@ -237,7 +243,8 @@ authRouter.post("/forgot-password", async (req, res) => {
   const { email } = parse(z.object({ email: z.string().trim().toLowerCase().email("Email tidak valid") }), req.body);
   const user = await prisma.user.findUnique({ where: { email } });
   const reply = { ok: true, message: "Jika email terdaftar, kode reset sudah dikirim. Cek inbox/spam ya." };
-  if (!user || !user.isActive) return res.json(reply);
+  // akun demo dipakai bersama: password-nya tidak bisa direset
+  if (!user || !user.isActive || user.isDemo) return res.json(reply);
 
   // maksimal 3 permintaan per 15 menit
   const recent = await prisma.passwordReset.count({

@@ -13,6 +13,7 @@ import { forbidden, HttpError, notFound, param, parse } from "../lib/http.js";
 import { createMeetingRoom } from "../lib/meeting.js";
 import { createSnapTransaction, getTransactionStatus, mapStatus, type MidtransNotification, verifySignature } from "../lib/midtrans.js";
 import { notify, notifyAdmins } from "../lib/notify.js";
+import { dynamicQris, qrisFromImageUrl } from "../lib/qris.js";
 
 // ---------------------------------------------------------------------------
 //  Pembayaran
@@ -33,6 +34,30 @@ const PURPOSE_LABEL: Record<PaymentPurpose, string> = {
 
 const activeMethods = () =>
   prisma.paymentMethod.findMany({ where: { active: true }, orderBy: [{ order: "asc" }, { createdAt: "asc" }] });
+
+/**
+ * Tujuan transfer untuk satu tagihan. Metode QRIS mendapat `qrString`: QRIS dinamis yang nominalnya
+ * sudah terisi. Teks QRIS statis dibaca sekali dari gambar yang diunggah admin, lalu disimpan.
+ */
+const unreadableQr = new Map<string, number>();
+
+async function methodsForAmount(amountDue: number) {
+  const methods = await activeMethods();
+  return Promise.all(
+    methods.map(async ({ qrisPayload, ...m }) => {
+      if (m.type !== "QRIS") return { ...m, qrString: null };
+      let payload = qrisPayload;
+      // gambar yang gagal dibaca tidak dicoba lagi selama 10 menit (supaya checkout tetap cepat)
+      const failedAt = unreadableQr.get(m.qrImageUrl ?? "");
+      if (!payload && m.qrImageUrl && !(failedAt && Date.now() - failedAt < 10 * 60 * 1000)) {
+        payload = await qrisFromImageUrl(m.qrImageUrl);
+        if (payload) await prisma.paymentMethod.update({ where: { id: m.id }, data: { qrisPayload: payload } }).catch(() => {});
+        else unreadableQr.set(m.qrImageUrl, Date.now());
+      }
+      return { ...m, qrString: payload ? dynamicQris(payload, amountDue) : null };
+    }),
+  );
+}
 
 export async function createPayment(input: {
   userId: string;
@@ -208,13 +233,81 @@ paymentsRouter.use(requireAuth);
 
 /** GET /api/payments/methods — daftar QRIS & rekening tujuan yang aktif (dipasang sebelum /:id) */
 paymentsRouter.get("/methods", async (_req, res) => {
-  res.json(await activeMethods());
+  res.json((await activeMethods()).map(({ qrisPayload: _q, ...m }) => m));
 });
 
 /** GET /api/payments — riwayat transaksi saya */
 paymentsRouter.get("/", async (req, res) => {
   const rows = await prisma.payment.findMany({ where: { userId: me(req).id }, orderBy: { createdAt: "desc" } });
   res.json(rows.map(({ gatewayPayload: _g, ...p }) => p));
+});
+
+const METHOD_LABEL: Record<string, string> = { "manual-qris": "QRIS", "manual-bank_transfer": "Transfer bank", manual: "Transfer manual", mock: "Demo" };
+
+/**
+ * GET /api/payments/history — riwayat transaksi untuk layar "Riwayat Transaksi" (semua role).
+ * amount negatif = uang keluar (pembayaran, tarik saldo), positif = pendapatan teacher / psikolog.
+ */
+paymentsRouter.get("/history", async (req, res) => {
+  const userId = me(req).id;
+  const [paid, earned, payouts] = await Promise.all([
+    prisma.payment.findMany({ where: { userId, status: { in: ["PAID", "PENDING", "VERIFYING"] } }, include: { manualMethod: true }, orderBy: { createdAt: "desc" }, take: 100 }),
+    prisma.payment.findMany({ where: { payeeUserId: userId, status: "PAID" }, include: { user: { select: { fullName: true } } }, orderBy: { paidAt: "desc" }, take: 100 }),
+    prisma.payout.findMany({ where: { userId, status: { not: "REJECTED" } }, orderBy: { createdAt: "desc" }, take: 100 }),
+  ]);
+  const consultIds = [...paid, ...earned].filter((p) => p.purpose === "CONSULTATION").map((p) => p.referenceId);
+  const engagementIds = [...paid, ...earned].filter((p) => p.purpose === "ENGAGEMENT").map((p) => p.referenceId);
+  const subIds = paid.filter((p) => p.purpose === "SUBSCRIPTION").map((p) => p.referenceId);
+  const [consults, engagements, subs] = await Promise.all([
+    prisma.consultation.findMany({ where: { id: { in: consultIds } }, include: { psychologist: { include: { user: { select: { fullName: true } } } }, child: { select: { name: true } } } }),
+    prisma.engagement.findMany({ where: { id: { in: engagementIds } }, include: { teacher: { select: { fullName: true } }, child: { select: { name: true } } } }),
+    prisma.subscription.findMany({ where: { id: { in: subIds } }, select: { id: true, plan: true } }),
+  ]);
+
+  /** Judul & keterangan satu pembayaran dilihat dari sisi pembayar */
+  const describe = (p: { purpose: PaymentPurpose; referenceId: string }) => {
+    if (p.purpose === "CONSULTATION") {
+      const c = consults.find((x) => x.id === p.referenceId);
+      return { title: "Konsultasi Psikolog", subtitle: [c?.psychologist.user.fullName, c?.child?.name && `untuk ${c.child.name}`].filter(Boolean).join(" · ") };
+    }
+    if (p.purpose === "ENGAGEMENT") {
+      const e = engagements.find((x) => x.id === p.referenceId);
+      return { title: `Pendampingan ${e?.teacher.fullName ?? "shadow teacher"}`, subtitle: e ? `Pendampingan ${e.child.name}` : "Fee pendampingan" };
+    }
+    const plan = subs.find((x) => x.id === p.referenceId)?.plan;
+    return { title: "Dubidu Plus", subtitle: plan === "YEARLY" ? "Paket tahunan" : "Paket bulanan" };
+  };
+
+  const rows = [
+    ...paid.map((p) => ({
+      id: p.id,
+      ...describe(p),
+      amount: -(p.amountDue ?? p.amount),
+      method: p.manualMethod?.label ?? METHOD_LABEL[p.method ?? ""] ?? "Menunggu pembayaran",
+      at: p.paidAt ?? p.createdAt,
+      status: p.status === "PAID" ? "Berhasil" : "Diproses",
+    })),
+    ...earned.map((p) => ({
+      id: `in-${p.id}`,
+      title: p.purpose === "CONSULTATION" ? "Honor konsultasi" : "Pendapatan pendampingan",
+      subtitle: `${describe(p).subtitle} · dari ${p.user.fullName}`,
+      amount: p.payeeAmount ?? 0,
+      method: "Saldo Dubidu",
+      at: p.paidAt ?? p.createdAt,
+      status: "Berhasil",
+    })),
+    ...payouts.map((p) => ({
+      id: `out-${p.id}`,
+      title: `Tarik saldo ke ${p.bankName}`,
+      subtitle: `Diterima Rp${(p.amount - p.fee).toLocaleString("id-ID")} setelah biaya transfer`,
+      amount: -p.amount,
+      method: `${p.bankName} •••• ${p.accountNumber.slice(-4)}`,
+      at: p.processedAt ?? p.createdAt,
+      status: p.status === "TRANSFERRED" ? "Berhasil" : "Diproses",
+    })),
+  ].sort((a, b) => b.at.getTime() - a.at.getTime());
+
+  res.json(rows.map(({ at, ...r }) => ({ ...r, date: shortDate(at) })));
 });
 
 async function loadOwnPayment(req: Request) {
@@ -249,6 +342,7 @@ paymentsRouter.post("/:id/checkout", async (req, res) => {
 
   if (config.paymentMode === "manual") {
     const withCode = p.amountDue ? p : await assignUniqueCode(p.id, p.amount);
+    const methods = await methodsForAmount(withCode.amountDue!);
     return res.json({
       mode: "manual",
       paymentId: p.id,
@@ -257,9 +351,11 @@ paymentsRouter.post("/:id/checkout", async (req, res) => {
       uniqueCode: withCode.uniqueCode,
       amountDue: withCode.amountDue, // nominal PERSIS yang harus ditransfer
       expiresAt: p.expiresAt,
-      methods: await activeMethods(),
+      methods,
       steps: [
-        `Transfer tepat Rp${withCode.amountDue!.toLocaleString("id-ID")} (termasuk kode unik ${withCode.uniqueCode}) ke salah satu tujuan di bawah.`,
+        methods.some((m) => m.qrString)
+          ? `Scan QRIS di bawah: nominal Rp${withCode.amountDue!.toLocaleString("id-ID")} (termasuk kode unik ${withCode.uniqueCode}) terisi otomatis. Untuk transfer bank, ketik nominal yang sama persis.`
+          : `Transfer tepat Rp${withCode.amountDue!.toLocaleString("id-ID")} (termasuk kode unik ${withCode.uniqueCode}) ke salah satu tujuan di bawah.`,
         "Simpan screenshot / bukti transfer.",
         "Upload bukti dan isi nama pemilik akun pengirim.",
         "Admin mengecek dan mengonfirmasi, biasanya kurang dari 1 jam pada jam kerja.",

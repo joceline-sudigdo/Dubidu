@@ -82,7 +82,6 @@ export default function RootLayout() {
         <Stack.Screen name="index" options={{ animation: 'none' }} />
         <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
         <Stack.Screen name="(auth)/login" options={{ animation: 'fade' }} />
-        <Stack.Screen name="home" options={{ animation: 'fade', gestureEnabled: false }} />
         <Stack.Screen name="(tabs)" options={{ animation: 'fade', gestureEnabled: false }} />
         <Stack.Screen name="teacher/(tabs)" options={{ animation: 'fade', gestureEnabled: false }} />
         <Stack.Screen name="psikolog/(tabs)" options={{ animation: 'fade', gestureEnabled: false }} />

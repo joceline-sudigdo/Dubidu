@@ -1,6 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
-import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ClayCard } from '@/components/parent/clay-card';
 import { EmptyFill, EmptyState } from '@/components/parent/empty-state';
@@ -14,7 +14,8 @@ import { formatRupiah } from '@/data/parent';
 import { showAlert } from '@/lib/dialog';
 import { downloadPdf } from '@/lib/pdf';
 import { getSession } from '@/lib/session';
-import { useTransactions, type Transaction } from '@/lib/transactions-store';
+import { errorMessage } from '@/lib/api';
+import { loadTransactions, useTransactions, type Transaction } from '@/lib/transactions-store';
 
 const FILTERS = ['Semua', 'Masuk', 'Keluar'] as const;
 
@@ -22,6 +23,15 @@ const FILTERS = ['Semua', 'Masuk', 'Keluar'] as const;
 export default function RiwayatTransaksiScreen() {
   const list = useTransactions();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('Semua');
+  const [loading, setLoading] = useState(true);
+
+  // selalu ambil ulang saat layar dibuka (pembayaran bisa baru dikonfirmasi admin)
+  useEffect(() => {
+    Promise.resolve()
+      .then(loadTransactions)
+      .catch((e) => showAlert('Riwayat belum termuat', errorMessage(e)))
+      .finally(() => setLoading(false));
+  }, []);
   const isParent = getSession().role === 'parent';
   const shown = list.filter((t) => filter === 'Semua' || (filter === 'Masuk' ? t.amount > 0 : t.amount < 0));
   // orang tua: total pembayaran; teacher & psikolog: total dana masuk (penarikan saldo tidak dihitung)
@@ -64,7 +74,9 @@ export default function RiwayatTransaksiScreen() {
         ))}
       </EdgeScroll>
 
-      {shown.length === 0 ? (
+      {loading && list.length === 0 ? (
+        <ActivityIndicator color={Colors.primary} />
+      ) : shown.length === 0 ? (
         <EmptyFill>
           <EmptyState title="Belum ada transaksi" subtitle="Pembayaran dan pencairan dana akan tercatat di sini." />
         </EmptyFill>

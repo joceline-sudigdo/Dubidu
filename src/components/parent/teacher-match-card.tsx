@@ -85,6 +85,28 @@ export function TeacherMatchCard({
           <TagRow tags={skills.map((k) => SKILL_LABELS[k])} />
         </View>
 
+        {teacher.reasons?.length ? (
+          <View style={styles.why}>
+            <AppText style={styles.whyTitle}>Kenapa cocok?</AppText>
+            {teacher.reasons.slice(0, 3).map((r) => (
+              <View key={r} style={styles.whyRow}>
+                <Feather name="check-circle" size={14} color={Colors.green} style={styles.whyIcon} />
+                <AppText variant="caption" color={Colors.text} style={styles.flex}>
+                  {r}
+                </AppText>
+              </View>
+            ))}
+            {teacher.caution ? (
+              <View style={styles.whyRow}>
+                <Feather name="info" size={14} color={Colors.yellowDark} style={styles.whyIcon} />
+                <AppText variant="caption" style={styles.flex}>
+                  {teacher.caution}
+                </AppText>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
         <Pressable
           onPress={() => router.push({ pathname: '/profil-teacher/[id]', params: { id: teacher.id } })}
           style={styles.profileLink}>
@@ -225,6 +247,28 @@ const styles = StyleSheet.create({
   },
   bold: {
     fontFamily: Fonts.bodyBold,
+  },
+  flex: {
+    flex: 1,
+  },
+  why: {
+    gap: 6,
+    padding: 12,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surface,
+  },
+  whyTitle: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 13,
+    color: Colors.primaryDark,
+  },
+  whyRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  whyIcon: {
+    marginTop: 2,
   },
   tags: {
     alignSelf: 'stretch',

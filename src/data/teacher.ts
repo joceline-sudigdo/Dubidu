@@ -274,6 +274,8 @@ export const reviewDetail = {
 };
 
 export type TeacherSession = {
+  id?: string; // id sesi di server (untuk mengirim laporan)
+  reportId?: string | null; // report card yang sudah dikirim
   date: string;
   student: string;
   number: number;
@@ -299,6 +301,12 @@ export const teacherSessions: TeacherSession[] = [
   { date: '2026-09-07', student: 'bella', number: 9, time: '14:00 - 16:00', reportDone: true },
   { date: '2026-09-14', student: 'bella', number: 10, time: '14:00 - 16:00', reportDone: false },
 ];
+
+/** Tandai sesi sudah punya laporan (setelah laporan harian terkirim) */
+export function markSessionReported(sessionId: string, reportId: string) {
+  const i = teacherSessions.findIndex((s) => s.id === sessionId);
+  if (i >= 0) teacherSessions[i] = { ...teacherSessions[i], reportDone: true, reportId };
+}
 
 // ===== anak yang sedang mencari shadow teacher =====
 

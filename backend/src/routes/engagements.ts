@@ -6,7 +6,7 @@ import { prisma, type Prisma } from "../db.js";
 import { ensureConversation } from "../lib/access.js";
 import { me, requireAuth, requireRole } from "../lib/auth.js";
 import { getSettings } from "../lib/content.js";
-import { dayTime, hhmm, isoDate } from "../lib/dates.js";
+import { ageFrom, dayTime, hhmm, isoDate } from "../lib/dates.js";
 import { forbidden, HttpError, notFound, param, parse } from "../lib/http.js";
 import { notify } from "../lib/notify.js";
 import { CATEGORY_TONE, displayName } from "../lib/present.js";
@@ -46,7 +46,7 @@ async function present(e: EngagementRow, viewerId: string) {
     status: e.status,
     teacher: { id: e.teacherUserId, name: displayName(e.teacher, e.teacher.teacherProfile?.title), avatarUrl: e.teacher.avatarUrl },
     parent: { id: e.parentId, name: e.parent.fullName, avatarUrl: e.parent.avatarUrl },
-    child: { id: e.childId, name: e.child.name, fullName: e.child.fullName, gender: e.child.gender },
+    child: { id: e.childId, name: e.child.name, fullName: e.child.fullName, age: ageFrom(e.child.birthDate), gender: e.child.gender },
     chatId: convo?.id ?? null,
     tags: e.child.needs.slice(0, 2).map((n) => ({ label: n.needOption.label, tone: CATEGORY_TONE[n.needOption.category] })),
     nextSession: next ? dayTime(next.startAt) : null,
@@ -270,7 +270,7 @@ scheduleRouter.get("/", async (req, res) => {
         startAt: { gte: from, lte: to },
         engagement: { OR: [{ parentId: user.id }, { teacherUserId: user.id }] },
       },
-      include: { engagement: { include: { child: true, teacher: true } }, report: { select: { id: true } } },
+      include: { engagement: { include: { child: true, teacher: true } }, report: { select: { id: true, needsAttention: true } } },
       orderBy: { startAt: "asc" },
     }),
     prisma.consultation.findMany({
@@ -290,6 +290,9 @@ scheduleRouter.get("/", async (req, res) => {
       id: s.id,
       title: `Sesi #${s.number} • ${s.engagement.child.name}`,
       with: s.engagement.teacher.fullName,
+      childId: s.engagement.childId,
+      number: s.number,
+      needsAttention: s.report?.needsAttention ?? false,
       date: isoDate(new Date(s.startAt.getTime() + 7 * 3600000)),
       time: `${hhmm(s.startAt)} - ${hhmm(s.endAt)}`,
       startAt: s.startAt,
@@ -308,6 +311,9 @@ scheduleRouter.get("/", async (req, res) => {
       location: "Online",
       status: c.status,
       reportId: null,
+      childId: c.childId,
+      number: null,
+      needsAttention: false,
     })),
   ].sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
 

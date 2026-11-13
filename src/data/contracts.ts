@@ -26,8 +26,8 @@ export type Contract = {
   location: string;
   rate: number;
   sessionsPerTermin: number;
-  // true = dibangun dari data kontrak di server (bukan data contoh)
-  server?: boolean;
+  // jadwal sesi berikutnya dari server (kalau ada, dipakai menggantikan perkiraan dari hari sesi)
+  upcoming?: Date[];
 };
 
 export const contracts: Contract[] = [
@@ -169,89 +169,9 @@ contracts.push(
   }
 );
 
-// teacher membuka kontrak lewat id anak, orang tua lewat id kontrak
+// id kontrak, atau id anak (layar teacher membuka kontrak dari daftar murid)
 export function findContract(id: string) {
-  return contracts.find((c) => c.id === id) ?? contracts.find((c) => c.server && c.childId === id);
-}
-
-// ---------------------------------------------------------------------------
-// kontrak dari server (GET /engagements) → bentuk Contract di aplikasi
-
-export type ServerEngagement = {
-  id: string;
-  teacher: { id: string; name: string };
-  parent: { id: string; name: string };
-  child: { id: string; name: string; fullName: string };
-  chatId: string | null;
-  tags: { label: string; tone: Tone }[];
-  done: number;
-  total: number;
-  phase: string | null;
-  ratePerSession?: number;
-  frequency?: string | null;
-  location?: string | null;
-  startDate?: string | null;
-  endDate?: string | null;
-};
-
-const DAY_NAMES = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-
-const shortDate = (iso: string) => {
-  const [y, m, d] = iso.split('-').map(Number);
-  return `${d} ${MONTH_SHORT[m - 1]} ${y}`;
-};
-
-export function contractFromEngagement(e: ServerEngagement, extra: { childAge?: number; gender?: Gender } = {}): Contract {
-  // "2x seminggu (Jumat & Sabtu)" → Jumat & Sabtu; "3x seminggu" → Sen/Rab/Jum; "Setiap hari sekolah" → Sen–Jum
-  const freq = (e.frequency ?? '').toLowerCase();
-  const named = DAY_NAMES.map((d, i) => (freq.includes(d.toLowerCase()) ? i : -1)).filter((i) => i >= 0);
-  const perWeek = Number(freq.match(/(\d)\s*x/)?.[1] ?? 0);
-  const weekdays = named.length
-    ? named
-    : freq.includes('setiap hari')
-      ? [1, 2, 3, 4, 5]
-      : ({ 1: [1], 2: [2, 4], 3: [1, 3, 5], 4: [1, 2, 4, 5], 5: [1, 2, 3, 4, 5] } as Record<number, number[]>)[perWeek] ?? [1, 4];
-  const period =
-    e.startDate && e.endDate
-      ? `${shortDate(e.startDate)} – ${shortDate(e.endDate)}`
-      : e.startDate
-        ? `Mulai ${shortDate(e.startDate)}`
-        : 'Sesuai kesepakatan';
-  return {
-    id: e.id,
-    server: true,
-    childName: e.child.name,
-    childAge: extra.childAge ?? 0,
-    gender: extra.gender ?? 'female',
-    childId: e.child.id,
-    parentName: e.parent.name,
-    teacherName: e.teacher.name,
-    teacherId: e.teacher.id,
-    parentChatId: e.chatId ?? '',
-    teacherChatId: e.chatId ?? '',
-    tags: e.tags,
-    done: e.done,
-    total: e.total,
-    phase: e.phase ?? 'Pendampingan',
-    period,
-    weekdays,
-    weekdayLabel:
-      weekdays.length === 5 && !weekdays.includes(0) && !weekdays.includes(6)
-        ? 'Senin – Jumat'
-        : weekdays.map((d) => DAY_NAMES[d]).join(', ').replace(/, ([^,]+)$/, ' & $1'),
-    hours: '08:00 – 10:00 WIB',
-    durationLabel: '2 jam per sesi',
-    location: e.location ?? 'Sekolah anak',
-    rate: e.ratePerSession ?? 150000,
-    sessionsPerTermin: 4,
-  };
-}
-
-/** Ganti kontrak hasil server (data contoh tetap) */
-export function setServerContracts(list: Contract[]) {
-  for (let i = contracts.length - 1; i >= 0; i--) if (contracts[i].server) contracts.splice(i, 1);
-  contracts.push(...list);
+  return contracts.find((c) => c.id === id) ?? contracts.find((c) => c.childId === id);
 }
 
 export const PLATFORM_FEE = 0.1;
@@ -267,6 +187,8 @@ export function termins(c: Contract) {
 
 // 3 jadwal sesi berikutnya mulai hari ini
 export function nextSessionDates(c: Contract, count = 3) {
+  if (c.upcoming) return c.upcoming.slice(0, count);
+  if (c.weekdays.length === 0) return [];
   const dates: Date[] = [];
   const d = new Date();
   d.setHours(0, 0, 0, 0);
