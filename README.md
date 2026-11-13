@@ -203,7 +203,7 @@ Profil build ada di `eas.json`: `development` (development build), `preview` (AP
 | Peran          | Fitur utama                                                                                                                                                                                                                               |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Orang tua      | registrasi profil kebutuhan anak (rekam medis dalam PDF), smart matching shadow teacher (bandingkan, skip, hubungkan), kontrak & pembayaran (QRIS / transfer), report card & growth timeline, laporan observasi psikolog, konsultasi psikolog, tambah anak (Plus) |
-| Shadow teacher | pendaftaran & verifikasi (ijazah, sertifikat & CV dalam PDF), cari anak, tawaran jadwal di chat, laporan harian & akhir, pencairan pendapatan                                                                                                                                 |
+| Shadow teacher | S&K Shadow Teacher wajib dibaca sebelum mendaftar, pendaftaran & verifikasi (ijazah, sertifikat & CV dalam PDF), cari anak, tawaran jadwal di chat, laporan harian & akhir, pencairan pendapatan                                                                                                                                 |
 | Psikolog       | jadwal & sesi konsultasi (video/voice/onsite), kirim hasil observasi, rekomendasi verifikasi shadow teacher, pencairan pendapatan                                                                                                         |
 | Semua          | chat (gambar & jadwal), komunitas (posting foto + caption lewat kartu geser, komentar, simpan), Doobie (asisten topik + voice note), Doobie Rewards (ikan, misi, voucher), Dubidu Plus, notifikasi, unduh PDF                         |
 
@@ -292,6 +292,7 @@ Rencana validasi: level keahlian diselaraskan dengan rubrik kompetensi yang disu
 - Akun yang dinonaktifkan admin langsung kehilangan akses; akun demo tidak bisa dihapus atau diganti kata sandinya.
 - Akses data dicek per pemilik (anak, chat, pembayaran, laporan); teacher hanya melihat inisial anak sampai tawaran diterima.
 - Unggahan dibatasi jenis file (JPG, PNG, WEBP, HEIC, PDF) dan ukuran 4 MB.
+- Perlindungan anak: shadow teacher wajib membaca & menyetujui Syarat & Ketentuan Shadow Teacher sebelum mendaftar. Dubidu dan lembaga tempat pendampingan berhak memberi peringatan dan mencabut penugasan teacher yang terbukti melakukan kekerasan atau tindakan tidak wajar; admin menonaktifkan akunnya dan riwayat pelanggaran dipakai dalam verifikasi.
 - Web admin: sesi cookie httpOnly bertanda tangan, semua aksi tercatat di audit log, data anak & isi chat tidak ditampilkan.
 
 ---
@@ -315,6 +316,7 @@ Rencana validasi: level keahlian diselaraskan dengan rubrik kompetensi yang disu
 - **Ketersediaan pendamping.** Hasil matching bergantung pada jumlah shadow teacher dan psikolog terverifikasi di tiap kota; akun sungguhan di kota tanpa pendamping akan melihat daftar kosong.
 - **Level keahlian** belum memakai rubrik klinis baku (lihat rencana validasi di bagian Smart Matching).
 - **Ukuran unggahan** maksimal 4 MB per file.
+- **Pencabutan penugasan oleh lembaga** diatur di Syarat & Ketentuan; dalam MVP laporan dari lembaga disampaikan lewat tim Dubidu (bantuan/admin), belum ada akun khusus lembaga untuk memberi peringatan langsung dari aplikasi.
 - **Kuota "Lewati" akun demo** dihitung di perangkat (bukan server) dan ditambah anak/teacher contoh, supaya alur skip → Dubidu Plus selalu bisa didemokan. Akun sungguhan memakai kuota dari server.
 - **Avatar anak** memakai ilustrasi sesuai gender (bukan foto asli anak) untuk menjaga privasi; foto profil akun demo adalah foto stok.
 - **Bahasa** aplikasi hanya Bahasa Indonesia; pesan error teknis dari server diterjemahkan di aplikasi.

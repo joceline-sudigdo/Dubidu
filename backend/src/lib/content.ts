@@ -43,6 +43,7 @@ const LEGAL_TERMS: LegalDoc = {
     { h: "5. Dubidu Plus", p: "Langganan Plus diperpanjang sesuai paket (bulanan/tahunan) dan bisa dihentikan kapan saja dari menu Dubidu Plus. Biaya yang sudah dibayar tidak dapat dikembalikan untuk periode berjalan." },
     { h: "6. Ikan & hadiah", p: "Ikan adalah poin loyalitas yang tidak dapat diuangkan. Voucher hasil penukaran berlaku 30 hari dan tunduk pada ketentuan mitra penyedia hadiah." },
     { h: "7. Perilaku di komunitas", p: "Dilarang membagikan foto atau data anak lain tanpa izin, ujaran kebencian, promosi tanpa izin, dan informasi medis yang menyesatkan. Postingan yang melanggar dapat dihapus." },
+    { h: "8. Pelanggaran & pencabutan penugasan shadow teacher", p: "Shadow teacher dilarang melakukan kekerasan fisik maupun verbal, perundungan, pelecehan, hukuman yang merendahkan, atau tindakan tidak wajar lainnya terhadap anak. Dubidu dan lembaga tempat pendampingan (sekolah atau pusat terapi) berhak memberi peringatan, menghentikan sementara, atau mencabut penugasan shadow teacher secara langsung bila pelanggaran terbukti dari laporan orang tua, lembaga, atau hasil pemeriksaan tim Dubidu. Pencabutan dapat disertai penonaktifan akun, penahanan dana termin yang sedang berjalan, dan pelaporan ke pihak berwenang. Riwayat pelanggaran dicatat dan dipakai dalam verifikasi, sehingga shadow teacher yang melanggar tidak dapat menerima penugasan baru." },
   ],
 };
 

@@ -17,7 +17,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Deployment & stabilisasi | 6 |
 | UI/UX polishing | 18 |
 | Performance improvement | 6 |
-| Keamanan dasar | 6 |
+| Keamanan dasar | 8 |
 | Dokumentasi | 5 |
 
 ## 1. Bug fixing
@@ -104,6 +104,8 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Batas umum API | 1.500 request per 5 menit per alamat IP |
 | Validasi unggahan | Maksimal 4 MB dan satu berkas per request; jenis berkas dibatasi |
 | Kredensial admin dihapus dari README | Kata sandi admin bawaan tidak lagi ditulis di repo publik |
+| Hak pencabutan penugasan shadow teacher | Syarat & Ketentuan ditambah poin 8: Dubidu dan lembaga tempat pendampingan berhak memberi peringatan, menghentikan sementara, dan mencabut penugasan shadow teacher yang terbukti melakukan kekerasan atau tindakan tidak wajar terhadap anak; riwayat pelanggaran dipakai menyaring pendamping (`backend/src/lib/content.ts`, `src/data/legal.ts`) |
+| S&K Shadow Teacher wajib dibaca sebelum mendaftar | Memilih peran Shadow Teacher kini membuka halaman Syarat & Ketentuan Shadow Teacher (kode etik, larangan, hak pemberhentian, proses laporan, sanksi). Tombol lanjut baru aktif setelah dibaca sampai akhir dan disetujui; persetujuan akhir pendaftaran ditambah poin "Siap ditindak bila melanggar" (`src/app/(auth)/daftar-teacher/syarat.tsx`, `src/app/(auth)/register.tsx`, `src/app/(auth)/daftar-teacher/persetujuan.tsx`, `src/components/ui/form-screen.tsx`) |
 
 ## 6. Dokumentasi
 

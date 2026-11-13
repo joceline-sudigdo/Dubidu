@@ -7,13 +7,13 @@ import { Screen } from '@/components/parent/screen';
 import { ScreenHeader } from '@/components/parent/screen-header';
 import { AppText } from '@/components/ui/app-text';
 import { Colors, Fonts } from '@/constants/theme';
-import { legalDocs } from '@/data/legal';
+import { legalDocs, teacherTerms } from '@/data/legal';
 import { loadLegal } from '@/lib/sync';
 
-// /legal/terms = Syarat & Ketentuan, /legal/privacy = Kebijakan Privasi
+// /legal/terms = Syarat & Ketentuan, /legal/privacy = Kebijakan Privasi, /legal/teacher = S&K Shadow Teacher
 export default function LegalScreen() {
   const { type } = useLocalSearchParams<{ type: string }>();
-  const doc = legalDocs[type === 'privacy' ? 'privacy' : 'terms'];
+  const doc = type === 'teacher' ? teacherTerms : legalDocs[type === 'privacy' ? 'privacy' : 'terms'];
   const [, setLoaded] = useState(false);
 
   // versi terbaru dari web admin; isi bawaan tampil dulu sambil menunggu

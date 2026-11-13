@@ -28,11 +28,14 @@ export default function RegisterScreen() {
     contact.trim().length > 0 &&
     passwordLongEnough &&
     confirm === password &&
-    agreed;
+    // shadow teacher menyetujui S&K di halaman tersendiri pada langkah berikutnya
+    (role === 'teacher' || agreed);
 
   const submit = () => {
     update('account', { fullName: fullName.trim(), contact: contact.trim(), password });
-    router.push({ pathname: '/parent/identity', params: role === 'teacher' ? { role: 'teacher' } : {} });
+    // shadow teacher wajib membaca S&K khusus dulu sebelum mengisi data pendaftaran
+    if (role === 'teacher') router.push('/daftar-teacher/syarat');
+    else router.push('/parent/identity');
   };
 
   return (
@@ -101,6 +104,15 @@ export default function RegisterScreen() {
         </AppText>
       </View>
 
+      {role === 'teacher' ? (
+        <View style={styles.teacherNote}>
+          <Feather name="file-text" size={18} color={Colors.primary} />
+          <AppText variant="caption" style={styles.termsText}>
+            Di langkah berikutnya kamu akan membaca dan menyetujui Syarat & Ketentuan Shadow Teacher sebelum mengisi data
+            pendaftaran.
+          </AppText>
+        </View>
+      ) : (
       <Pressable
         accessibilityRole="checkbox"
         accessibilityState={{ checked: agreed }}
@@ -121,6 +133,7 @@ export default function RegisterScreen() {
           Dubidu
         </AppText>
       </Pressable>
+      )}
 
       <PrimaryButton title="Next" disabled={!canSubmit} onPress={submit} />
 
@@ -169,6 +182,13 @@ function RoleCard({
 }
 
 const styles = StyleSheet.create({
+  teacherNote: {
+    flexDirection: 'row',
+    gap: 10,
+    padding: 14,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.primarySoft,
+  },
   roles: {
     flexDirection: 'row',
     gap: 12,

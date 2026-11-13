@@ -28,6 +28,10 @@ const AGREEMENTS = [
     text: 'Saya bersedia diverifikasi (dokumen, referensi, dan wawancara singkat) oleh tim Dubidu.',
   },
   {
+    title: 'Siap ditindak bila melanggar',
+    text: 'Saya memahami Dubidu dan lembaga tempat pendampingan berhak memberi peringatan dan mencabut penugasan saya bila terbukti melanggar.',
+  },
+  {
     title: 'Laporan sesi rutin',
     text: 'Saya akan mengisi laporan harian setiap selesai sesi agar orang tua bisa memantau perkembangan.',
   },
