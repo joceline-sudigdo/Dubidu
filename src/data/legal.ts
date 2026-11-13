@@ -36,7 +36,7 @@ export const legalDocs: Record<LegalType, { title: string; updated: string; sect
       },
       {
         h: '8. Pelanggaran & pencabutan penugasan shadow teacher',
-        p: 'Shadow teacher dilarang melakukan kekerasan fisik maupun verbal, perundungan, pelecehan, hukuman yang merendahkan, atau tindakan tidak wajar lainnya terhadap anak. Dubidu dan lembaga tempat pendampingan (sekolah atau pusat terapi) berhak memberi peringatan, menghentikan sementara, atau mencabut penugasan shadow teacher secara langsung bila pelanggaran terbukti dari laporan orang tua, lembaga, atau hasil pemeriksaan tim Dubidu. Pencabutan dapat disertai penonaktifan akun, penahanan dana termin yang sedang berjalan, dan pelaporan ke pihak berwenang. Riwayat pelanggaran dicatat dan dipakai dalam verifikasi, sehingga shadow teacher yang melanggar tidak dapat menerima penugasan baru.',
+        p: 'Shadow teacher dilarang melakukan kekerasan fisik maupun verbal, perundungan, pelecehan, hukuman yang merendahkan, atau tindakan tidak wajar lainnya terhadap anak. Dubidu dan lembaga tempat pendampingan (sekolah atau pusat terapi) berhak memberi peringatan, menghentikan sementara, atau mencabut penugasan shadow teacher secara langsung bila pelanggaran terbukti dari laporan orang tua, lembaga, atau hasil pemeriksaan tim Dubidu. Pencabutan dapat disertai penonaktifan akun, penahanan dana termin yang sedang berjalan, dan pelaporan ke pihak berwenang. Riwayat pelanggaran dicatat dan dipakai dalam verifikasi, sehingga shadow teacher yang melanggar tidak dapat menerima penugasan baru. Dasar hukum: UU Perlindungan Anak (UU No. 35/2014), UU Penyandang Disabilitas (UU No. 8/2016), UU TPKS (UU No. 12/2022), dan UU Pelindungan Data Pribadi (UU No. 27/2022).',
       },
     ],
   },
@@ -101,7 +101,11 @@ export const teacherTerms = {
       p: 'Kamu bersedia diverifikasi (identitas, ijazah, sertifikat, referensi, dan wawancara dengan psikolog mitra) serta menjaga kerahasiaan kondisi, foto, dan laporan anak selama dan setelah masa pendampingan.',
     },
     {
-      h: '7. Laporan sesi & pembayaran',
+      h: '7. Dasar hukum',
+      p: 'Ketentuan ini mengacu pada: UU No. 35 Tahun 2014 tentang Perubahan atas UU No. 23 Tahun 2002 tentang Perlindungan Anak (Pasal 76C: larangan kekerasan terhadap anak); UU No. 8 Tahun 2016 tentang Penyandang Disabilitas; UU No. 12 Tahun 2022 tentang Tindak Pidana Kekerasan Seksual; dan UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi.',
+    },
+    {
+      h: '8. Laporan sesi & pembayaran',
       p: 'Kamu wajib mengisi laporan harian setiap selesai sesi. Pembayaran dari orang tua ditahan Dubidu dan dicairkan per termin setelah sesi & laporan selesai, dipotong biaya platform 10% (5% untuk pengguna Plus).',
     },
   ],
