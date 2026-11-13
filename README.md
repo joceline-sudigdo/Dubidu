@@ -8,7 +8,28 @@ Aplikasi yang mempertemukan orang tua anak berkebutuhan khusus (ABK) dengan shad
 | `admin/`   | Web admin (verifikasi, pembayaran, pencairan, moderasi, konten) | Next.js                              |
 | `backend/` | API + database                                                  | Node.js, Express, Prisma, PostgreSQL |
 
-Akun demo (dari seed backend, password `dubidu123`): `devi@dubidu.id` (orang tua), `pras@dubidu.id` (teacher), `amanda@dubidu.id` (psikolog). Admin: `admin@dubidu.id` / `admin12345`.
+## Tautan
+
+| | |
+| --- | --- |
+| Rilis finalis (APK Android) | [Releases › `finalist-release`](https://github.com/joceline-sudigdo/Dubidu/releases/tag/finalist-release) |
+| Backend API | https://dubidu-api.vercel.app/api/health |
+| Web admin | https://dubidu-admin.vercel.app/login |
+| Perubahan sejak submission 24 jam | [CHANGELOG-FINALIST.md](CHANGELOG-FINALIST.md) |
+
+## Cara mencoba (untuk juri)
+
+1. Pasang APK dari halaman rilis, lalu di layar login tekan **Coba dengan Akun Demo**.
+2. Akun demo (password `dubidu123`): `devi@dubidu.id` (orang tua, Dubidu Plus), `pras@dubidu.id` (shadow teacher), `amanda@dubidu.id` (psikolog).
+3. Alur yang bisa dicoba dari awal sampai akhir:
+   - **Orang tua:** Cari Teacher → Connect → chat → Konsultasi psikolog → pilih jadwal → bayar lewat QRIS (nominal terisi otomatis) → unggah bukti.
+   - **Admin:** Bukti Transfer → Konfirmasi → status di aplikasi berubah menjadi lunas.
+   - **Psikolog:** Jadwal → buka jam konsultasi → mulai sesi (video call) → kirim hasil observasi.
+   - **Shadow teacher:** Cari Anak → ajukan diri, isi level keahlian di Profil, Pencairan pendapatan.
+4. Akun demo dipakai bersama, jadi tidak bisa dihapus atau diganti kata sandinya. Untuk mencoba pendaftaran, verifikasi, dan lupa kata sandi, buat akun baru dari tombol **Daftar di sini**.
+5. Akun demo dan akun sungguhan terpisah: akun yang baru didaftarkan tidak melihat data contoh (teacher/psikolog demo), dan sebaliknya.
+
+Akun admin untuk juri dikirim lewat formulir pengumpulan (tidak ditulis di repo publik).
 
 ---
 
@@ -28,7 +49,7 @@ backend/
 │   ├── config.ts, db.ts
 │   ├── lib/               ← auth, matching + AI matching, pembayaran (transfer manual / Midtrans), email, video call, push, upload
 │   └── routes/            ← satu file per fitur
-├── tests/flow.test.ts     ← uji alur lengkap (29 skenario)
+├── tests/                 ← flow.test.ts (alur lengkap lewat API) + qris.test.ts (QRIS dinamis)
 └── docs/
     ├── DATABASE.md        ← ERD & penjelasan tabel
     ├── API.md             ← daftar endpoint + pemetaan data dummy frontend
@@ -44,7 +65,7 @@ cp .env.example .env          # isi DATABASE_URL & JWT_SECRET
 npm run db:migrate            # buat tabel
 npm run db:seed               # isi master data + akun demo
 npm run dev                   # http://localhost:4000/api/health
-npm test                      # uji 29 alur utama
+npm test                      # 36 skenario: alur utama lewat API + QRIS dinamis
 ```
 
 ### Script
@@ -184,7 +205,7 @@ npm install
 npm run dev                   # http://localhost:3000
 ```
 
-Data diambil dari `BACKEND_API_URL` (default `https://dubidu-api.vercel.app`). Untuk backend lokal isi `BACKEND_API_URL=http://localhost:4000`. Saat di-deploy, tambahkan alamat web admin ke `CORS_ORIGINS` backend.
+Data diambil dari `BACKEND_API_URL` (default `https://dubidu-api.vercel.app`). Untuk backend lokal isi `BACKEND_API_URL=http://localhost:4000`. Web admin memanggil backend dari server Next.js (bukan dari browser), jadi `CORS_ORIGINS` tidak perlu diubah.
 
 ### Script
 
@@ -199,6 +220,58 @@ Data diambil dari `BACKEND_API_URL` (default `https://dubidu-api.vercel.app`). U
 - Data anak, laporan perkembangan, hasil asesmen, dan isi chat **tidak** ditampilkan.
 - Setiap aksi yang mengubah data tercatat di audit log (siapa, aksi, target, alasan, waktu). Aksi berisiko wajib diisi alasannya.
 - Fetch ke backend hanya dari server (Server Component / Server Action), tidak dari komponen `"use client"`.
+
+---
+
+## Cara kerja Smart Matching
+
+Matching dihitung di server (`backend/src/lib/matching.ts`) dan hasilnya bisa dijelaskan ke pengguna:
+
+| Komponen | Bobot | Sumber data |
+| --- | --- | --- |
+| Kecocokan keahlian | 75% | rata-rata level teacher (0–100) pada bidang yang dibutuhkan anak |
+| Rating | 15% | ulasan orang tua (teacher baru tanpa ulasan dianggap 70) |
+| Lokasi | 10% | kota sama 100, ≤ 30 km 75, lebih jauh 45 |
+
+- **Kebutuhan anak** diambil dari pilihan kebutuhan saat registrasi dan kata kunci di keterangan diagnosis, lalu dipetakan ke 7 bidang: Speech Delay, Komunikasi, ADHD & Fokus, Sensori, Interaksi Sosial, Autisme, Akademik.
+- **Level keahlian teacher bukan klaim sepihak.** Teacher mengisi penilaian diri, psikolog mitra memberi rekomendasi setelah interview, dan admin menetapkan nilai akhir saat verifikasi (web admin › Verifikasi › Level keahlian). Nilai dari admin yang dipakai matching; penilaian diri tetap disimpan sebagai pembanding, dan setiap perubahan tercatat di audit log.
+- Hanya teacher berstatus **terverifikasi** yang muncul di hasil matching.
+- Bila `ANTHROPIC_API_KEY` diisi, 5 kandidat teratas juga dinilai model bahasa (alasan kecocokan dalam kalimat) dan skor akhir menjadi 40% skor aturan + 60% skor model. Tanpa kunci, matching sepenuhnya memakai skor aturan di atas.
+
+Rencana validasi: level keahlian diselaraskan dengan rubrik kompetensi yang disusun bersama psikolog mitra, dan kualitas matching diukur dari tingkat penerimaan tawaran serta ulasan setelah pendampingan.
+
+---
+
+## Keamanan dasar
+
+- Kata sandi disimpan sebagai hash bcrypt; token login JWT disimpan terenkripsi di perangkat (expo-secure-store).
+- Pembatasan laju: percobaan login gagal (20 / 15 menit), pendaftaran & kode reset (30 / jam), dan batas umum per alamat IP.
+- Akun yang dinonaktifkan admin langsung kehilangan akses; akun demo tidak bisa dihapus atau diganti kata sandinya.
+- Akses data dicek per pemilik (anak, chat, pembayaran, laporan); teacher hanya melihat inisial anak sampai tawaran diterima.
+- Unggahan dibatasi jenis file (JPG, PNG, WEBP, HEIC, PDF) dan ukuran 4 MB.
+- Web admin: sesi cookie httpOnly bertanda tangan, semua aksi tercatat di audit log, data anak & isi chat tidak ditampilkan.
+
+---
+
+## Kontribusi tim
+
+| Anggota | Peran | Kontribusi |
+| --- | --- | --- |
+| Joceline Sudigdo | Frontend & desain | UI/UX aplikasi mobile (orang tua, shadow teacher, psikolog), web admin, aset visual, konfigurasi build |
+| Ni Putu Saraswati | Backend & database | skema database, API, pembayaran, integrasi aplikasi & web admin dengan backend, deployment, pengujian |
+
+---
+
+## Known limitations
+
+- **Pembayaran dikonfirmasi manual.** QRIS dinamis mengisi nominal otomatis, tetapi lunas/tidaknya tetap dicek admin dari mutasi rekening (belum ada callback otomatis dari bank).
+- **Chat belum realtime penuh.** Di hosting serverless, pesan baru diambil tiap ±4 detik (polling), bukan lewat websocket.
+- **Push notification dan video call** hanya berjalan di APK hasil build (bukan Expo Go); push notification iOS belum dikonfigurasi.
+- **Server paket gratis bisa "tertidur".** Sebuah jadwal ping tiap 5 menit menjaga server tetap responsif; bila ping terlambat, permintaan pertama bisa butuh beberapa detik.
+- **Layar yang masih memakai data contoh:** detail kontrak & termin, jadwal dan laporan harian shadow teacher, growth timeline, riwayat transaksi, dan klaim misi Doobie Rewards. Endpoint-nya sudah tersedia di backend.
+- **Ketersediaan pendamping.** Hasil matching bergantung pada jumlah shadow teacher dan psikolog terverifikasi di tiap kota; akun sungguhan di kota tanpa pendamping akan melihat daftar kosong.
+- **Level keahlian** belum memakai rubrik klinis baku (lihat rencana validasi di bagian Smart Matching).
+- **Ukuran unggahan** maksimal 4 MB per file.
 
 ---
 
@@ -222,10 +295,12 @@ Data diambil dari `BACKEND_API_URL` (default `https://dubidu-api.vercel.app`). U
 | Framework mobile  | Expo SDK (expo-router, expo-image, expo-audio, expo-notifications, expo-print, expo-secure-store, dll.), React Native, React                                                     | MIT                                    |
 | Animasi & gesture | react-native-reanimated, react-native-worklets, react-native-gesture-handler                                                                                                     | MIT                                    |
 | Web admin         | Next.js, Tailwind CSS, shadcn/ui, Base UI, lucide-react                                                                                                                          | MIT / ISC                              |
-| Backend           | Express, Prisma, Socket.IO, Zod, jsonwebtoken, bcryptjs, multer, nodemailer, helmet, expo-server-sdk, Anthropic SDK                                                              | MIT / Apache 2.0                       |
+| Backend           | Express, Prisma, Socket.IO, Zod, jsonwebtoken, bcryptjs, multer, nodemailer, helmet, express-rate-limit, expo-server-sdk, Anthropic SDK, jsqr, pngjs                             | MIT / Apache 2.0                       |
+| QR                | qrcode-generator (menggambar QRIS di aplikasi), jsqr + pngjs (membaca QRIS dari gambar di server)                                                                                | MIT / Apache 2.0                       |
+| Foto              | Foto profil contoh pada akun demo & foto banner (`assets/images/images/`): **TODO tim: tulis sumber & lisensi foto stok sebelum pengumpulan**                              | sesuai lisensi sumber                  |
 | Font              | Poppins, Lato, Fredoka One (via `@expo-google-fonts` & Google Fonts)                                                                                                             | SIL Open Font License 1.1              |
 | Ikon              | Feather & Material Community Icons (via `@expo/vector-icons`)                                                                                                                    | MIT / Apache 2.0                       |
-| Layanan           | Expo EAS (build & push notification), Vercel (hosting API & admin), PostgreSQL (Neon / Supabase), Cloudinary (file), Midtrans (pembayaran), Daily.co (video call), Anthropic API | sesuai ketentuan layanan masing-masing |
+| Layanan           | Expo EAS (build & push notification), Firebase Cloud Messaging (push Android), Vercel (hosting API & admin), Neon (PostgreSQL), Cloudinary (file), Daily.co / Jitsi (video call), Gmail SMTP (email reset), GitHub Actions (ping server), Anthropic API (opsional), Midtrans (opsional, belum diaktifkan) | sesuai ketentuan layanan masing-masing |
 
 ## Lisensi
 
