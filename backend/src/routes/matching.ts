@@ -12,17 +12,7 @@ import { blendScore, getAiInsightsWithin, type AiInsight } from "../lib/aiMatchi
 import { me, requireAuth, requireRole } from "../lib/auth.js";
 import { todayRangeWib } from "../lib/dates.js";
 import { forbidden, HttpError, notFound, param, parse } from "../lib/http.js";
-import {
-  childSkills,
-  cityLabel,
-  cityOf,
-  distanceKm,
-  matchScore,
-  SKILL_KEY,
-  SKILL_LABEL,
-  skillMap,
-  strongestDifference,
-} from "../lib/matching.js";
+import { childSkills, cityLabel, cityOf, distanceKm, matchReasons, matchScore, SKILL_KEY, SKILL_LABEL, skillMap, strongestDifference } from "../lib/matching.js";
 import { notify } from "../lib/notify.js";
 import { displayName, initials, presentChild } from "../lib/present.js";
 import { sendMessage } from "./chat.js";
@@ -64,16 +54,18 @@ function pairScore(child: ChildRow, teacher: TeacherRow) {
   const distance = distanceKm(child.parent, teacher.user);
   const childCity = cityOf(child.domicile ?? child.parent.domicile);
   const teacherCity = cityOf(teacher.user.domicile);
+  const input = {
+    childSkills: childSkills(child),
+    teacherLevels: teacher.skills,
+    rating: teacher.rating,
+    reviewCount: teacher.reviewCount,
+    sameCity: Boolean(childCity && childCity === teacherCity),
+    distanceKm: distance,
+  };
   return {
     distance,
-    score: matchScore({
-      childSkills: childSkills(child),
-      teacherLevels: teacher.skills,
-      rating: teacher.rating,
-      reviewCount: teacher.reviewCount,
-      sameCity: Boolean(childCity && childCity === teacherCity),
-      distanceKm: distance,
-    }),
+    score: matchScore(input),
+    why: matchReasons({ ...input, childName: child.name, teacherCity: cityLabel(teacher.user.domicile) }),
   };
 }
 
@@ -149,7 +141,7 @@ async function rankTeachers(child: ChildRow, opts: { onlyIds?: string[]; waitAi?
   const stats = await teacherStats(top.map((s) => s.t.userId));
 
   const cards = top
-    .map(({ t, score, distance }) => {
+    .map(({ t, score, distance, why }) => {
       const ai = insights.get(`${child.id}:${t.userId}`);
       const st = stats.get(t.userId)!;
       return {
@@ -173,6 +165,9 @@ async function rankTeachers(child: ChildRow, opts: { onlyIds?: string[]; waitAi?
         ruleScore: score,
         matchPercent: Math.min(99, blendScore(score, ai)),
         ai: aiView(ai),
+        // alasan kecocokan yang bisa dijelaskan (dari rumus skor); alasan AI dipakai bila tersedia
+        reasons: ai?.reasons.length ? ai.reasons : why.reasons,
+        caution: ai?.caution ?? why.caution,
         connected: appByTeacher.has(t.userId),
         applicationStatus: appByTeacher.get(t.userId) ?? null,
       };

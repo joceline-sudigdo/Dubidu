@@ -7,14 +7,9 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
-import {
-  children,
-  formatLongDate,
-  MONTHS,
-  sessionReports,
-  toISODate,
-  type SessionReport,
-} from '@/data/parent';
+import { formatLongDate, MONTHS, toISODate, type SessionReport } from '@/data/parent';
+import { useChildren } from '@/lib/children-store';
+import { useReports } from '@/lib/reports-store';
 
 import { Avatar } from './avatar';
 import { ChildSwitcher } from './child-switcher';
@@ -39,13 +34,24 @@ export function buildMonth(year: number, month: number) {
 }
 
 export function ReportCalendar() {
-  const latest = sessionReports[0].date;
-  const [child, setChild] = useState(children[0]);
+  const children = useChildren();
+  const [childId, setChildId] = useState(children[0]?.id);
+  const child = children.find((c) => c.id === childId) ?? children[0];
+  const { reports: sessionReports } = useReports(child?.id);
+  const latest = sessionReports[0]?.date ?? toISODate(new Date());
   const [cursor, setCursor] = useState(() => {
     const [y, m] = latest.split('-').map(Number);
     return { year: y, month: m - 1 };
   });
   const [selected, setSelected] = useState(latest);
+  // begitu report card anak termuat, buka bulan & tanggal laporan terbaru
+  const [shownFor, setShownFor] = useState<string | undefined>();
+  if (sessionReports.length && shownFor !== child?.id) {
+    const [y, m] = sessionReports[0].date.split('-').map(Number);
+    setShownFor(child?.id);
+    setCursor({ year: y, month: m - 1 });
+    setSelected(sessionReports[0].date);
+  }
 
   const today = toISODate(new Date());
   const days = buildMonth(cursor.year, cursor.month);
@@ -59,7 +65,7 @@ export function ReportCalendar() {
 
   return (
     <>
-      <ChildSwitcher value={child} onChange={setChild} />
+      {child && <ChildSwitcher value={child} onChange={(c) => setChildId(c.id)} />}
 
       <ClayCard style={styles.calendar}>
         <View style={styles.monthRow}>

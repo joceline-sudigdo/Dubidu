@@ -256,6 +256,8 @@ model TeacherProfile {
   skills          TeacherSkill[]
   documents       TeacherDocument[]
   assessments     TeacherAssessment[]
+
+  @@index([verificationStatus])
 }
 
 /// Tinjauan psikolog atas pengajuan teacher (tab Verifikasi di aplikasi psikolog) → rekomendasi untuk admin.
@@ -493,6 +495,8 @@ model SessionReport {
 
   scores ReportScore[]
   photos ReportPhoto[]
+
+  @@index([childId])
 }
 
 /// Nilai 1–5 per aspek: Fokus, Sosial, Sensori, Komunikasi, Kemandirian, Regulasi Emosi, Akademik.
@@ -528,6 +532,7 @@ model Review {
   createdAt    DateTime         @default(now())
 
   @@unique([authorId, targetUserId])
+  @@index([targetUserId, status])
 }
 
 // ----------------------------------------------------------------------------
@@ -554,6 +559,7 @@ model ConversationParticipant {
   lastReadAt     DateTime     @default(now())
 
   @@id([conversationId, userId])
+  @@index([userId])
 }
 
 model Message {
@@ -678,6 +684,8 @@ model Payment {
 
   @@index([payeeUserId, status])
   @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@index([purpose, referenceId])
 }
 
 /// Tujuan transfer manual yang ditampilkan di aplikasi (dikelola dari web admin).
@@ -689,6 +697,7 @@ model PaymentMethod {
   accountNumber String? // nomor rekening (untuk BANK_TRANSFER)
   accountName   String // nama pemilik rekening / merchant QRIS
   qrImageUrl    String? // gambar QRIS (untuk QRIS)
+  qrisPayload   String? // teks QRIS statis hasil baca gambar → dasar QRIS dinamis (nominal terisi otomatis)
   instructions  String? // petunjuk singkat
   active        Boolean           @default(true)
   order         Int               @default(0)
@@ -713,6 +722,8 @@ model Subscription {
   endsAt    DateTime
   active    Boolean  @default(false) // jadi true setelah dibayar
   createdAt DateTime @default(now())
+
+  @@index([userId, active, endsAt])
 }
 
 // ----------------------------------------------------------------------------
@@ -734,6 +745,7 @@ model CommunityPost {
   comments PostComment[]
 
   @@index([topic, createdAt])
+  @@index([status, createdAt])
 }
 
 model PostLike {
@@ -754,6 +766,8 @@ model PostComment {
   text      String
   status    ModerationStatus @default(VISIBLE)
   createdAt DateTime         @default(now())
+
+  @@index([postId, createdAt])
 }
 
 // ----------------------------------------------------------------------------

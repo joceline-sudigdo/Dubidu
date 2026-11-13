@@ -85,6 +85,32 @@ export function matchScore(input: ScoreInput) {
   return Math.min(99, Math.round(need * 0.75 + rating * 0.15 + location * 0.1));
 }
 
+/**
+ * Penjelasan skor untuk orang tua ("Kenapa cocok?"), dari rumus yang sama dengan matchScore:
+ * bidang keahlian yang dibutuhkan anak, rating, dan lokasi.
+ */
+export function matchReasons(input: ScoreInput & { childName: string; teacherCity: string | null }) {
+  const levels = new Map(input.teacherLevels.map((l) => [l.skill, l.level]));
+  const needed = input.childSkills
+    .map((s) => ({ skill: s, level: levels.get(s) ?? 0 }))
+    .sort((a, b) => b.level - a.level);
+  const reasons: string[] = [];
+  const strong = needed.filter((n) => n.level >= 70).slice(0, 2);
+  if (strong.length) {
+    reasons.push(`Kuat di ${strong.map((n) => `${SKILL_LABEL[n.skill]} (${n.level})`).join(" & ")}, sesuai kebutuhan ${input.childName}`);
+  } else if (needed[0]) {
+    reasons.push(`Level ${SKILL_LABEL[needed[0].skill]} ${needed[0].level}/100 untuk kebutuhan ${input.childName}`);
+  }
+  if (input.sameCity) reasons.push(`Satu kota${input.teacherCity ? ` (${input.teacherCity})` : ""}`);
+  else if (input.distanceKm != null) reasons.push(`±${Math.round(input.distanceKm)} km dari rumah`);
+  reasons.push(input.reviewCount > 0 ? `Rating ${input.rating.toFixed(1)} dari ${input.reviewCount} ulasan orang tua` : "Teacher baru, belum ada ulasan");
+  const caution = needed.find((n) => n.level < 50);
+  return {
+    reasons,
+    caution: caution ? `Level ${SKILL_LABEL[caution.skill]} masih ${caution.level}/100` : null,
+  };
+}
+
 /** Bidang yang membuat teacher A lebih unggul dari B untuk anak ini (untuk kalimat rekomendasi) */
 export function strongestDifference(childSkillList: Skill[], a: Record<string, number>, b: Record<string, number>) {
   const list = childSkillList.length ? childSkillList : SKILLS;
