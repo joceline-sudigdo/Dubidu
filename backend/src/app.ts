@@ -58,11 +58,37 @@ export function createApp() {
     res.json({ ok: true, time: new Date().toISOString() });
   });
 
-  // batasi percobaan login / reset password (anti tebak password)
-  const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: "draft-8", legacyHeaders: false });
+  const limited = (message: string) => ({ error: message });
+  // anti tebak password: hanya percobaan yang GAGAL yang dihitung, jadi login normal tidak pernah terblokir
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 20,
+    skipSuccessfulRequests: true,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: limited("Terlalu banyak percobaan. Coba lagi 15 menit lagi."),
+  });
+  // anti pendaftaran massal & spam kode reset
+  const signupLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: 30,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: limited("Terlalu banyak permintaan dari jaringan ini. Coba lagi nanti."),
+  });
+  // batas umum per alamat IP (chat mengecek pesan baru tiap 4 detik = ±75 request / 5 menit per layar)
+  const apiLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000,
+    limit: 1500,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: limited("Terlalu banyak permintaan. Coba lagi sebentar lagi."),
+  });
 
   const api = express.Router();
-  api.use(["/auth/login", "/auth/forgot-password", "/auth/reset-password"], authLimiter);
+  api.use(apiLimiter);
+  api.use(["/auth/login", "/auth/reset-password"], authLimiter);
+  api.use(["/auth/register", "/auth/forgot-password"], signupLimiter);
   api.use("/auth", authRouter);
   // webhook Midtrans & halaman finish TANPA login → harus dipasang sebelum router yang memakai requireAuth global
   api.use("/payments", paymentWebhookRouter);

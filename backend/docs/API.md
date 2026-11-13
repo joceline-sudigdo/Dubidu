@@ -149,7 +149,15 @@ Bidang keahlian (kunci): `speech`, `communication`, `adhd`, `sensory`, `social`,
 | GET 🔒 | `/consultations/:id/join` | link video/voice call pribadi `{ url, provider, opensAt, closesAt }` — dibuka 15 menit sebelum jadwal (425 kalau terlalu awal) |
 | PATCH 🔒 | `/consultations/:id/result` | (psikolog) `{ observation, recommendation, followUp? }` |
 
+## Pembatasan laju & akun demo
+
+- Percobaan login / reset gagal: 20 per 15 menit per IP. Pendaftaran & kode reset: 30 per jam. Batas umum: 1.500 request per 5 menit. Balasan saat terlampaui: `429 { error }`.
+- Akun demo (`isDemo`) tidak bisa memakai `DELETE /auth/me`, `POST /auth/change-password`, dan tidak menerima kode reset (balasan `403` / tanpa kode).
+
 ## Pembayaran & Dubidu Plus
+
+**QRIS dinamis:** `POST /payments/:id/checkout` mengembalikan `methods[]`; metode bertipe `QRIS` berisi `qrString` (teks QRIS dengan nominal `amountDue` sudah terisi, siap digambar sebagai QR) atau `null` bila gambar QR belum terbaca (pakai `qrImageUrl`). Admin bisa mengisi `qrisPayload` (teks QRIS statis) lewat `POST/PATCH /admin/payment-methods`; bila kosong, server membacanya dari gambar QR.
+
 
 | Method | Path | Keterangan |
 |---|---|---|

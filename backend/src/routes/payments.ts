@@ -13,6 +13,7 @@ import { forbidden, HttpError, notFound, param, parse } from "../lib/http.js";
 import { createMeetingRoom } from "../lib/meeting.js";
 import { createSnapTransaction, getTransactionStatus, mapStatus, type MidtransNotification, verifySignature } from "../lib/midtrans.js";
 import { notify, notifyAdmins } from "../lib/notify.js";
+import { dynamicQris, qrisFromImageUrl } from "../lib/qris.js";
 
 // ---------------------------------------------------------------------------
 //  Pembayaran
@@ -33,6 +34,30 @@ const PURPOSE_LABEL: Record<PaymentPurpose, string> = {
 
 const activeMethods = () =>
   prisma.paymentMethod.findMany({ where: { active: true }, orderBy: [{ order: "asc" }, { createdAt: "asc" }] });
+
+/**
+ * Tujuan transfer untuk satu tagihan. Metode QRIS mendapat `qrString`: QRIS dinamis yang nominalnya
+ * sudah terisi. Teks QRIS statis dibaca sekali dari gambar yang diunggah admin, lalu disimpan.
+ */
+const unreadableQr = new Map<string, number>();
+
+async function methodsForAmount(amountDue: number) {
+  const methods = await activeMethods();
+  return Promise.all(
+    methods.map(async ({ qrisPayload, ...m }) => {
+      if (m.type !== "QRIS") return { ...m, qrString: null };
+      let payload = qrisPayload;
+      // gambar yang gagal dibaca tidak dicoba lagi selama 10 menit (supaya checkout tetap cepat)
+      const failedAt = unreadableQr.get(m.qrImageUrl ?? "");
+      if (!payload && m.qrImageUrl && !(failedAt && Date.now() - failedAt < 10 * 60 * 1000)) {
+        payload = await qrisFromImageUrl(m.qrImageUrl);
+        if (payload) await prisma.paymentMethod.update({ where: { id: m.id }, data: { qrisPayload: payload } }).catch(() => {});
+        else unreadableQr.set(m.qrImageUrl, Date.now());
+      }
+      return { ...m, qrString: payload ? dynamicQris(payload, amountDue) : null };
+    }),
+  );
+}
 
 export async function createPayment(input: {
   userId: string;
@@ -208,7 +233,7 @@ paymentsRouter.use(requireAuth);
 
 /** GET /api/payments/methods — daftar QRIS & rekening tujuan yang aktif (dipasang sebelum /:id) */
 paymentsRouter.get("/methods", async (_req, res) => {
-  res.json(await activeMethods());
+  res.json((await activeMethods()).map(({ qrisPayload: _q, ...m }) => m));
 });
 
 /** GET /api/payments — riwayat transaksi saya */
@@ -249,6 +274,7 @@ paymentsRouter.post("/:id/checkout", async (req, res) => {
 
   if (config.paymentMode === "manual") {
     const withCode = p.amountDue ? p : await assignUniqueCode(p.id, p.amount);
+    const methods = await methodsForAmount(withCode.amountDue!);
     return res.json({
       mode: "manual",
       paymentId: p.id,
@@ -257,9 +283,11 @@ paymentsRouter.post("/:id/checkout", async (req, res) => {
       uniqueCode: withCode.uniqueCode,
       amountDue: withCode.amountDue, // nominal PERSIS yang harus ditransfer
       expiresAt: p.expiresAt,
-      methods: await activeMethods(),
+      methods,
       steps: [
-        `Transfer tepat Rp${withCode.amountDue!.toLocaleString("id-ID")} (termasuk kode unik ${withCode.uniqueCode}) ke salah satu tujuan di bawah.`,
+        methods.some((m) => m.qrString)
+          ? `Scan QRIS di bawah: nominal Rp${withCode.amountDue!.toLocaleString("id-ID")} (termasuk kode unik ${withCode.uniqueCode}) terisi otomatis. Untuk transfer bank, ketik nominal yang sama persis.`
+          : `Transfer tepat Rp${withCode.amountDue!.toLocaleString("id-ID")} (termasuk kode unik ${withCode.uniqueCode}) ke salah satu tujuan di bawah.`,
         "Simpan screenshot / bukti transfer.",
         "Upload bukti dan isi nama pemilik akun pengirim.",
         "Admin mengecek dan mengonfirmasi, biasanya kurang dari 1 jam pada jam kerja.",
