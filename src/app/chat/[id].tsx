@@ -35,6 +35,9 @@ const EMOJIS = ['😊', '😄', '🥰', '🙏', '👍', '👏', '🤗', '😅', 
 
 const RESCHEDULE_SLOTS = ['Senin, 08:00 - 11:00', 'Rabu, 13:00 - 16:00', 'Jumat, 08:00 - 11:00', 'Sabtu, 09:00 - 12:00'];
 
+// id sementara pesan yang baru dikirim (diganti id dari server setelah tersimpan)
+const tempId = () => String(Date.now());
+
 function nowTime() {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -79,7 +82,7 @@ function ChatRoom({ id }: { id: string }) {
   const send = () => {
     const value = text.trim();
     if (!value) return;
-    addMessage(thread.id, { id: String(Date.now()), from: 'me', type: 'text', text: value, time: nowTime(), read: false });
+    addMessage(thread.id, { id: tempId(), from: 'me', type: 'text', text: value, time: nowTime(), read: false });
     setText('');
   };
 
@@ -97,14 +100,14 @@ function ChatRoom({ id }: { id: string }) {
 
   const sendOffer = (offer: ScheduleOffer) => {
     setComposerOpen(false);
-    addMessage(thread.id, { id: String(Date.now()), from: 'me', type: 'schedule', time: nowTime(), ...offer });
+    addMessage(thread.id, { id: tempId(), from: 'me', type: 'schedule', time: nowTime(), ...offer });
   };
 
   const attach = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
     if (result.canceled) return;
     addMessage(thread.id, {
-      id: String(Date.now()),
+      id: tempId(),
       from: 'me',
       type: 'image',
       uri: result.assets[0].uri,
@@ -247,7 +250,7 @@ function ChatRoom({ id }: { id: string }) {
                   onApprove={() => setApproved((list) => [...list, m.id])}
                   onReschedule={(slot) =>
                     addMessage(thread.id, {
-                      id: String(Date.now()),
+                      id: tempId(),
                       from: 'me',
                       type: 'text',
                       text: `Kak, apakah jadwal trial bisa dipindah ke ${slot}? 🙏`,

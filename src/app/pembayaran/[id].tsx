@@ -13,6 +13,7 @@ import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
 import { AppText } from '@/components/ui/app-text';
 import { openImages } from '@/components/ui/image-viewer';
 import { PrimaryButton } from '@/components/ui/primary-button';
+import { QrCode } from '@/components/ui/qr-code';
 import { SecureNote } from '@/components/ui/secure-note';
 import { TextField } from '@/components/ui/text-field';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
@@ -34,6 +35,8 @@ type Method = {
   accountNumber: string | null;
   accountName: string;
   qrImageUrl: string | null;
+  // QRIS dinamis untuk tagihan ini: nominal sudah terisi saat di-scan (null = pakai gambar QR biasa)
+  qrString: string | null;
   instructions: string | null;
 };
 
@@ -262,7 +265,19 @@ export default function PembayaranScreen() {
 
       {method ? (
         <ClayCard style={styles.payCard}>
-          {method.type === 'QRIS' && method.qrImageUrl ? (
+          {method.type === 'QRIS' && method.qrString ? (
+            <View style={styles.qrWrap}>
+              <QrCode value={method.qrString} size={236} />
+              <View style={styles.autoAmount}>
+                <Feather name="zap" size={13} color={Colors.green} />
+                <AppText style={styles.autoAmountText}>Nominal {formatRupiah(checkout.amountDue)} terisi otomatis</AppText>
+              </View>
+              <AppText variant="caption" style={styles.centerText}>
+                Scan dengan GoPay, m-banking, atau e-wallet apa pun. Bayar dari HP ini? Tangkap layar QR ini, lalu pilih
+                &quot;unggah dari galeri&quot; di aplikasi pembayaranmu.
+              </AppText>
+            </View>
+          ) : method.type === 'QRIS' && method.qrImageUrl ? (
             <Pressable onPress={() => openImages([method.qrImageUrl!])} style={styles.qrWrap}>
               <Image source={{ uri: method.qrImageUrl }} style={styles.qr} contentFit="contain" />
               <AppText variant="caption" style={styles.centerText}>
@@ -506,6 +521,20 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     backgroundColor: Colors.primary,
+  },
+  autoAmount: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.greenSoft,
+  },
+  autoAmountText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12,
+    color: Colors.green,
   },
   qrWrap: {
     alignItems: 'center',

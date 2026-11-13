@@ -181,6 +181,21 @@ export function appLink(link: string | null | undefined, role: UserRole) {
 // ---------------------------------------------------------------------------
 
 async function loadParent() {
+  // dimulai bersamaan dengan permintaan lain di bawah (tidak menunggu giliran)
+  const consultsRequest = api<
+    {
+      id: string;
+      status: string;
+      type: 'VIDEO' | 'CALL' | 'CHAT';
+      date: string;
+      time: string;
+      durationMin: number;
+      psychologist: { name: string; title: string };
+      child: { name: string } | null;
+      complaint: string | null;
+      result: { observation: string | null; recommendation: string | null; followUp: string | null } | null;
+    }[]
+  >('/consultations').catch(() => []);
   const [me, home, engagements, apps, notif, psys] = await Promise.all([
     api<Me>('/auth/me'),
     api<{
@@ -255,20 +270,7 @@ async function loadParent() {
   );
 
   // laporan observasi psikolog = konsultasi selesai yang sudah diisi hasilnya
-  const consults = await api<
-    {
-      id: string;
-      status: string;
-      type: 'VIDEO' | 'CALL' | 'CHAT';
-      date: string;
-      time: string;
-      durationMin: number;
-      psychologist: { name: string; title: string };
-      child: { name: string } | null;
-      complaint: string | null;
-      result: { observation: string | null; recommendation: string | null; followUp: string | null } | null;
-    }[]
-  >('/consultations').catch(() => []);
+  const consults = await consultsRequest;
   replace(
     observationReports,
     consults
