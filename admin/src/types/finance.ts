@@ -37,6 +37,9 @@ export type PaymentMethod = {
   accountNumber: string | null;
   accountName: string;
   qrImageUrl: string | null;
+  qrisPayload?: string | null; // teks QRIS statis (dasar QRIS dinamis)
+  qrisDynamic?: boolean; // true = aplikasi menampilkan QR dengan nominal terisi otomatis
+  qrisMerchant?: string | null; // nama merchant yang terbaca dari QRIS
   instructions: string | null;
   active: boolean;
   order: number;

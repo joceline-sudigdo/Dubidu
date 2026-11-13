@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { confirmPayment, getPayment, rejectPayment, savePaymentMethod } from "@/lib/api";
+import { confirmPayment, getPayment, listPaymentMethods, rejectPayment, savePaymentMethod } from "@/lib/api";
 import { formatRupiah } from "@/lib/format";
 import type { PaymentMethodType } from "@/types/finance";
 
@@ -56,6 +56,10 @@ export async function savePaymentMethodAction(_: ActionState, fd: FormData): Pro
     const bankName = text(fd, "bankName") || null;
     const accountNumber = text(fd, "accountNumber").replace(/\D/g, "") || null;
     if (type === "BANK_TRANSFER" && (!bankName || !accountNumber)) throw new Error("Nama bank dan nomor rekening wajib diisi.");
+    const previous = id ? (await listPaymentMethods()).find((m) => m.id === id) : undefined;
+    if (type === "QRIS" && !text(fd, "qrImageUrl") && !text(fd, "qrisPayload") && !previous?.qrImageUrl) {
+      throw new Error("Isi teks QRIS atau URL gambar QR.");
+    }
 
     const saved = await savePaymentMethod({
       id,
@@ -64,7 +68,9 @@ export async function savePaymentMethodAction(_: ActionState, fd: FormData): Pro
       accountName,
       bankName: type === "BANK_TRANSFER" ? bankName : null,
       accountNumber: type === "BANK_TRANSFER" ? accountNumber : null,
-      qrImageUrl: type === "QRIS" ? text(fd, "qrImageUrl") || "/brand/doobie.png" : null,
+      // kolom dikosongkan saat mengubah → gambar QR yang lama tetap dipakai
+      qrImageUrl: type === "QRIS" ? text(fd, "qrImageUrl") || previous?.qrImageUrl || null : null,
+      qrisPayload: type === "QRIS" ? text(fd, "qrisPayload").replace(/\s+/g, "") || null : null,
       instructions: text(fd, "instructions") || null,
       active: bool(fd, "active"),
     });
