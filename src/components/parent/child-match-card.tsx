@@ -2,7 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { ChatIcon } from '@/components/ui/chat-icon';
@@ -19,13 +19,15 @@ type Props = {
   comparing: boolean;
   connected: boolean;
   canSkip: boolean;
+  // true selama pesan perkenalan sedang dikirim
+  connecting?: boolean;
   onToggleCompare: () => void;
   onSkip: () => void;
   onConnect: () => void;
 };
 
 // kartu anak untuk teacher: pakai inisial + beruang, tanpa foto asli
-export function ChildMatchCard({ child, match, comparing, connected, canSkip, onToggleCompare, onSkip, onConnect }: Props) {
+export function ChildMatchCard({ child, match, comparing, connected, canSkip, connecting, onToggleCompare, onSkip, onConnect }: Props) {
   return (
     <ClayCard style={[styles.card, comparing && styles.cardComparing]}>
       <View style={[styles.photo, { backgroundColor: child.gender === 'female' ? '#F28B82' : '#B8CBE8' }]}>
@@ -78,17 +80,33 @@ export function ChildMatchCard({ child, match, comparing, connected, canSkip, on
         </Pressable>
 
         <View style={styles.actions}>
+          {/* anak yang sudah dihubungi tetap bisa dilewati */}
           <Pressable
-            disabled={!canSkip || connected}
+            accessibilityRole="button"
+            disabled={!canSkip || connecting}
             onPress={onSkip}
-            style={[styles.skip, (!canSkip || connected) && { opacity: 0.45 }]}>
+            style={({ pressed }) => [styles.skip, !canSkip && { opacity: 0.45 }, pressed && styles.pressed]}>
             <Feather name="x" size={18} color={Colors.textSecondary} />
             <AppText style={styles.skipText}>Skip</AppText>
           </Pressable>
-          <Pressable onPress={onConnect} style={[styles.connect, connected ? styles.connected : Shadow.button]}>
-            {connected ? <ChatIcon size={18} color={Colors.green} /> : <Feather name="send" size={18} color="#FFFFFF" />}
+          <Pressable
+            accessibilityRole="button"
+            disabled={connecting}
+            onPress={onConnect}
+            style={({ pressed }) => [
+              styles.connect,
+              connected ? styles.connected : Shadow.button,
+              (pressed || connecting) && styles.pressed,
+            ]}>
+            {connecting ? (
+              <ActivityIndicator size="small" color={connected ? Colors.green : '#FFFFFF'} />
+            ) : connected ? (
+              <ChatIcon size={18} color={Colors.green} />
+            ) : (
+              <Feather name="send" size={18} color="#FFFFFF" />
+            )}
             <AppText style={[styles.connectText, connected && { color: Colors.green }]}>
-              {connected ? 'Buka Chat' : 'Ajukan Diri'}
+              {connecting ? 'Mengirim...' : connected ? 'Buka Chat' : 'Ajukan Diri'}
             </AppText>
           </Pressable>
         </View>
@@ -233,6 +251,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+  },
+  pressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
   },
   connected: {
     backgroundColor: Colors.greenSoft,

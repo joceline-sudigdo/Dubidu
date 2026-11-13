@@ -7,6 +7,7 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
 import { Pill } from '@/components/parent/pill';
+import { EmptyFill } from '@/components/parent/empty-state';
 import { Screen } from '@/components/parent/screen';
 import { TabHeader } from '@/components/parent/screen-header';
 import { AppText } from '@/components/ui/app-text';
@@ -64,8 +65,9 @@ export function ChatListScreen() {
 
   if (all.length === 0) {
     return (
-      <Screen>
+      <Screen fill>
         <TabHeader title="Chat" />
+        <EmptyFill>
         <View style={styles.empty}>
           <View style={[styles.emptyArt, Shadow.clay]}>
             <Image source={require('@/assets/images/mascot/wait.png')} style={styles.emptyBear} contentFit="contain" />
@@ -83,6 +85,7 @@ export function ChatListScreen() {
             />
           )}
         </View>
+        </EmptyFill>
       </Screen>
     );
   }
@@ -261,7 +264,6 @@ const styles = StyleSheet.create({
   empty: {
     alignItems: 'center',
     gap: 12,
-    paddingTop: 40,
     paddingHorizontal: 12,
   },
   emptyArt: {

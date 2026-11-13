@@ -33,6 +33,7 @@ export type ServerChild = {
   condition: string;
   city: string | null;
   skills: Skill[];
+  gender?: string | null;
 };
 
 export const toChild = (c: ServerChild): Child => ({
@@ -43,7 +44,11 @@ export const toChild = (c: ServerChild): Child => ({
   condition: c.condition || 'Belum diketahui',
   needs: c.skills.length ? c.skills : ['communication'],
   city: c.city ?? '-',
+  gender: genderOf(c.gender),
 });
+
+/** "MALE"/"FEMALE" dari server → gender untuk gambar avatar anak (default perempuan) */
+export const genderOf = (g?: string | null): 'male' | 'female' => (g?.toUpperCase() === 'MALE' ? 'male' : 'female');
 
 export function setChildren(children: Child[]) {
   list = children;

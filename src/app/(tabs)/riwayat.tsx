@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
 import { ClayCard } from '@/components/parent/clay-card';
+import { EmptyFill, EmptyState } from '@/components/parent/empty-state';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { Segmented } from '@/components/parent/segmented';
@@ -14,6 +15,7 @@ import type { Tone } from '@/components/parent/tones';
 import { TagRow } from '@/components/parent/tag-row';
 import { AppText } from '@/components/ui/app-text';
 import { ChatIcon } from '@/components/ui/chat-icon';
+import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { activeMatches, applications, type ActiveMatch, type Application } from '@/data/parent';
 import { teacherIdByName } from '@/data/teachers';
@@ -26,17 +28,32 @@ const STATUS: Record<Application['status'], { label: string; tone: Tone; solid: 
 
 export default function RiwayatScreen() {
   const [tab, setTab] = useState<0 | 1>(0);
+  const empty = tab === 0 ? activeMatches.length === 0 : applications.length === 0;
 
   return (
-    <Screen>
+    <Screen fill={empty}>
       <TabHeader title="Riwayat" />
       <Segmented
-        labels={[`Sedang Didampingi (${activeMatches.length})`, `Riwayat Pengajuan (${applications.length})`]}
+        labels={[`Didampingi (${activeMatches.length})`, `Pengajuan (${applications.length})`]}
         value={tab}
         onChange={setTab}
       />
 
-      {tab === 0 ? (
+      {empty ? (
+        <EmptyFill>
+          <ClayCard>
+            <EmptyState
+              title={tab === 0 ? 'Belum ada pendampingan aktif' : 'Belum ada pengajuan'}
+              subtitle={
+                tab === 0
+                  ? 'Shadow teacher yang mendampingi si kecil akan muncul di sini.'
+                  : 'Pengajuan dari shadow teacher dan penawaranmu tampil di sini.'
+              }
+            />
+          </ClayCard>
+          <PrimaryButton title="Cari Shadow Teacher" leadingIcon="search" onPress={() => router.push('/cari-teacher')} />
+        </EmptyFill>
+      ) : tab === 0 ? (
         activeMatches.map((m) => <MatchCard key={m.id} match={m} />)
       ) : (
         <ClayCard style={styles.list}>
@@ -55,7 +72,7 @@ export default function RiwayatScreen() {
 }
 
 function MatchCard({ match }: { match: ActiveMatch }) {
-  const progress = match.done / match.total;
+  const progress = match.total > 0 ? Math.min(1, match.done / match.total) : 0;
   const percent = Math.round(progress * 1000) / 10;
 
   return (

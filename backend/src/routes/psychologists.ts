@@ -245,7 +245,7 @@ function presentConsultation(c: ConsultRow) {
     durationMin: c.durationMin,
     psychologist: { id: c.psychologistId, name: c.psychologist.user.fullName, title: c.psychologist.title, avatarUrl: c.psychologist.user.avatarUrl },
     parent: { id: c.parentId, name: c.parent.fullName },
-    child: c.child && { id: c.child.id, name: c.child.name },
+    child: c.child && { id: c.child.id, name: c.child.name, gender: c.child.gender },
     basePrice: c.basePrice,
     discount: c.discount,
     finalPrice: c.finalPrice,

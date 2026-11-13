@@ -70,7 +70,8 @@ export const serverMatch: Record<string, Record<string, number>> = {};
 export function matchScore(teacher: Teacher, child: Child) {
   const fromServer = serverMatch[child.id]?.[teacher.id];
   if (fromServer !== undefined) return fromServer;
-  const need = child.needs.reduce((sum, k) => sum + teacher.skills[k], 0) / child.needs.length;
+  // anak tanpa kebutuhan terpilih: jangan bagi nol (hasilnya NaN%)
+  const need = child.needs.length ? child.needs.reduce((sum, k) => sum + (teacher.skills[k] ?? 0), 0) / child.needs.length : 0;
   const rating = (teacher.rating / 5) * 100;
   const location = teacher.city === child.city ? 100 : 60;
   return Math.min(99, Math.round(need * 0.75 + rating * 0.15 + location * 0.1));

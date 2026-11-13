@@ -35,6 +35,8 @@ export default function CariTeacherScreen() {
   const [child, setChild] = useState(children[0]);
   const [compare, setCompare] = useState<string[]>([]);
   const [showLast, setShowLast] = useState(false);
+  // teacher yang penawarannya sedang dikirim
+  const [connecting, setConnecting] = useState<string | null>(null);
 
   const plus = usePlus();
 
@@ -72,14 +74,24 @@ export default function CariTeacherScreen() {
     skipTeacher(child, teacher);
   };
 
+  const send = async (teacher: Teacher) => {
+    setConnecting(teacher.id);
+    try {
+      await connectTeacher(teacher, child);
+    } finally {
+      setConnecting(null);
+    }
+  };
+
   const connect = (teacher: Teacher) => {
+    if (connecting) return;
     if (matching.connected.includes(teacher.id)) {
-      connectTeacher(teacher, child);
+      send(teacher);
       return;
     }
     showAlert('Kirim penawaran?', `Kami akan mengirim pesan penawaran ke ${teacher.name} untuk ${child.name}.`, [
       { text: 'Batal', style: 'cancel' },
-      { text: 'Kirim', onPress: () => connectTeacher(teacher, child) },
+      { text: 'Kirim', onPress: () => send(teacher) },
     ]);
   };
 
@@ -161,6 +173,7 @@ export default function CariTeacherScreen() {
                 comparing={compare.includes(t.id)}
                 connected={matching.connected.includes(t.id)}
                 canSkip={skipsLeft > 0}
+                connecting={connecting === t.id}
                 onToggleCompare={() => toggleCompare(t.id)}
                 onSkip={() => skip(t)}
                 onConnect={() => connect(t)}

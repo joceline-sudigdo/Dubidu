@@ -73,15 +73,91 @@ export async function api<T = unknown>(path: string, options: { method?: Method;
       await setToken(null);
       onUnauthorized?.();
     }
-    const firstDetail = Array.isArray(data?.details) ? data.details[0]?.message : undefined;
-    throw new ApiError(res.status, firstDetail ?? data?.error ?? 'Terjadi kesalahan. Coba lagi.', data?.details);
+    const first = Array.isArray(data?.details) ? (data.details[0] as { field?: string; path?: unknown[]; message?: string }) : undefined;
+    const detail = first?.message
+      ? translateIssue(first.message, first.field ?? (Array.isArray(first.path) ? first.path.join('.') : ''))
+      : undefined;
+    throw new ApiError(res.status, detail ?? toIndonesian(data?.error) ?? 'Terjadi kesalahan. Coba lagi.', data?.details);
   }
   return data as T;
 }
 
-/** Pesan error yang aman ditampilkan ke pengguna */
+// ---------------------------------------------------------------------------
+// semua pesan error yang tampil ke pengguna harus berbahasa Indonesia
+
+// nama field dari server → sebutan yang dimengerti pengguna
+const FIELD_LABEL: Record<string, string> = {
+  text: 'Tulisan',
+  content: 'Isi',
+  caption: 'Keterangan',
+  body: 'Isi pesan',
+  message: 'Pesan',
+  email: 'Email',
+  password: 'Kata sandi',
+  newPassword: 'Kata sandi baru',
+  phone: 'Nomor HP',
+  name: 'Nama',
+  fullName: 'Nama lengkap',
+  nickname: 'Nama panggilan',
+  birthDate: 'Tanggal lahir',
+  amount: 'Jumlah',
+  rating: 'Rating',
+  comment: 'Komentar',
+  reason: 'Alasan',
+  code: 'Kode',
+};
+
+const labelFor = (field: string) => {
+  const key = field.split('.').pop() ?? '';
+  return FIELD_LABEL[key] ?? (key ? 'Isian' : 'Data');
+};
+
+/** Pesan validasi dari server (zod, bahasa Inggris) → kalimat bahasa Indonesia */
+export function translateIssue(message: string, field = ''): string {
+  const label = labelFor(field);
+  const num = message.match(/(\d+)/)?.[1];
+  const m = message.toLowerCase();
+  if (m.includes('too small') && m.includes('string')) return `${label} minimal ${num} karakter.`;
+  if (m.includes('too big') && m.includes('string')) return `${label} maksimal ${num} karakter.`;
+  if (m.includes('too small') && m.includes('array')) return `${label} minimal ${num} item.`;
+  if (m.includes('too big') && m.includes('array')) return `${label} maksimal ${num} item.`;
+  if (m.includes('too small')) return `${label} minimal ${num}.`;
+  if (m.includes('too big')) return `${label} maksimal ${num}.`;
+  if (m.includes('email')) return 'Format email tidak valid.';
+  if (m.includes('url')) return 'Format tautan tidak valid.';
+  if (m.includes('received undefined') || m.includes('required')) return `${label} wajib diisi.`;
+  if (m.includes('invalid option') || m.includes('invalid enum')) return `Pilihan ${label.toLowerCase()} tidak valid.`;
+  if (m.includes('date')) return 'Format tanggal tidak valid.';
+  if (m.includes('invalid')) return `${label} tidak valid.`;
+  return toIndonesian(message) ?? `${label} tidak valid.`;
+}
+
+// pesan teknis berbahasa Inggris yang sering muncul (jaringan, upload, server)
+const ENGLISH_ERRORS: [RegExp, string][] = [
+  [/network request failed|failed to fetch|network error|load failed/i, 'Tidak bisa terhubung ke server. Periksa koneksi internetmu.'],
+  [/timeout|timed out/i, 'Server terlalu lama merespons. Coba lagi sebentar lagi.'],
+  [/file too large|payload too large|request entity too large/i, 'Ukuran file terlalu besar (maks. 4 MB).'],
+  [/unexpected field|too many files/i, 'File yang dipilih tidak sesuai. Coba pilih ulang.'],
+  [/unauthorized|jwt|token/i, 'Sesi login berakhir. Silakan masuk lagi.'],
+  [/forbidden|permission/i, 'Kamu tidak punya akses untuk melakukan ini.'],
+  [/not found/i, 'Data tidak ditemukan.'],
+  [/internal server error|something went wrong/i, 'Terjadi kesalahan di server. Coba lagi nanti.'],
+];
+
+// kata-kata Inggris yang menandakan pesan belum diterjemahkan
+const LOOKS_ENGLISH = /\b(the|is|are|expected|invalid|failed|error|cannot|could not|unable|must|should|please|received|unexpected|not)\b/i;
+
+/** Terjemahkan pesan teknis berbahasa Inggris; pesan yang sudah Indonesia dikembalikan apa adanya */
+export function toIndonesian(message: unknown): string | undefined {
+  if (typeof message !== 'string' || !message.trim()) return undefined;
+  for (const [pattern, text] of ENGLISH_ERRORS) if (pattern.test(message)) return text;
+  if (LOOKS_ENGLISH.test(message)) return 'Terjadi kesalahan. Coba lagi.';
+  return message;
+}
+
+/** Pesan error yang aman ditampilkan ke pengguna (selalu bahasa Indonesia) */
 export function errorMessage(e: unknown) {
-  return e instanceof Error ? e.message : 'Terjadi kesalahan. Coba lagi.';
+  return (e instanceof Error ? toIndonesian(e.message) : undefined) ?? 'Terjadi kesalahan. Coba lagi.';
 }
 
 /**
@@ -118,7 +194,7 @@ export async function uploadFile(uri: string, folder: string, mimeType = 'image/
     xhr.send(form);
   });
   if (status < 200 || status >= 300 || !data?.url) {
-    throw new ApiError(status, data?.error ?? 'Upload gagal, coba file yang lebih kecil (maks. 4 MB).');
+    throw new ApiError(status, toIndonesian(data?.error) ?? 'Upload gagal, coba file yang lebih kecil (maks. 4 MB).');
   }
   return data.url;
 }

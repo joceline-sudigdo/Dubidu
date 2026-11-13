@@ -31,6 +31,10 @@ import { addMessage, clearThread, getThread, loadMessages, loadThreads, pollMess
 import { reportContent } from '@/lib/community-store';
 import { showActionSheet, showAlert } from '@/lib/dialog';
 
+// id pesan lokal yang unik (dipanggil dari handler, bukan saat render)
+let messageSeq = 0;
+const newMessageId = () => `${Date.now()}-${++messageSeq}`;
+
 const EMOJIS = ['😊', '😄', '🥰', '🙏', '👍', '👏', '🤗', '😅', '😢', '😮', '❤️', '💪', '🎉', '✨', '🌟', '📚', '🧸', '🍎'];
 
 const RESCHEDULE_SLOTS = ['Senin, 08:00 - 11:00', 'Rabu, 13:00 - 16:00', 'Jumat, 08:00 - 11:00', 'Sabtu, 09:00 - 12:00'];
@@ -79,7 +83,7 @@ function ChatRoom({ id }: { id: string }) {
   const send = () => {
     const value = text.trim();
     if (!value) return;
-    addMessage(thread.id, { id: String(Date.now()), from: 'me', type: 'text', text: value, time: nowTime(), read: false });
+    addMessage(thread.id, { id: newMessageId(), from: 'me', type: 'text', text: value, time: nowTime(), read: false });
     setText('');
   };
 
@@ -97,14 +101,14 @@ function ChatRoom({ id }: { id: string }) {
 
   const sendOffer = (offer: ScheduleOffer) => {
     setComposerOpen(false);
-    addMessage(thread.id, { id: String(Date.now()), from: 'me', type: 'schedule', time: nowTime(), ...offer });
+    addMessage(thread.id, { id: newMessageId(), from: 'me', type: 'schedule', time: nowTime(), ...offer });
   };
 
   const attach = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
     if (result.canceled) return;
     addMessage(thread.id, {
-      id: String(Date.now()),
+      id: newMessageId(),
       from: 'me',
       type: 'image',
       uri: result.assets[0].uri,
@@ -247,7 +251,7 @@ function ChatRoom({ id }: { id: string }) {
                   onApprove={() => setApproved((list) => [...list, m.id])}
                   onReschedule={(slot) =>
                     addMessage(thread.id, {
-                      id: String(Date.now()),
+                      id: newMessageId(),
                       from: 'me',
                       type: 'text',
                       text: `Kak, apakah jadwal trial bisa dipindah ke ${slot}? 🙏`,

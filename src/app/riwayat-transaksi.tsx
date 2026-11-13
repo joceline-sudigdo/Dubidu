@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ClayCard } from '@/components/parent/clay-card';
-import { EmptyState } from '@/components/parent/empty-state';
+import { EmptyFill, EmptyState } from '@/components/parent/empty-state';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { ScreenHeader } from '@/components/parent/screen-header';
@@ -51,7 +51,7 @@ export default function RiwayatTransaksiScreen() {
     ]);
 
   return (
-    <Screen header={<ScreenHeader title="Riwayat Transaksi" />} edges={['top', 'bottom']}>
+    <Screen header={<ScreenHeader title="Riwayat Transaksi" />} edges={['top', 'bottom']} fill={shown.length === 0}>
       <ClayCard tone="blue" style={styles.summary}>
         <AppText variant="caption">{isParent ? 'Total pengeluaran' : 'Total dana diterima'}</AppText>
         <AppText style={styles.total}>{formatRupiah(Math.abs(total))}</AppText>
@@ -65,7 +65,9 @@ export default function RiwayatTransaksiScreen() {
       </EdgeScroll>
 
       {shown.length === 0 ? (
-        <EmptyState title="Belum ada transaksi" />
+        <EmptyFill>
+          <EmptyState title="Belum ada transaksi" subtitle="Pembayaran dan pencairan dana akan tercatat di sini." />
+        </EmptyFill>
       ) : (
         <ClayCard style={styles.list}>
           {shown.map((t, i) => {

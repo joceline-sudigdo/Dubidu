@@ -28,8 +28,14 @@ import { BackButton } from '@/components/ui/back-button';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import { showAlert } from '@/lib/dialog';
 import { askText, askTopic, clearDoobie, sendVoice, useDoobie, type DoobieMessage } from '@/lib/doobie-store';
+import { getSession } from '@/lib/session';
 
 const MASCOT = require('@/assets/images/mascot/wait.png');
+// foto profil Doobie di header: dasi biru untuk teacher, pita pink untuk orang tua
+const DOOBIE_AVATAR = {
+  parent: require('@/assets/images/mascot/bear-girl.png'),
+  teacher: require('@/assets/images/mascot/bear-boy.png'),
+};
 const WAVE = [6, 12, 18, 10, 22, 14, 8, 16, 20, 12, 7, 15, 19, 9, 13, 17, 8, 11];
 
 const fmtDuration = (ms: number) => {
@@ -107,7 +113,11 @@ export default function DoobieScreen() {
         <View style={styles.header}>
           <BackButton />
           <View style={styles.avatar}>
-            <Image source={MASCOT} style={styles.avatarImg} contentFit="contain" />
+            <Image
+              source={DOOBIE_AVATAR[getSession().role === 'teacher' ? 'teacher' : 'parent']}
+              style={styles.avatarImg}
+              contentFit="cover"
+            />
           </View>
           <View style={styles.flex}>
             <AppText style={styles.name}>Doobie</AppText>
@@ -324,8 +334,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarImg: {
-    width: 40,
-    height: 40,
+    width: '100%',
+    height: '100%',
   },
   name: {
     fontFamily: Fonts.headingSemiBold,

@@ -46,7 +46,7 @@ async function present(e: EngagementRow, viewerId: string) {
     status: e.status,
     teacher: { id: e.teacherUserId, name: displayName(e.teacher, e.teacher.teacherProfile?.title), avatarUrl: e.teacher.avatarUrl },
     parent: { id: e.parentId, name: e.parent.fullName, avatarUrl: e.parent.avatarUrl },
-    child: { id: e.childId, name: e.child.name, fullName: e.child.fullName },
+    child: { id: e.childId, name: e.child.name, fullName: e.child.fullName, gender: e.child.gender },
     chatId: convo?.id ?? null,
     tags: e.child.needs.slice(0, 2).map((n) => ({ label: n.needOption.label, tone: CATEGORY_TONE[n.needOption.category] })),
     nextSession: next ? dayTime(next.startAt) : null,

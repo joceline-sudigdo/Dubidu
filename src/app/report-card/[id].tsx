@@ -7,6 +7,7 @@ import type { ComponentProps } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
+import { BearAvatar } from '@/components/parent/bear-avatar';
 import { ClayCard } from '@/components/parent/clay-card';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
@@ -87,7 +88,7 @@ export default function ReportDetailScreen() {
 
       <ClayCard style={styles.gap12}>
         <View style={styles.childRow}>
-          <Avatar name={child.fullName} size={60} ring="#FFFFFF" />
+          <BearAvatar gender={child.gender ?? 'female'} size={60} />
           <View style={styles.flex}>
             <View style={styles.inline}>
               <AppText style={styles.childName}>{child.fullName}</AppText>

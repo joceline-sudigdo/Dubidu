@@ -2,9 +2,10 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useState, type ComponentProps } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ClayCard } from '@/components/parent/clay-card';
+import { EmptyFill } from '@/components/parent/empty-state';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
@@ -13,6 +14,7 @@ import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { EdgeScroll } from '@/components/parent/edge-scroll';
 import { Colors, Fonts, Shadow } from '@/constants/theme';
+import { markAllNotificationsRead, markNotificationRead, useUnreadIds } from '@/lib/notification-store';
 import { psychologistNotifications as notifications, type PsychologistNotification } from '@/data/psychologist';
 
 type Filter = 'all' | PsychologistNotification['category'];
@@ -32,11 +34,29 @@ const GROUPS = [
 ] as const;
 
 export default function PsikologNotifikasiScreen() {
+  const unreadIds = useUnreadIds();
   const [filter, setFilter] = useState<Filter>('all');
   const visible = filter === 'all' ? notifications : notifications.filter((n) => n.category === filter);
 
   return (
-    <Screen header={<ScreenHeader title="Notifikasi" />} edges={['top', 'bottom']}>
+    <Screen
+      header={
+        <ScreenHeader
+          title="Notifikasi"
+          right={
+            <Pressable
+              accessibilityLabel="Tandai semua sudah dibaca"
+              disabled={unreadIds.size === 0}
+              onPress={markAllNotificationsRead}
+              hitSlop={8}
+              style={[styles.markAll, Shadow.soft, unreadIds.size === 0 && styles.markAllOff]}>
+              <MaterialCommunityIcons name="check-all" size={20} color={Colors.primary} />
+            </Pressable>
+          }
+        />
+      }
+      edges={['top', 'bottom']}
+      fill={visible.length === 0}>
       <EdgeScroll contentContainerStyle={styles.filters}>
         {FILTERS.map((f) => (
           <Pill
@@ -52,6 +72,7 @@ export default function PsikologNotifikasiScreen() {
       </EdgeScroll>
 
       {visible.length === 0 ? (
+        <EmptyFill>
         <View style={styles.empty}>
           <View style={[styles.emptyCircle, Shadow.clay]}>
             <Image source={require('@/assets/images/mascot/sleep.png')} style={styles.emptyBear} contentFit="contain" />
@@ -61,6 +82,7 @@ export default function PsikologNotifikasiScreen() {
             Kabar soal booking, verifikasi, dan pesan baru akan muncul di sini
           </AppText>
         </View>
+        </EmptyFill>
       ) : (
         GROUPS.map((g) => {
           const list = visible.filter((n) => n.group === g.id);
@@ -69,7 +91,7 @@ export default function PsikologNotifikasiScreen() {
             <View key={g.id} style={styles.group}>
               <SectionHeader title={g.title} right={<AppText variant="caption">{list.length} Notifikasi</AppText>} />
               {list.map((n) => (
-                <NotificationCard key={n.id} item={n} />
+                <NotificationCard key={n.id} item={n} unread={unreadIds.has(n.id)} />
               ))}
             </View>
           );
@@ -79,9 +101,12 @@ export default function PsikologNotifikasiScreen() {
   );
 }
 
-function NotificationCard({ item }: { item: PsychologistNotification }) {
+function NotificationCard({ item, unread }: { item: PsychologistNotification; unread: boolean }) {
   const t = Tones[item.tone];
-  const open = () => router.push(item.href);
+  const open = () => {
+    markNotificationRead(item.id);
+    router.push(item.href);
+  };
 
   return (
     <ClayCard onPress={open} style={styles.card}>
@@ -98,6 +123,7 @@ function NotificationCard({ item }: { item: PsychologistNotification }) {
             {item.title}
           </AppText>
           <AppText variant="caption">{item.time}</AppText>
+          {unread && <View style={styles.unreadDot} />}
         </View>
         <AppText style={styles.body} numberOfLines={2}>
           {item.body}
@@ -139,6 +165,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  markAll: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  markAllOff: {
+    opacity: 0.45,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.red,
+  },
   top: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -163,7 +206,6 @@ const styles = StyleSheet.create({
   empty: {
     alignItems: 'center',
     gap: 10,
-    paddingTop: 60,
     paddingHorizontal: 20,
   },
   emptyCircle: {

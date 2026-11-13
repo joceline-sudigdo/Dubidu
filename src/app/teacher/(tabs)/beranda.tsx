@@ -16,6 +16,7 @@ import { DoobieCard } from '@/components/shared/doobie-card';
 import { AppText } from '@/components/ui/app-text';
 import { EdgeScroll } from '@/components/parent/edge-scroll';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
+import { useUnreadCount } from '@/lib/notification-store';
 import { bannerPhotos } from '@/data/images';
 import { activeApplications, students, teacherProfile as me, todaySchedule } from '@/data/teacher';
 
@@ -23,8 +24,11 @@ const STATUS_LABEL = { pending: 'Pending', accepted: 'Diterima', rejected: 'Dito
 const STATUS_COLOR = { pending: Colors.textSecondary, accepted: Colors.green, rejected: Colors.red } as const;
 
 export default function TeacherBerandaScreen() {
+  // titik merah lonceng hanya muncul kalau masih ada notifikasi yang belum dibaca
+  const hasUnread = useUnreadCount() > 0;
   const [studentId, setStudentId] = useState(students[0]?.id ?? '');
-  const progress = me.target.done / me.target.total;
+  // target 0 (akun baru) jangan sampai jadi NaN% di progress bar
+  const progress = me.target.total > 0 ? Math.min(1, me.target.done / me.target.total) : 0;
 
   return (
     <Screen>
@@ -35,10 +39,12 @@ export default function TeacherBerandaScreen() {
               Halo, <AppText style={[styles.hello, { color: Colors.primary }]}>{me.shortName}</AppText>
             </AppText>
             {me.verified && (
-              <View style={[styles.verified, Shadow.soft]}>
-                <MaterialCommunityIcons name="check-decagram" size={14} color={Colors.primary} />
-                <AppText style={styles.verifiedText}>Verified</AppText>
-              </View>
+              <MaterialCommunityIcons
+                accessibilityLabel="Terverifikasi"
+                name="check-decagram"
+                size={24}
+                color={Colors.primary}
+              />
             )}
           </View>
           <AppText variant="caption">
@@ -52,7 +58,7 @@ export default function TeacherBerandaScreen() {
           onPress={() => router.push('/teacher/notifikasi')}
           style={[styles.bell, Shadow.soft]}>
           <Feather name="bell" size={20} color={Colors.primary} />
-          <View style={styles.bellDot} />
+          {hasUnread && <View style={styles.bellDot} />}
         </Pressable>
         <Pressable accessibilityLabel="Profil" onPress={() => router.push('/teacher/profil')}>
           <Avatar name={me.name} size={40} ring="#FFFFFF" />
@@ -90,9 +96,13 @@ export default function TeacherBerandaScreen() {
         </View>
         <View style={styles.flex}>
           <AppText style={styles.bold}>Jadwal Hari Ini</AppText>
-          <AppText variant="caption" color={Colors.text}>
-            {todaySchedule.time} • Sesi dengan <AppText style={styles.boldSmall}>{todaySchedule.child}!</AppText>
-          </AppText>
+          {todaySchedule.child ? (
+            <AppText variant="caption" color={Colors.text} numberOfLines={2}>
+              {todaySchedule.time} • Sesi dengan <AppText style={styles.boldSmall}>{todaySchedule.child}!</AppText>
+            </AppText>
+          ) : (
+            <AppText variant="caption">Belum ada sesi hari ini. Waktunya istirahat!</AppText>
+          )}
         </View>
         <View style={styles.inline}>
           <AppText variant="link" style={styles.small}>
@@ -106,7 +116,7 @@ export default function TeacherBerandaScreen() {
       <EdgeScroll contentContainerStyle={styles.apps}>
         {activeApplications.map((a) => (
           <Pressable key={a.id} onPress={() => router.push('/teacher/riwayat')} style={[styles.appCard, Shadow.button]}>
-            <View style={styles.inline}>
+            <View style={styles.appTop}>
               <BearAvatar gender={a.gender} size={36} />
               <View style={styles.appText}>
                 <AppText style={styles.appName} numberOfLines={1}>
@@ -134,7 +144,9 @@ export default function TeacherBerandaScreen() {
               Pendapatan
             </AppText>
           </View>
-          <AppText style={styles.statValue}>{me.earnings.total}</AppText>
+          <AppText style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
+            {me.earnings.total}
+          </AppText>
           <View style={styles.inline}>
             <Feather name="arrow-up" size={14} color={Colors.green} />
             <AppText variant="caption" color={Colors.green}>
@@ -149,7 +161,9 @@ export default function TeacherBerandaScreen() {
               Sesi selesai
             </AppText>
           </View>
-          <AppText style={styles.statValue}>{me.target.done}</AppText>
+          <AppText style={styles.statValue} numberOfLines={1}>
+            {me.target.done}
+          </AppText>
           <View style={styles.targetRow}>
             <AppText variant="caption">Target: {me.target.total} sesi</AppText>
             <AppText variant="caption">{Math.round(progress * 100)}%</AppText>
@@ -209,20 +223,6 @@ const styles = StyleSheet.create({
     lineHeight: 36,
     color: Colors.text,
   },
-  verified: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#FFFFFF',
-    borderRadius: Radius.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  verifiedText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 12,
-    color: Colors.text,
-  },
   bell: {
     width: 40,
     height: 40,
@@ -277,13 +277,21 @@ const styles = StyleSheet.create({
   apps: {
     gap: 12,
     paddingBottom: 12,
+    alignItems: 'stretch',
   },
+  // semua kartu setinggi kartu tertinggi; label status selalu menempel di bawah supaya sejajar
   appCard: {
     width: 170,
     backgroundColor: Colors.primary,
     borderRadius: Radius.md,
     padding: 14,
     gap: 10,
+    justifyContent: 'space-between',
+  },
+  appTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
   },
   appText: {
     flex: 1,

@@ -21,6 +21,8 @@ type Props = {
   edges?: Edge[];
   contentStyle?: StyleProp<ViewStyle>;
   scrollRef?: Ref<ComponentRef<typeof ScrollView>>;
+  // true: konten mengisi tinggi layar (untuk halaman kosong yang dipusatkan dengan <EmptyFill>)
+  fill?: boolean;
 };
 
 // kerangka halaman parent: background putih + gelembung biru lembut
@@ -32,6 +34,7 @@ export function Screen({
   edges = ['top'],
   contentStyle,
   scrollRef,
+  fill,
 }: Props) {
   return (
     <View style={styles.root}>
@@ -43,7 +46,7 @@ export function Screen({
             <ScrollView
               ref={scrollRef}
               style={styles.flex}
-              contentContainerStyle={[styles.content, contentStyle]}
+              contentContainerStyle={[styles.content, fill && styles.grow, contentStyle]}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}>
               {children}
@@ -122,6 +125,9 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 32,
     gap: 16,
+  },
+  grow: {
+    flexGrow: 1,
   },
   piece: {
     position: 'absolute',

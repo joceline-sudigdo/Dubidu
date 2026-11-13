@@ -1,6 +1,10 @@
 /**
  * DAFTAR FOTO YANG BISA DIGANTI
  *
+ * Foto profil memakai versi crop persegi di assets/images/avatars/<nama-orang>.jpg (wajah di tengah),
+ * supaya kepala tidak terpotong dalam lingkaran avatar. Foto asli ukuran penuh ada di
+ * assets/images/avatars/_source/ dengan nama yang sama (dipakai kalau perlu crop ulang).
+ *
  * Cara ganti:
  * 1. Taruh file foto di folder assets, misal: assets/images/people/devi.jpg
  * 2. Ganti `null` di bawah dengan require(...) ke file tersebut, contoh:
@@ -15,41 +19,44 @@ type Photo = number | null;
 // ===== foto profil orang =====
 export const personPhotos: Record<string, Photo> = {
   // orang tua (akun yang login)
-  "Devi Anggraini": null,
+  "Devi Anggraini": require("@/assets/images/avatars/devi-anggraini.jpg"),
 
   // shadow teacher (akun yang login)
-  "Pras Karunia": null,
+  "Pras Karunia": require("@/assets/images/avatars/prasetyo-wibowo.jpg"),
+  "Prasetyo Wibowo": require("@/assets/images/avatars/prasetyo-wibowo.jpg"),
 
   // shadow teacher yang dilihat orang tua
-  "Nielsen Dave": require("@/assets/images/images/nielsen.jpg"),
-  "Larasati Sudigdo": require("@/assets/images/images/laras.jpg"),
-  "Ayas Sudigdo": require("@/assets/images/images/ayas.png"),
-  "Sarah Aulia": require("@/assets/images/images/aulia.jpg"),
-  "Sarah Putri": require("@/assets/images/images/putri.jpg"),
-  "Rina Kartika": require("@/assets/images/images/rima.jpg"),
-  "Dimas Prasetyo": require("@/assets/images/images/dimas.jpg"),
-  "Nadia Putri": require("@/assets/images/images/putri.jpg"),
-  "Bayu Saputra": require("@/assets/images/images/bayu.jpg"),
-  "Citra Maharani": require("@/assets/images/images/citra.jpg"),
-  "Citra Sari": require("@/assets/images/images/sari.jpg"),
-  "Kevin Aditya": require("@/assets/images/images/kevin.jpg"),
-  "Maya Lestari": require("@/assets/images/images/maya.jpg"),
-  "Fajar Nugroho": require("@/assets/images/images/fajar.jpg"),
-  "Intan Permata": require("@/assets/images/images/intan.avif"),
-  "Galih Ramadhan": require("@/assets/images/images/galih.jpg"),
-  "Wulan Sari": require("@/assets/images/images/wulan.jpg"),
+  "Nielsen Dave": require("@/assets/images/avatars/nielsen-dave.jpg"),
+  "Larasati Sudigdo": require("@/assets/images/avatars/larasati-sudigdo.jpg"),
+  "Ayas Sudigdo": require("@/assets/images/avatars/ayas-sudigdo.jpg"),
+  "Sarah Aulia": require("@/assets/images/avatars/sarah-aulia.jpg"),
+  "Sarah Putri": require("@/assets/images/avatars/sarah-putri.jpg"),
+  "Rina Kartika": require("@/assets/images/avatars/rina-kartika.jpg"),
+  "Dimas Prasetyo": require("@/assets/images/avatars/dimas-prasetyo.jpg"),
+  "Nadia Putri": require("@/assets/images/avatars/sarah-putri.jpg"),
+  "Bayu Saputra": require("@/assets/images/avatars/bayu-saputra.jpg"),
+  // nama teacher Bayu di data server
+  "Bayu Prakoso": require("@/assets/images/avatars/bayu-saputra.jpg"),
+  "Citra Maharani": require("@/assets/images/avatars/citra-maharani.jpg"),
+  "Citra Sari": require("@/assets/images/avatars/citra-sari.jpg"),
+  "Kevin Aditya": require("@/assets/images/avatars/kevin-aditya.jpg"),
+  "Maya Lestari": require("@/assets/images/avatars/maya-lestari.jpg"),
+  "Fajar Nugroho": require("@/assets/images/avatars/fajar-nugroho.jpg"),
+  "Intan Permata": require("@/assets/images/avatars/intan-permata.jpg"),
+  "Galih Ramadhan": require("@/assets/images/avatars/galih-ramadhan.jpg"),
+  "Wulan Sari": require("@/assets/images/avatars/wulan-sari.jpg"),
 
   // psikolog
-  "Amanda Putri": require("@/assets/images/images/amanda.jpg"),
-  "Dimas Wicaksono": null,
-  "dr. Reni Anggraini": require("@/assets/images/images/reni.jpg"),
+  "Amanda Putri": require("@/assets/images/avatars/amanda-putri.jpg"),
+  "Dimas Wicaksono": require("@/assets/images/avatars/dimas-wicaksono.jpg"),
+  "dr. Reni Anggraini": require("@/assets/images/avatars/reni-anggraini.jpg"),
   "dr. Farhan Alatas": null,
 
   // orang yang muncul di sisi psikolog
-  "Kak Ayas": null,
+  "Kak Ayas": require("@/assets/images/avatars/ayas-sudigdo.jpg"),
   "Dimas Saputra": null,
   "Rizky Ananda": null,
-  "Kirana Wulan": null,
+  "Kirana Wulan": require("@/assets/images/avatars/kirana-wulan.jpg"),
   "Fitri Handayani": null,
   "Lia Kartika": null,
 
@@ -59,12 +66,12 @@ export const personPhotos: Record<string, Photo> = {
   "Kiyoko Hana": null,
 
   // orang tua yang muncul di sisi teacher, ulasan, dan komunitas
-  "Sarah Wijaya": null,
+  "Sarah Wijaya": require("@/assets/images/avatars/sarah-wijaya.jpg"),
   "Laras Setiawati": null,
-  "Rini Hartati": null,
-  "Saras Elizabeth": null,
-  "Larasita Hadi": null,
-  "Alvin Pratama": null,
+  "Rini Hartati": require("@/assets/images/avatars/rini-hartati.jpg"),
+  "Saras Elizabeth": require("@/assets/images/avatars/saras-elizabeth.jpg"),
+  "Larasita Hadi": require("@/assets/images/avatars/larasita-hadi.jpg"),
+  "Alvin Pratama": require("@/assets/images/avatars/alvin-pratama.jpg"),
   "Rahma Aulia": null,
   "Wulan Anggita": null,
   "Ratna Sari": null,

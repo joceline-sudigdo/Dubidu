@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 
 import type { ChatMessage, ChatThread } from '@/data/parent';
 
-import { api, uploadFile } from './api';
+import { api, errorMessage, uploadFile } from './api';
 import { showAlert } from './dialog';
 import { getSession } from './session';
 
@@ -161,7 +161,7 @@ export function addMessage(threadId: string, message: ChatMessage) {
   })().catch((e) => {
     threads = threads.map((t) => (t.id === threadId ? { ...t, messages: t.messages.filter((m) => m.id !== message.id) } : t));
     emit();
-    showAlert('Pesan belum terkirim', e instanceof Error ? e.message : 'Coba lagi.');
+    showAlert('Pesan belum terkirim', errorMessage(e));
   });
 }
 

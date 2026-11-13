@@ -96,12 +96,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: GOLD,
   },
+  // chip fitur di tengah kartu; turun baris kalau tidak muat
   chips: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
     gap: 6,
   },
   chip: {
-    flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,

@@ -9,8 +9,12 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { TextField } from '@/components/ui/text-field';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { errorMessage } from '@/lib/api';
-import { demoAccounts, homeRoute, login } from '@/lib/auth';
+import { demoAccounts, homeRoute, login, type UserRole } from '@/lib/auth';
 import { showActionSheet } from '@/lib/dialog';
+
+// peran ditampilkan di daftar akun demo supaya juri tahu akun mana yang dicoba
+const ROLE_LABEL: Record<UserRole, string> = { parent: 'Orang Tua', teacher: 'Shadow Teacher', psychologist: 'Psikolog' };
+const ROLE_ICON = { parent: 'users', teacher: 'book-open', psychologist: 'activity' } as const;
 
 // semua role login di sini, psikolog nggak bisa daftar sendiri
 export default function LoginScreen() {
@@ -96,8 +100,9 @@ export default function LoginScreen() {
           showActionSheet({
             title: 'Coba dengan akun demo',
             options: demoAccounts().map((a) => ({
-              label: `${a.name.split(',')[0]} · ${a.email}`,
-              icon: 'user' as const,
+              label: a.name.split(',')[0],
+              sublabel: `${ROLE_LABEL[a.role]} · ${a.email}`,
+              icon: ROLE_ICON[a.role],
               onPress: () => enter(a.email, a.password),
             })),
           })

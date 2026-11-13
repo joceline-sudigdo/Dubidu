@@ -2,7 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { ChatIcon } from '@/components/ui/chat-icon';
@@ -19,6 +19,8 @@ type Props = {
   comparing: boolean;
   connected: boolean;
   canSkip: boolean;
+  // true selama penawaran sedang dikirim (tombol jadi "Menghubungkan...")
+  connecting?: boolean;
   onToggleCompare: () => void;
   onSkip: () => void;
   onConnect: () => void;
@@ -30,6 +32,7 @@ export function TeacherMatchCard({
   comparing,
   connected,
   canSkip,
+  connecting,
   onToggleCompare,
   onSkip,
   onConnect,
@@ -90,19 +93,34 @@ export function TeacherMatchCard({
         </Pressable>
 
         <View style={styles.actions}>
+          {/* teacher yang sudah dihubungi tetap bisa dilewati */}
           <Pressable
-            disabled={!canSkip || connected}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !canSkip }}
+            disabled={!canSkip || connecting}
             onPress={onSkip}
-            style={[styles.skip, (!canSkip || connected) && { opacity: 0.45 }]}>
+            style={({ pressed }) => [styles.skip, !canSkip && { opacity: 0.45 }, pressed && styles.pressed]}>
             <Feather name="x" size={18} color={Colors.textSecondary} />
             <AppText style={styles.skipText}>Skip</AppText>
           </Pressable>
           <Pressable
+            accessibilityRole="button"
+            disabled={connecting}
             onPress={onConnect}
-            style={[styles.connect, connected ? styles.connected : Shadow.button]}>
-            {connected ? <ChatIcon size={18} color={Colors.green} /> : <Feather name="send" size={18} color="#FFFFFF" />}
+            style={({ pressed }) => [
+              styles.connect,
+              connected ? styles.connected : Shadow.button,
+              (pressed || connecting) && styles.pressed,
+            ]}>
+            {connecting ? (
+              <ActivityIndicator size="small" color={connected ? Colors.green : '#FFFFFF'} />
+            ) : connected ? (
+              <ChatIcon size={18} color={Colors.green} />
+            ) : (
+              <Feather name="send" size={18} color="#FFFFFF" />
+            )}
             <AppText style={[styles.connectText, connected && { color: Colors.green }]}>
-              {connected ? 'Buka Chat' : 'Connect'}
+              {connecting ? 'Menghubungkan...' : connected ? 'Buka Chat' : 'Connect'}
             </AppText>
           </Pressable>
         </View>
@@ -191,8 +209,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
   },
+  // kota panjang + harga turun ke baris baru, bukan keluar kartu
   meta: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: 6,
   },
@@ -247,6 +267,10 @@ const styles = StyleSheet.create({
   },
   connected: {
     backgroundColor: Colors.greenSoft,
+  },
+  pressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
   },
   connectText: {
     fontFamily: Fonts.bodyBold,

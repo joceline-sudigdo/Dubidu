@@ -21,6 +21,8 @@ export type Child = {
   condition: string;
   needs: Skill[];
   city: string;
+  // dari server; dipakai gambar avatar anak (child-boy / child-girl)
+  gender?: 'male' | 'female';
 };
 
 export const children: Child[] = [

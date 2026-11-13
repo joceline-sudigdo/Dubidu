@@ -83,8 +83,8 @@ export async function downloadPdf(title: string, subtitle: string, sections: Pdf
   }
 }
 
-const errorText = (e: unknown) =>
-  `Coba lagi beberapa saat lagi.\n(${e instanceof Error ? e.message : String(e)})`;
+// pesan teknis dari expo-print berbahasa Inggris, jadi tidak ditampilkan ke pengguna
+const errorText = (_e: unknown) => 'Coba lagi beberapa saat lagi.';
 
 // nama file default dari expo-print acak, ganti jadi misal "Dubidu_Report_Card_Elisya_2026-11-01.pdf"
 async function renameFile(uri: string, title: string) {

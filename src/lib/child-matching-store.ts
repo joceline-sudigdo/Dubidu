@@ -1,12 +1,14 @@
 import { router } from 'expo-router';
 import { useSyncExternalStore } from 'react';
 
-import { CHILD_MAX_SKIPS, seekingChildren, serverChildMatch, type SeekingChild } from '@/data/teacher';
+import { CHILD_MATCH_COUNT, CHILD_MAX_SKIPS, demoSeekingChildren, seekingChildren, serverChildMatch, type SeekingChild } from '@/data/teacher';
 import type { Skill } from '@/data/teachers';
 
 import { api, errorMessage } from './api';
 import { loadThreads } from './chat-store';
 import { showAlert } from './dialog';
+import { getPlan } from './membership-store';
+import { getSession } from './session';
 
 // Child Matching (sisi teacher): daftar anak paling cocok & batas skip harian dari server (GET /matching/children)
 type State = {
@@ -76,9 +78,45 @@ const toSeeking = (c: Card): SeekingChild => ({
   requestId: c.requestId,
 });
 
+// --- akun demo teacher ---------------------------------------------------------
+// Anak yang mencari pendamping di server sedikit, jadi akun demo ditambah anak contoh
+// dan kuota "Lewati" dihitung di perangkat: lewati 5× → halaman batas → Dubidu Plus selalu bisa didemokan.
+// Anak yang dilewati pindah ke belakang antrian, jadi daftar tidak pernah habis.
+let demoQueue: SeekingChild[] | null = null;
+let demoSkips = { day: '', count: 0 };
+
+const isDemo = () => getSession().isDemo;
+const today = () => new Date().toDateString();
+
+function demoSkipsLeft() {
+  if (demoSkips.day !== today()) demoSkips = { day: today(), count: 0 };
+  return Math.max(0, CHILD_MAX_SKIPS - demoSkips.count);
+}
+
+function demoList(server: SeekingChild[]) {
+  const extras = demoSeekingChildren.filter((c) => !server.some((s) => s.id === c.id));
+  // anak contoh juga masuk seekingChildren supaya profil & bandingkan bisa membacanya
+  for (const c of extras) if (!seekingChildren.some((x) => x.id === c.id)) seekingChildren.push(c);
+  const queue = demoQueue ? demoQueue.map((c) => server.find((x) => x.id === c.id) ?? c) : [...server, ...extras];
+  for (const c of server) if (!queue.some((x) => x.id === c.id)) queue.push(c);
+  demoQueue = queue;
+  return queue.slice(0, CHILD_MATCH_COUNT);
+}
+
+export const isDemoChildMatching = isDemo;
+
+/** Ulang demo: kuota lewati kembali penuh & urutan kartu seperti awal */
+export function resetDemoChildMatching() {
+  demoQueue = null;
+  demoSkips = { day: today(), count: 0 };
+  set({ ...state, skipsLeft: CHILD_MAX_SKIPS });
+  return loadChildMatches();
+}
+
 function remember(list: ChildList) {
-  const children = list.cards.map(toSeeking);
-  for (const c of children) {
+  const fromServer = list.cards.map(toSeeking);
+  const children = isDemo() ? demoList(fromServer) : fromServer;
+  for (const c of fromServer) {
     const i = seekingChildren.findIndex((x) => x.id === c.id);
     if (i >= 0) seekingChildren[i] = c;
     else seekingChildren.push(c);
@@ -86,7 +124,7 @@ function remember(list: ChildList) {
   list.cards.forEach((c) => (serverChildMatch[c.id] = c.matchPercent));
   set({
     ...state,
-    skipsLeft: list.skipsLeft,
+    skipsLeft: isDemo() ? demoSkipsLeft() : list.skipsLeft,
     shown: children,
     connected: [...new Set([...state.connected, ...list.cards.filter((c) => c.connected).map((c) => c.id)])],
   });
@@ -106,6 +144,16 @@ export function shownChildren(current: State) {
 }
 
 export async function skipChild(child: SeekingChild) {
+  if (isDemo()) {
+    if (!getPlan('teacher')) {
+      if (demoSkipsLeft() <= 0) return;
+      demoSkips.count++;
+    }
+    const queue = [...(demoQueue ?? []).filter((c) => c.id !== child.id), child];
+    demoQueue = queue;
+    set({ ...state, skipsLeft: demoSkipsLeft(), shown: queue.slice(0, CHILD_MATCH_COUNT) });
+    return;
+  }
   set({ ...state, shown: shownChildren(state).filter((c) => c.id !== child.id) });
   try {
     remember(await api<ChildList>(`/matching/children/${child.id}/skip`, { body: {} }));
@@ -131,6 +179,12 @@ export async function declineRequest(childId: string) {
  * Server membuat chat + pesan pembuka, lalu room chat dibuka.
  */
 export async function connectChild(child: SeekingChild, accepted = false) {
+  // anak contoh (akun demo) tidak ada di server: cukup tandai sudah dihubungi
+  if (child.id.startsWith('c-')) {
+    set({ ...state, connected: [...new Set([...state.connected, child.id])] });
+    showAlert('Pesan terkirim', `${child.parent} (orang tua ${child.initials}) akan membalas lewat chat.`);
+    return;
+  }
   try {
     let conversationId: string | undefined;
     if (accepted && child.requestId) {
@@ -149,5 +203,7 @@ export async function connectChild(child: SeekingChild, accepted = false) {
 }
 
 export function resetChildMatching() {
+  demoQueue = null;
+  demoSkips = { day: '', count: 0 };
   set(EMPTY);
 }

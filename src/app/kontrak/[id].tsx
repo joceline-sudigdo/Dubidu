@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Avatar } from '@/components/parent/avatar';
 import { BearAvatar } from '@/components/parent/bear-avatar';
 import { ClayCard } from '@/components/parent/clay-card';
-import { EmptyState } from '@/components/parent/empty-state';
+import { EmptyFill, EmptyState } from '@/components/parent/empty-state';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { ScreenHeader } from '@/components/parent/screen-header';
@@ -27,14 +27,18 @@ export default function DetailKontrakScreen() {
 
   if (!contract) {
     return (
-      <Screen header={<ScreenHeader title="Detail Kontrak" />}>
-        <EmptyState title="Kontrak tidak ditemukan" />
+      <Screen header={<ScreenHeader title="Detail Kontrak" />} fill>
+        <EmptyFill>
+          <EmptyState title="Kontrak tidak ditemukan" />
+        </EmptyFill>
       </Screen>
     );
   }
 
   const c = contract;
-  const progress = c.done / c.total;
+  const progress = c.total > 0 ? Math.min(1, c.done / c.total) : 0;
+  // umur anak belum tentu ada di data kontrak server: jangan tampilkan "0 tahun"
+  const age = c.childAge > 0 ? ` · ${c.childAge} tahun` : '';
   const parts = termins(c);
   const chatId = isTeacher ? c.parentChatId : c.teacherChatId;
 
@@ -62,10 +66,10 @@ export default function DetailKontrakScreen() {
           )}
           <View style={styles.flex}>
             <AppText style={styles.name}>
-              {isTeacher ? `${c.childName} · ${c.childAge} tahun` : c.teacherName}
+              {isTeacher ? `${c.childName}${age}` : c.teacherName}
             </AppText>
             <AppText variant="body" color={Colors.textSecondary}>
-              {isTeacher ? `Orang tua: ${c.parentName}` : `Mendampingi ${c.childName} · ${c.childAge} tahun`}
+              {isTeacher ? `Orang tua: ${c.parentName}` : `Mendampingi ${c.childName}${age}`}
             </AppText>
           </View>
           <Pill label="Aktif" tone="green" solid size="md" />

@@ -11,11 +11,14 @@ import { ConsultationCard } from '@/components/psikolog/consultation-card';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { ChatIcon } from '@/components/ui/chat-icon';
-import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
+import { Colors, Fonts, Shadow } from '@/constants/theme';
+import { useUnreadCount } from '@/lib/notification-store';
 import { consultations, psychologistProfile as me } from '@/data/psychologist';
 import { pendingApplicants, statusOf, usePsikolog } from '@/lib/psikolog-store';
 
 export default function PsikologBerandaScreen() {
+  // titik merah lonceng hanya muncul kalau masih ada notifikasi yang belum dibaca
+  const hasUnread = useUnreadCount() > 0;
   const store = usePsikolog();
   const today = consultations.filter((c) => c.today);
   // tombol "Mulai Sesi" hanya di sesi hari ini yang belum selesai paling awal
@@ -30,10 +33,12 @@ export default function PsikologBerandaScreen() {
             <AppText style={styles.hello}>
               Halo, <AppText style={[styles.hello, { color: Colors.primary }]}>{me.shortName}</AppText>
             </AppText>
-            <View style={[styles.verified, Shadow.soft]}>
-              <MaterialCommunityIcons name="check-decagram" size={14} color={Colors.primary} />
-              <AppText style={styles.verifiedText}>Verified</AppText>
-            </View>
+            <MaterialCommunityIcons
+                accessibilityLabel="Terverifikasi"
+                name="check-decagram"
+                size={24}
+                color={Colors.primary}
+              />
           </View>
           <AppText variant="caption">Siap membantu anak-anak hari ini?</AppText>
         </View>
@@ -42,7 +47,7 @@ export default function PsikologBerandaScreen() {
           onPress={() => router.push('/psikolog/notifikasi')}
           style={[styles.bell, Shadow.soft]}>
           <Feather name="bell" size={20} color={Colors.primary} />
-          <View style={styles.bellDot} />
+          {hasUnread && <View style={styles.bellDot} />}
         </Pressable>
         <Pressable accessibilityLabel="Profil" onPress={() => router.push('/psikolog/profil')}>
           <Avatar name={me.name} size={40} ring="#FFFFFF" />
@@ -60,6 +65,15 @@ export default function PsikologBerandaScreen() {
       {today.map((c) => (
         <ConsultationCard key={c.id} item={c} showAction={c.id === next?.id} />
       ))}
+      {today.length === 0 && (
+        <ClayCard style={styles.emptyToday}>
+          <Feather name="coffee" size={22} color={Colors.primary} />
+          <View style={styles.flex}>
+            <AppText style={styles.emptyTitle}>Belum ada konsultasi hari ini</AppText>
+            <AppText variant="caption">Buka slot jadwal supaya orang tua bisa memesan sesi.</AppText>
+          </View>
+        </ClayCard>
+      )}
 
       <ClayCard tone="blue" style={styles.verify}>
         <View style={styles.verifyTop}>
@@ -129,7 +143,9 @@ export default function PsikologBerandaScreen() {
               Pendapatan
             </AppText>
           </View>
-          <AppText style={styles.statValue}>{me.earningsThisMonth}</AppText>
+          <AppText style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
+            {me.earningsThisMonth}
+          </AppText>
           <AppText variant="caption" color={Colors.green}>
             {me.verificationsDone} verifikasi selesai
           </AppText>
@@ -168,20 +184,6 @@ const styles = StyleSheet.create({
     lineHeight: 36,
     color: Colors.text,
   },
-  verified: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#FFFFFF',
-    borderRadius: Radius.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  verifiedText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 12,
-    color: Colors.text,
-  },
   bell: {
     width: 40,
     height: 40,
@@ -201,6 +203,16 @@ const styles = StyleSheet.create({
   },
   verify: {
     gap: 14,
+  },
+  emptyToday: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  emptyTitle: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 15,
+    color: Colors.text,
   },
   verifyTop: {
     flexDirection: 'row',

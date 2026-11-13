@@ -7,7 +7,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { bearSource } from '@/components/parent/bear-avatar';
 import { ClayCard } from '@/components/parent/clay-card';
-import { EmptyState } from '@/components/parent/empty-state';
+import { EmptyFill, EmptyState } from '@/components/parent/empty-state';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
@@ -31,14 +31,18 @@ export default function ProfilAnakScreen() {
 
   if (!student && !seeking) {
     return (
-      <Screen header={<ScreenHeader title="Profil Anak" />}>
-        <EmptyState title="Profil tidak ditemukan" />
+      <Screen header={<ScreenHeader title="Profil Anak" />} fill>
+        <EmptyFill>
+          <EmptyState title="Profil tidak ditemukan" />
+        </EmptyFill>
       </Screen>
     );
   }
 
   const gender = (student ?? seeking)!.gender;
-  const title = student ? `${student.name} · ${student.age} tahun` : `${seeking!.initials} · ${seeking!.age} tahun`;
+  // umur / kelas yang belum diisi (0 atau "-") tidak ditampilkan
+  const age = (student ?? seeking)!.age;
+  const title = `${student ? student.name : seeking!.initials}${age > 0 ? ` · ${age} tahun` : ''}`;
 
   return (
     <Screen
@@ -98,7 +102,7 @@ export default function ProfilAnakScreen() {
             <Feather name="user" size={16} color={Colors.primary} />
             <AppText variant="body" color={Colors.text}>
               {gender === 'female' ? 'Perempuan' : 'Laki-laki'}
-              {student ? ` · Kelas ${student.grade}` : ` · ${seeking!.area}`}
+              {student ? (student.grade && student.grade !== '-' ? ` · Kelas ${student.grade}` : '') : ` · ${seeking!.area}`}
             </AppText>
           </View>
           <TagRow tags={student ? student.tags : needLabels(seeking!.needs)} max={3} />

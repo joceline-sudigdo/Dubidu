@@ -20,6 +20,7 @@ import { reportContent } from '@/lib/community-store';
 import { showActionSheet, showAlert } from '@/lib/dialog';
 import { connectTeacher, loadTeacher, useMatching } from '@/lib/matching-store';
 import { useChildren } from '@/lib/children-store';
+import { startAddChild } from '@/lib/add-child';
 
 const REVIEWS = [
   { name: 'Larasita Hadi', rating: 5, text: '“Sangat sabar dan komunikatif, anak saya jadi lebih percaya diri.”' },
@@ -95,7 +96,13 @@ export default function ProfilTeacherScreen() {
             onPress={() =>
               chatExists
                 ? router.push({ pathname: '/chat/[id]', params: { id: teacher.id } })
-                : showAlert('Kirim penawaran?', `Pesan penawaran untuk ${child.name} akan dikirim ke ${teacher.name}.`, [
+                : !child
+                  ? // akun tanpa profil anak: arahkan isi profil anak dulu, jangan crash
+                    showAlert('Tambahkan profil anak dulu', 'Penawaran dikirim atas nama profil anak.', [
+                      { text: 'Nanti', style: 'cancel' },
+                      { text: 'Tambah Anak', onPress: startAddChild },
+                    ])
+                  : showAlert('Kirim penawaran?', `Pesan penawaran untuk ${child.name} akan dikirim ke ${teacher.name}.`, [
                     { text: 'Batal', style: 'cancel' },
                     { text: 'Kirim', onPress: () => connectTeacher(teacher, child) },
                   ])
@@ -105,7 +112,7 @@ export default function ProfilTeacherScreen() {
       }>
       <View style={styles.heroWrap}>
         <ClayCard style={styles.hero}>
-          <View style={styles.inline}>
+          <View style={styles.nameRow}>
             <AppText style={styles.name}>{teacher.name}</AppText>
             <MaterialCommunityIcons name="check-decagram" size={20} color={Colors.primary} />
           </View>
@@ -117,7 +124,9 @@ export default function ProfilTeacherScreen() {
             <AppText style={styles.bold}>{teacher.rating}</AppText>
             <AppText variant="caption">({teacher.reviews} ulasan)</AppText>
           </View>
-          <Pill label={`${matchScore(teacher, child)}% cocok untuk ${child.name}`} tone="blue" solid icon="star" />
+          {child && (
+            <Pill label={`${matchScore(teacher, child)}% cocok untuk ${child.name}`} tone="blue" solid icon="star" />
+          )}
         </ClayCard>
         <View style={styles.avatarWrap}>
           <Avatar name={teacher.name} size={100} ring="#FFFFFF" viewable />
@@ -161,7 +170,9 @@ export default function ProfilTeacherScreen() {
         <ClayCard key={r.name} style={styles.gap10}>
           <View style={styles.reviewHead}>
             <Avatar name={r.name} size={40} />
-            <AppText style={[styles.bold, styles.flex]}>{r.name}</AppText>
+            <AppText style={[styles.bold, styles.flex]} numberOfLines={1}>
+              {r.name}
+            </AppText>
             <Stars value={r.rating} />
           </View>
           <AppText style={styles.reviewText}>{r.text}</AppText>
@@ -187,7 +198,9 @@ function InfoRow({ icon, label, value, last }: { icon: 'map-pin' | 'credit-card'
       <AppText variant="body" color={Colors.textSecondary} style={styles.flex}>
         {label}
       </AppText>
-      <AppText style={styles.bold}>{value}</AppText>
+      <AppText style={[styles.bold, styles.infoValue]} numberOfLines={2}>
+        {value}
+      </AppText>
     </View>
   );
 }
@@ -233,7 +246,16 @@ const styles = StyleSheet.create({
     top: 0,
     alignSelf: 'center',
   },
+  // nama + gelar yang panjang tetap di tengah dan membungkus, ikon verified ikut di ujung
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+  },
   name: {
+    flexShrink: 1,
     fontFamily: Fonts.heading,
     fontSize: 20,
     lineHeight: 28,
@@ -305,6 +327,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     paddingVertical: 14,
+  },
+  infoValue: {
+    flexShrink: 1,
+    textAlign: 'right',
+    maxWidth: '60%',
   },
   border: {
     borderBottomWidth: 1,

@@ -5,6 +5,7 @@ import { useState, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ClayCard } from '@/components/parent/clay-card';
+import { EmptyFill, EmptyState } from '@/components/parent/empty-state';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
@@ -13,7 +14,7 @@ import { AppText } from '@/components/ui/app-text';
 import { EdgeScroll } from '@/components/parent/edge-scroll';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { notifications as initial, type NotificationItem } from '@/data/parent';
-import { api } from '@/lib/api';
+import { markAllNotificationsRead, markNotificationRead, useUnreadIds } from '@/lib/notification-store';
 import { appLink } from '@/lib/sync';
 
 type Filter = 'all' | NotificationItem['category'];
@@ -32,24 +33,25 @@ const GROUPS = [
 ] as const;
 
 export default function NotifikasiScreen() {
-  const [items, setItems] = useState(initial);
+  // status dibaca disimpan di store bersama, supaya titik merah lonceng di Beranda ikut hilang
+  const unreadIds = useUnreadIds();
+  const items = initial.map((n) => ({ ...n, unread: unreadIds.has(n.id) }));
   const [filter, setFilter] = useState<Filter>('all');
 
   const unread = items.filter((n) => n.unread).length;
   const visible = filter === 'all' ? items : items.filter((n) => n.category === filter);
 
   const markAllRead = () => {
-    setItems((list) => list.map((n) => ({ ...n, unread: false })));
-    api('/notifications/read-all', { body: {} }).catch(() => {});
+    markAllNotificationsRead();
   };
   const open = (n: NotificationItem) => {
-    setItems((list) => list.map((x) => (x.id === n.id ? { ...x, unread: false } : x)));
-    if (n.unread) api(`/notifications/${n.id}/read`, { body: {} }).catch(() => {});
+    markNotificationRead(n.id);
     if (n.link) router.push(appLink(n.link, 'parent') as never);
   };
 
   return (
     <Screen
+      fill={visible.length === 0}
       header={
         <ScreenHeader
           title="Notifikasi"
@@ -90,6 +92,12 @@ export default function NotifikasiScreen() {
           />
         ))}
       </EdgeScroll>
+
+      {visible.length === 0 && (
+        <EmptyFill>
+          <EmptyState title="Belum ada notifikasi" subtitle="Kabar soal sesi, laporan, dan pesan baru akan muncul di sini." />
+        </EmptyFill>
+      )}
 
       {GROUPS.map((g) => {
         const list = visible.filter((n) => n.group === g.id);

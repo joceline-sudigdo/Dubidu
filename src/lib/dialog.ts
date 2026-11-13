@@ -12,7 +12,8 @@ export type DialogState =
   | {
       kind: 'sheet';
       title?: string;
-      options: { label: string; icon: FeatherName; destructive?: boolean; onPress: () => void }[];
+      // sublabel: keterangan kecil di bawah label (mis. peran akun demo)
+      options: { label: string; sublabel?: string; icon: FeatherName; destructive?: boolean; onPress: () => void }[];
     }
   | {
       kind: 'prompt';

@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
 import { ClayCard } from '@/components/parent/clay-card';
-import { EmptyState } from '@/components/parent/empty-state';
+import { EmptyFill, EmptyState } from '@/components/parent/empty-state';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
@@ -64,8 +64,10 @@ export default function ObservasiDetailScreen() {
 
   if (!r) {
     return (
-      <Screen header={<ScreenHeader title="Laporan Observasi" />}>
-        <EmptyState title="Laporan tidak ditemukan" />
+      <Screen header={<ScreenHeader title="Laporan Observasi" />} fill>
+        <EmptyFill>
+          <EmptyState title="Laporan tidak ditemukan" />
+        </EmptyFill>
       </Screen>
     );
   }

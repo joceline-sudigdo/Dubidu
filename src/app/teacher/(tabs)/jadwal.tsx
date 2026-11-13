@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ChildSwitcher } from '@/components/parent/child-switcher';
 import { ClayCard } from '@/components/parent/clay-card';
-import { EmptyState } from '@/components/parent/empty-state';
+import { EmptyFill, EmptyState } from '@/components/parent/empty-state';
 import { Pill } from '@/components/parent/pill';
 import { buildMonth, WEEKDAYS } from '@/components/parent/report-calendar';
 import { Screen } from '@/components/parent/screen';
@@ -18,6 +18,27 @@ import { formatLongDate, MONTHS, toISODate } from '@/data/parent';
 import { students, teacherSessions, type TeacherSession } from '@/data/teacher';
 
 export default function TeacherJadwalScreen() {
+  // teacher baru belum punya anak dampingan: tampilkan ajakan cari anak, jangan crash
+  if (students.length === 0) {
+    return (
+      <Screen fill>
+        <TabHeader title="Jadwal" />
+        <EmptyFill>
+          <ClayCard>
+            <EmptyState
+              title="Belum ada jadwal pendampingan"
+              subtitle="Jadwal sesi muncul di sini setelah orang tua menyetujui kontrak pendampingan denganmu."
+            />
+          </ClayCard>
+          <PrimaryButton title="Cari Anak" leadingIcon="search" onPress={() => router.push('/teacher/cari-anak')} />
+        </EmptyFill>
+      </Screen>
+    );
+  }
+  return <JadwalContent />;
+}
+
+function JadwalContent() {
   const [student, setStudent] = useState(students[0]);
   const sessions = teacherSessions
     .filter((s) => s.student === student.id)

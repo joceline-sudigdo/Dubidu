@@ -1,7 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOutLeft, LinearTransition } from 'react-native-reanimated';
 
 import { ChildMatchCard } from '@/components/parent/child-match-card';
@@ -14,7 +14,15 @@ import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts } from '@/constants/theme';
 import { CHILD_MAX_SKIPS, childMatchScore, teacherProfile, type SeekingChild } from '@/data/teacher';
-import { connectChild, loadChildMatches, shownChildren, skipChild, useChildMatching } from '@/lib/child-matching-store';
+import {
+  connectChild,
+  isDemoChildMatching,
+  loadChildMatches,
+  resetDemoChildMatching,
+  shownChildren,
+  skipChild,
+  useChildMatching,
+} from '@/lib/child-matching-store';
 import { showAlert } from '@/lib/dialog';
 import { usePlus } from '@/lib/membership-store';
 
@@ -22,6 +30,7 @@ export default function CariAnakScreen() {
   const matching = useChildMatching();
   const [compare, setCompare] = useState<string[]>([]);
   const [showLast, setShowLast] = useState(false);
+  const [connecting, setConnecting] = useState<string | null>(null);
 
   const list = shownChildren(matching);
   const plus = usePlus();
@@ -42,14 +51,32 @@ export default function CariAnakScreen() {
     skipChild(child);
   };
 
+  // akun demo: ulang alur lewati 5× → halaman batas dari awal
+  const demo = isDemoChildMatching();
+  const resetDemo = () => {
+    setShowLast(false);
+    setCompare([]);
+    resetDemoChildMatching();
+  };
+
+  const send = async (child: SeekingChild) => {
+    setConnecting(child.id);
+    try {
+      await connectChild(child);
+    } finally {
+      setConnecting(null);
+    }
+  };
+
   const connect = (child: SeekingChild) => {
+    if (connecting) return;
     if (matching.connected.includes(child.id)) {
-      connectChild(child);
+      send(child);
       return;
     }
     showAlert('Ajukan diri?', `Kami akan mengirim pesan perkenalan ke ${child.parent} (orang tua ${child.initials}).`, [
       { text: 'Batal', style: 'cancel' },
-      { text: 'Kirim', onPress: () => connectChild(child) },
+      { text: 'Kirim', onPress: () => send(child) },
     ]);
   };
 
@@ -75,7 +102,12 @@ export default function CariAnakScreen() {
         ) : undefined
       }>
       {limitReached ? (
-        <MatchLimit noun="anak" homeHref="/teacher/beranda" onShowLast={() => setShowLast(true)} />
+        <MatchLimit
+          noun="anak"
+          homeHref="/teacher/beranda"
+          onShowLast={() => setShowLast(true)}
+          onResetDemo={demo ? resetDemo : undefined}
+        />
       ) : (
         <>
           <ClayCard tone="blue" style={styles.info}>
@@ -98,6 +130,14 @@ export default function CariAnakScreen() {
                 </AppText>
               </View>
             </View>
+            {demo ? (
+              <Pressable onPress={resetDemo} hitSlop={8} style={styles.reset}>
+                <Feather name="rotate-ccw" size={14} color={Colors.primary} />
+                <AppText variant="caption" style={styles.resetText}>
+                  Ulang demo skip
+                </AppText>
+              </Pressable>
+            ) : null}
           </ClayCard>
 
           {list.map((c) => (
@@ -112,6 +152,7 @@ export default function CariAnakScreen() {
                 comparing={compare.includes(c.id)}
                 connected={matching.connected.includes(c.id)}
                 canSkip={skipsLeft > 0}
+                connecting={connecting === c.id}
                 onToggleCompare={() => toggleCompare(c.id)}
                 onSkip={() => skip(c)}
                 onConnect={() => connect(c)}
@@ -145,6 +186,17 @@ const styles = StyleSheet.create({
   },
   white: {
     backgroundColor: '#FFFFFF',
+  },
+  reset: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginTop: 4,
+  },
+  resetText: {
+    fontFamily: Fonts.bodyBold,
+    color: Colors.primary,
   },
   hint: {
     flexDirection: 'row',

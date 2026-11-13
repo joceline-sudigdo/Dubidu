@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
 import Animated, { FadeOut, LinearTransition } from 'react-native-reanimated';
 
-import { EmptyState } from '@/components/parent/empty-state';
+import { EmptyFill, EmptyState } from '@/components/parent/empty-state';
 import { Screen } from '@/components/parent/screen';
 import { ScreenHeader } from '@/components/parent/screen-header';
 import { PostCard } from '@/components/shared/post-card';
@@ -16,12 +16,14 @@ export default function TersimpanScreen() {
     .filter((p) => p !== undefined);
 
   return (
-    <Screen header={<ScreenHeader title="Postingan Tersimpan" />} edges={['top', 'bottom']}>
+    <Screen header={<ScreenHeader title="Postingan Tersimpan" />} edges={['top', 'bottom']} fill={posts.length === 0}>
       {posts.length === 0 ? (
-        <EmptyState
-          title="Belum ada postingan tersimpan"
-          subtitle="Ketuk titik tiga di postingan komunitas lalu pilih Simpan postingan."
-        />
+        <EmptyFill>
+          <EmptyState
+            title="Belum ada postingan tersimpan"
+            subtitle="Ketuk titik tiga di postingan komunitas lalu pilih Simpan postingan."
+          />
+        </EmptyFill>
       ) : (
         <>
           <AppText variant="caption" style={styles.count}>

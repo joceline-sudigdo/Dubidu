@@ -5,6 +5,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
+import { BearAvatar } from '@/components/parent/bear-avatar';
 import { ClayCard } from '@/components/parent/clay-card';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
@@ -93,7 +94,7 @@ export default function ProfilScreen() {
         const teacher = activeMatches.find((m) => m.child === c.name);
         return (
           <ClayCard key={c.id} onPress={() => router.push('/report-card')} style={styles.child}>
-            <Avatar name={c.fullName} size={52} />
+            <BearAvatar gender={c.gender ?? 'female'} size={52} />
             <View style={styles.flex}>
               <View style={styles.inline}>
                 <AppText style={styles.childName}>{c.fullName}</AppText>

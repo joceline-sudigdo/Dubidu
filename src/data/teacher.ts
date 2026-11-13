@@ -339,6 +339,9 @@ export const seekingChildren: SeekingChild[] = [
   { id: 'c-gilang', initials: 'GLG', age: 6, gender: 'male', city: 'Batu', area: 'Bumiaji, Batu', needs: ['speech', 'sensory'], frequency: '2x Seminggu', timeOfDay: 'Pagi hari', days: 'Senin & Kamis', hours: '09:00 – 10:30 WIB (90 menit)', system: 'Pendampingan di TK', goal: 'Bisa mengikuti instruksi sederhana di kelas', note: 'Gilang suka musik, bisa jadi media belajar.', parent: 'Rina Oktaviani', parentRating: 4.9, parentReviews: 4, budget: 130000, distanceKm: 20 },
 ];
 
+// salinan anak contoh untuk akun demo teacher (seekingChildren dikosongkan saat login)
+export const demoSeekingChildren: SeekingChild[] = seekingChildren.map((c) => ({ ...c }));
+
 export const CHILD_MATCH_COUNT = 5;
 export const CHILD_MAX_SKIPS = 5;
 

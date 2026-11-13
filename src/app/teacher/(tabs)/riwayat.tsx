@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { BearAvatar } from '@/components/parent/bear-avatar';
 import { ClayCard } from '@/components/parent/clay-card';
+import { EmptyFill, EmptyState } from '@/components/parent/empty-state';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { TabHeader } from '@/components/parent/screen-header';
@@ -13,6 +14,7 @@ import type { Tone } from '@/components/parent/tones';
 import { TagRow } from '@/components/parent/tag-row';
 import { AppText } from '@/components/ui/app-text';
 import { ChatIcon } from '@/components/ui/chat-icon';
+import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import {
   seekingChildren,
@@ -30,17 +32,32 @@ const STATUS: Record<ApplicationStatus, { label: string; tone: Tone; solid: bool
 
 export default function TeacherRiwayatScreen() {
   const [tab, setTab] = useState<0 | 1>(0);
+  const empty = tab === 0 ? students.length === 0 : teacherApplications.length === 0;
 
   return (
-    <Screen>
+    <Screen fill={empty}>
       <TabHeader title="Riwayat" />
       <Segmented
-        labels={[`Sedang Diasuh (${students.length})`, `Riwayat Pengajuan (${teacherApplications.length})`]}
+        labels={[`Diasuh (${students.length})`, `Pengajuan (${teacherApplications.length})`]}
         value={tab}
         onChange={setTab}
       />
 
-      {tab === 0 ? (
+      {empty ? (
+        <EmptyFill>
+          <ClayCard>
+            <EmptyState
+              title={tab === 0 ? 'Belum ada anak yang diasuh' : 'Belum ada pengajuan'}
+              subtitle={
+                tab === 0
+                  ? 'Anak dampinganmu muncul di sini setelah kontrak disetujui orang tua.'
+                  : 'Ajukan diri ke anak yang membutuhkan pendamping, riwayatnya tampil di sini.'
+              }
+            />
+          </ClayCard>
+          <PrimaryButton title="Cari Anak" leadingIcon="search" onPress={() => router.push('/teacher/cari-anak')} />
+        </EmptyFill>
+      ) : tab === 0 ? (
         students.map((s) => <StudentCard key={s.id} student={s} />)
       ) : (
         <ClayCard style={styles.list}>
@@ -65,7 +82,8 @@ export default function TeacherRiwayatScreen() {
                 <View style={styles.flex}>
                   <View style={styles.appTop}>
                     <AppText style={styles.appName} numberOfLines={1}>
-                      {a.initials} · {a.age} tahun
+                      {a.initials}
+                      {a.age > 0 ? ` · ${a.age} tahun` : ''}
                     </AppText>
                     <Pill label={status.label} tone={status.tone} solid={status.solid} size="md" />
                   </View>
@@ -87,7 +105,7 @@ export default function TeacherRiwayatScreen() {
 }
 
 function StudentCard({ student }: { student: Student }) {
-  const progress = student.done / student.total;
+  const progress = student.total > 0 ? Math.min(1, student.done / student.total) : 0;
   const percent = Math.round(progress * 1000) / 10;
 
   return (
@@ -96,7 +114,8 @@ function StudentCard({ student }: { student: Student }) {
         <BearAvatar gender={student.gender} size={72} online />
         <View style={styles.flex}>
           <AppText style={styles.name}>
-            {student.name} · {student.age} tahun
+            {student.name}
+            {student.age > 0 ? ` · ${student.age} tahun` : ''}
           </AppText>
           <View style={styles.tags}>
             <TagRow tags={student.tags} solid stacked />

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ClayCard } from '@/components/parent/clay-card';
-import { EmptyState } from '@/components/parent/empty-state';
+import { EmptyFill, EmptyState } from '@/components/parent/empty-state';
 import { Screen } from '@/components/parent/screen';
 import { TabHeader } from '@/components/parent/screen-header';
 import { Segmented } from '@/components/parent/segmented';
@@ -24,18 +24,20 @@ export default function PsikologJadwalScreen() {
   const days = [...new Set(list.map((c) => c.day))];
 
   return (
-    <Screen>
+    <Screen fill={list.length === 0}>
       <TabHeader title="Jadwal" />
       <SlotEditor />
       <Segmented labels={[`Mendatang (${upcoming.length})`, `Selesai (${done.length})`]} value={tab} onChange={setTab} />
 
       {list.length === 0 ? (
+        <EmptyFill>
         <ClayCard>
           <EmptyState
             title={tab === 0 ? 'Belum ada jadwal' : 'Belum ada sesi selesai'}
             subtitle="Booking konsultasi dari orang tua akan muncul di sini."
           />
         </ClayCard>
+        </EmptyFill>
       ) : (
         days.map((day) => (
           <View key={day} style={styles.group}>

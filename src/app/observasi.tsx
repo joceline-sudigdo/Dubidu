@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
 import { ClayCard } from '@/components/parent/clay-card';
-import { EmptyState } from '@/components/parent/empty-state';
+import { EmptyFill, EmptyState } from '@/components/parent/empty-state';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { ScreenHeader } from '@/components/parent/screen-header';
@@ -17,13 +17,15 @@ export default function ObservasiListScreen() {
   const { reports, isNew } = useObservations();
 
   return (
-    <Screen header={<ScreenHeader title="Laporan Observasi" />} edges={['top', 'bottom']}>
+    <Screen header={<ScreenHeader title="Laporan Observasi" />} edges={['top', 'bottom']} fill={reports.length === 0}>
       <AppText variant="caption">
         Hasil sesi konsultasi dari psikolog mitra: temuan, rekomendasi, dan langkah selanjutnya untuk si kecil.
       </AppText>
 
       {reports.length === 0 && (
-        <EmptyState title="Belum ada laporan" subtitle="Laporan muncul di sini setelah sesi konsultasi psikolog selesai." />
+        <EmptyFill>
+          <EmptyState title="Belum ada laporan" subtitle="Laporan muncul di sini setelah sesi konsultasi psikolog selesai." />
+        </EmptyFill>
       )}
 
       {reports.map((r) => (

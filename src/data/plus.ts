@@ -36,12 +36,12 @@ export const plusBenefits: Record<PlusRole, { icon: FeatherName; title: string; 
 // fitur singkat untuk chip di kartu Plus beranda
 export const plusHighlights: Record<PlusRole, { icon: FeatherName; label: string }[]> = {
   parent: [
-    { icon: 'repeat', label: 'Skip ∞' },
+    { icon: 'repeat', label: 'Unlimited skip' },
     { icon: 'users', label: 'Multi anak' },
     { icon: 'heart', label: 'Diskon 20%' },
   ],
   teacher: [
-    { icon: 'repeat', label: 'Skip ∞' },
+    { icon: 'repeat', label: 'Unlimited skip' },
     { icon: 'trending-up', label: 'Boost profil' },
     { icon: 'percent', label: 'Komisi 5%' },
   ],

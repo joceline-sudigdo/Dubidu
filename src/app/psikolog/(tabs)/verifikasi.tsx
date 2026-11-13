@@ -6,7 +6,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
 import { ClayCard } from '@/components/parent/clay-card';
-import { EmptyState } from '@/components/parent/empty-state';
+import { EmptyFill, EmptyState } from '@/components/parent/empty-state';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { TabHeader } from '@/components/parent/screen-header';
@@ -25,11 +25,12 @@ export default function VerifikasiScreen() {
   const list = tab === 0 ? pending : done;
 
   return (
-    <Screen>
+    <Screen fill={list.length === 0}>
       <TabHeader title="Verifikasi" />
       <Segmented labels={[`Menunggu (${pending.length})`, `Selesai (${done.length})`]} value={tab} onChange={setTab} />
 
       {list.length === 0 ? (
+        <EmptyFill>
         <ClayCard>
           <EmptyState
             title={tab === 0 ? 'Semua sudah ditinjau' : 'Belum ada yang selesai'}
@@ -40,6 +41,7 @@ export default function VerifikasiScreen() {
             }
           />
         </ClayCard>
+        </EmptyFill>
       ) : (
         list.map((a) => <ApplicantCard key={a.id} item={a} />)
       )}

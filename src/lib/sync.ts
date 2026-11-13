@@ -41,6 +41,7 @@ import {
   type Student,
   type TeacherNotification,
 } from '@/data/teacher';
+import { contractFromEngagement, setServerContracts } from '@/data/contracts';
 import { doobieTopics } from '@/data/doobie';
 import { legalDocs } from '@/data/legal';
 import { observationReports, type ObservationReport } from '@/data/observations';
@@ -51,18 +52,22 @@ import { api } from './api';
 import type { UserRole } from './auth';
 import { loadThreads, resetChats } from './chat-store';
 import { resetChildMatching } from './child-matching-store';
-import { setChildren, toChild, type ServerChild } from './children-store';
+import { genderOf, setChildren, toChild, type ServerChild } from './children-store';
 import { loadCommunity, resetCommunity } from './community-store';
 import { resetMatching } from './matching-store';
 import { setPlans } from './membership-store';
 import { refreshProfile } from './profile-store';
 import { setCheckinWeek, setServerPoints } from './points-store';
+import { setUnreadNotifications } from './notification-store';
 import { updateSession } from './session';
 
 /** Ganti isi array/objek yang di-export tanpa mengganti referensinya (layar mengimpor objek yang sama) */
 function replace<T>(target: T[], items: T[]) {
   target.splice(0, target.length, ...items);
 }
+
+/** Teks pengganti saat kontrak belum punya sesi terjadwal ke depan */
+export const NO_SESSION = 'Belum dijadwalkan';
 
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 const monthYear = (iso: string) => {
@@ -130,13 +135,19 @@ type Engagement = {
   status: string;
   teacher: { id: string; name: string };
   parent: { id: string; name: string };
-  child: { id: string; name: string; fullName: string };
+  child: { id: string; name: string; fullName: string; gender?: string | null };
   chatId: string | null;
   tags: { label: string; tone: Tone }[];
-  nextSession: string;
+  // null kalau belum ada sesi terjadwal ke depan
+  nextSession: string | null;
   done: number;
   total: number;
   phase: string;
+  ratePerSession?: number;
+  frequency?: string | null;
+  location?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
 };
 
 const CATEGORY_TONE: Record<string, Tone> = { KOMUNIKASI: 'green', SOSIAL: 'red', AKADEMIK: 'yellow', SENSORIK: 'blue', PERILAKU: 'gray' };
@@ -210,9 +221,11 @@ async function loadParent() {
 
   Object.assign(quickQuestion, home.quickQuestion ?? { from: '', text: '' }, { id: home.quickQuestion?.id ?? '' });
   const active = engagements.filter((e) => e.status === 'ACTIVE');
+  // kontrak aktif dari server supaya "Lihat Detail Kontrak" selalu ketemu
+  setServerContracts(active.map((e) => contractFromEngagement(e, { gender: genderOf(e.child.gender) })));
   replace(
     activeTeachers,
-    active.map((e) => ({ id: e.chatId ?? e.teacher.id, name: e.teacher.name.split(',')[0], next: e.nextSession }))
+    active.map((e) => ({ id: e.chatId ?? e.teacher.id, name: e.teacher.name.split(',')[0], next: e.nextSession ?? NO_SESSION }))
   );
   replace(
     activeMatches,
@@ -224,7 +237,7 @@ async function loadParent() {
         online: false,
         child: e.child.name,
         tags: e.tags,
-        nextSession: e.nextSession,
+        nextSession: e.nextSession ?? NO_SESSION,
         done: e.done,
         total: e.total,
         phase: e.phase,
@@ -243,6 +256,7 @@ async function loadParent() {
     }))
   );
   replace(notifications, notif.items.map(notificationFor));
+  setUnreadNotifications(notif.items.filter((n) => n.unread).map((n) => n.id));
   replace(
     psychologists,
     psys.map((p) => ({
@@ -264,7 +278,7 @@ async function loadParent() {
       time: string;
       durationMin: number;
       psychologist: { name: string; title: string };
-      child: { name: string } | null;
+      child: { name: string; gender?: string | null } | null;
       complaint: string | null;
       result: { observation: string | null; recommendation: string | null; followUp: string | null } | null;
     }[]
@@ -316,7 +330,7 @@ async function loadTeacher() {
     }>('/home/teacher'),
     api<Engagement[]>('/engagements'),
     api<{ items: ServerNotification[] }>('/notifications'),
-    api<{ id: string; status: string; date: string; child: { name: string; age: number | null; grade: string | null; condition: string } }[]>('/applications'),
+    api<{ id: string; status: string; date: string; child: { name: string; age: number | null; grade: string | null; condition: string; gender?: string | null } }[]>('/applications'),
   ]);
   const t = me.teacherProfile;
   // ulasan orang tua untuk teacher ini (yang disembunyikan admin tidak ikut)
@@ -354,7 +368,10 @@ async function loadTeacher() {
   setCheckinWeek('teacher', home.checkin, home.selectedChildId);
 
   const next = home.todaySchedule[0];
-  Object.assign(todaySchedule, next ? { time: next.time, child: next.childName } : { time: '-', child: 'Belum ada sesi' });
+  Object.assign(todaySchedule, next ? { time: next.time, child: next.childName } : { time: '', child: '' });
+  setServerContracts(
+    engagements.filter((e) => e.status === 'ACTIVE').map((e) => contractFromEngagement(e, { gender: genderOf(e.child.gender) }))
+  );
   replace(
     students,
     engagements
@@ -366,12 +383,12 @@ async function loadTeacher() {
           fullName: e.child.fullName,
           grade: '-',
           condition: e.tags.map((x) => x.label).slice(0, 2).join(' & '),
-          gender: 'female',
+          gender: genderOf(e.child.gender),
           age: 0,
           parent: e.parent.name,
           chatId: e.chatId ?? '',
           tags: e.tags,
-          nextSession: e.nextSession,
+          nextSession: e.nextSession ?? NO_SESSION,
           done: e.done,
           total: e.total,
           phase: e.phase,
@@ -384,15 +401,17 @@ async function loadTeacher() {
     apps.slice(0, 5).map((a) => ({
       id: a.id,
       initials: a.child.name,
-      gender: 'female' as const,
-      info: `${a.child.grade ?? '-'} - ${a.child.condition.toUpperCase()}`,
+      gender: genderOf(a.child.gender),
+      // tanpa "- -" kalau kelas belum diisi
+      info: [a.child.grade, a.child.condition.toUpperCase()].filter(Boolean).join(' · '),
       status: status(a.status),
     }))
   );
   replace(
     teacherApplications,
-    apps.map((a) => ({ id: a.id, initials: a.child.name, age: a.child.age ?? 0, gender: 'female' as const, date: a.date, status: status(a.status) }))
+    apps.map((a) => ({ id: a.id, initials: a.child.name, age: a.child.age ?? 0, gender: genderOf(a.child.gender), date: a.date, status: status(a.status) }))
   );
+  setUnreadNotifications(notif.items.filter((n) => n.unread).map((n) => n.id));
   replace(
     teacherNotifications,
     notif.items.map(
@@ -424,7 +443,7 @@ async function loadPsychologist() {
         date: string;
         time: string;
         parent: { name: string };
-        child: { name: string } | null;
+        child: { name: string; gender?: string | null } | null;
         complaint: string | null;
         result: { observation: string | null; recommendation: string | null } | null;
       }[]
@@ -457,7 +476,7 @@ async function loadPsychologist() {
         (c): Consultation => ({
           id: c.id,
           child: c.child?.name ?? 'Anak',
-          gender: 'female',
+          gender: genderOf(c.child?.gender),
           age: 0,
           parent: c.parent.name,
           needs: [],
@@ -471,6 +490,7 @@ async function loadPsychologist() {
       )
   );
   replace(applicants, pending);
+  setUnreadNotifications(notif.items.filter((n) => n.unread).map((n) => n.id));
   replace(
     psychologistNotifications,
     notif.items.map(
@@ -575,6 +595,8 @@ export function resetAppData() {
     for (const key of Object.keys(map)) delete map[key];
   }
   setChildren([]);
+  setUnreadNotifications([]);
+  setServerContracts([]);
   resetChats();
   resetMatching();
   resetChildMatching();

@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { Avatar } from '@/components/parent/avatar';
+import { BearAvatar } from '@/components/parent/bear-avatar';
 import { ClayCard } from '@/components/parent/clay-card';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
@@ -18,14 +19,18 @@ import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { EdgeScroll } from '@/components/parent/edge-scroll';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
+import { useUnreadCount } from '@/lib/notification-store';
 import { bannerPhotos } from '@/data/images';
 import { activeTeachers, parentProfile, quickQuestion } from '@/data/parent';
 import { startAddChild } from '@/lib/add-child';
 import { api } from '@/lib/api';
+import { NO_SESSION } from '@/lib/sync';
 import { useChildren } from '@/lib/children-store';
 import { useObservations } from '@/lib/observation-store';
 
 export default function BerandaScreen() {
+  // titik merah lonceng hanya muncul kalau masih ada notifikasi yang belum dibaca
+  const hasUnread = useUnreadCount() > 0;
   const children = useChildren();
   const observations = useObservations();
   // laporan observasi psikolog yang belum dibaca (paling baru)
@@ -62,7 +67,7 @@ export default function BerandaScreen() {
           onPress={() => router.push('/notifikasi')}
           style={[styles.bell, Shadow.soft]}>
           <Feather name="bell" size={20} color={Colors.primary} />
-          <View style={styles.bellDot} />
+          {hasUnread && <View style={styles.bellDot} />}
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Profil" onPress={() => router.push('/profil')}>
           <Avatar name={parentProfile.fullName} size={40} ring="#FFFFFF" />
@@ -77,7 +82,7 @@ export default function BerandaScreen() {
               key={c.id}
               onPress={() => setChildId(c.id)}
               style={[styles.childChip, active && styles.childChipActive, active && Shadow.button]}>
-              <Avatar name={c.fullName} size={30} />
+              <BearAvatar gender={c.gender ?? 'female'} size={30} />
               <AppText style={[styles.childName, active && { color: '#FFFFFF' }]}>{c.name}</AppText>
             </Pressable>
           );
@@ -138,6 +143,16 @@ export default function BerandaScreen() {
       )}
 
       <SectionHeader title="Teacher saat ini" />
+      {activeTeachers.length === 0 && (
+        <ClayCard onPress={() => router.push('/cari-teacher')} style={styles.noTeacher}>
+          <MaterialCommunityIcons name="account-search-outline" size={24} color={Colors.primary} />
+          <View style={styles.flex}>
+            <AppText style={styles.obsTitle}>Belum ada teacher aktif</AppText>
+            <AppText variant="caption">Cari shadow teacher yang cocok untuk {child?.name ?? 'si kecil'}.</AppText>
+          </View>
+          <Feather name="chevron-right" size={20} color={Colors.primary} />
+        </ClayCard>
+      )}
       <EdgeScroll contentContainerStyle={styles.teacherRow}>
         {activeTeachers.map((t) => (
           <Pressable
@@ -157,7 +172,10 @@ export default function BerandaScreen() {
               </View>
             </View>
             <View style={styles.teacherTime}>
-              <AppText style={styles.teacherTimeText}>{t.next}</AppText>
+              <Feather name="calendar" size={13} color={Colors.primary} />
+              <AppText style={styles.teacherTimeText} numberOfLines={1}>
+                {t.next || NO_SESSION}
+              </AppText>
             </View>
           </Pressable>
         ))}
@@ -308,7 +326,13 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 12,
   },
+  noTeacher: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   teacherRow: {
+    alignItems: 'stretch',
     gap: 12,
     paddingBottom: 12,
     paddingRight: 4,
@@ -319,6 +343,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: 14,
     gap: 10,
+    justifyContent: 'space-between',
   },
   teacherTop: {
     flexDirection: 'row',
@@ -346,15 +371,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: 'rgba(255,255,255,0.8)',
   },
+  // pill jadwal: teks & ikon biru di atas putih supaya tidak terlihat seperti tombol kosong
   teacherTime: {
+    flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderRadius: Radius.pill,
-    paddingVertical: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
   },
   teacherTimeText: {
+    flexShrink: 1,
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
+    lineHeight: 16,
+    color: Colors.primaryDark,
   },
   psy: {
     flexDirection: 'row',
