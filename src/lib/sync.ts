@@ -34,6 +34,7 @@ import {
   serverChildMatch,
   students,
   teacherApplications,
+  teacherSessions,
   teacherChatThreads,
   teacherNotifications,
   teacherProfile,
@@ -41,6 +42,7 @@ import {
   type Student,
   type TeacherNotification,
 } from '@/data/teacher';
+import { contracts } from '@/data/contracts';
 import { doobieTopics } from '@/data/doobie';
 import { legalDocs } from '@/data/legal';
 import { observationReports, type ObservationReport } from '@/data/observations';
@@ -54,6 +56,9 @@ import { resetChildMatching } from './child-matching-store';
 import { setChildren, toChild, type ServerChild } from './children-store';
 import { loadCommunity, resetCommunity } from './community-store';
 import { resetMatching } from './matching-store';
+import { loadContracts } from './contracts-sync';
+import { resetReports } from './reports-store';
+import { resetTransactions } from './transactions-store';
 import { setPlans } from './membership-store';
 import { refreshProfile } from './profile-store';
 import { setCheckinWeek, setServerPoints } from './points-store';
@@ -225,6 +230,7 @@ async function loadParent() {
 
   Object.assign(quickQuestion, home.quickQuestion ?? { from: '', text: '' }, { id: home.quickQuestion?.id ?? '' });
   const active = engagements.filter((e) => e.status === 'ACTIVE');
+  const contractsLoad = loadContracts(active.map((e) => e.id));
   replace(
     activeTeachers,
     active.map((e) => ({ id: e.chatId ?? e.teacher.id, name: e.teacher.name.split(',')[0], next: e.nextSession }))
@@ -304,6 +310,7 @@ async function loadParent() {
   // report card anak pertama (layar Jadwal / Report Card memuat ulang per anak)
   const first = me.children[0];
   replace(sessionReports, first ? await api<SessionReport[]>(`/children/${first.id}/reports`).catch(() => []) : []);
+  await contractsLoad;
 }
 
 async function loadTeacher() {
@@ -357,6 +364,26 @@ async function loadTeacher() {
 
   const next = home.todaySchedule[0];
   Object.assign(todaySchedule, next ? { time: next.time, child: next.childName } : { time: '-', child: 'Belum ada sesi' });
+  await loadContracts(engagements.filter((e) => e.status === 'ACTIVE').map((e) => e.id));
+  const day = (offset: number) => new Date(Date.now() + 7 * 3600000 + offset * 86400000).toISOString().slice(0, 10);
+  const schedule = await api<
+    { kind: 'SESSION' | 'CONSULTATION'; id: string; childId: string | null; number: number | null; date: string; time: string; status: string; reportId: string | null; needsAttention: boolean }[]
+  >(`/schedule?from=${day(-60)}&to=${day(60)}`).catch(() => []);
+  replace(
+    teacherSessions,
+    schedule
+      .filter((x) => x.kind === 'SESSION' && x.status !== 'CANCELLED' && x.childId)
+      .map((x) => ({
+        id: x.id,
+        reportId: x.reportId,
+        date: x.date,
+        student: x.childId!,
+        number: x.number ?? 0,
+        time: x.time,
+        reportDone: Boolean(x.reportId),
+        attention: x.needsAttention,
+      }))
+  );
   replace(
     students,
     engagements
@@ -558,11 +585,13 @@ export function resetAppData() {
     psychologists,
     sessionReports,
     observationReports,
+    contracts,
     teacherPool,
     connectedTeachers,
     students,
     activeApplications,
     teacherApplications,
+    teacherSessions,
     teacherChatThreads,
     seekingChildren,
     teacherNotifications,
@@ -579,6 +608,8 @@ export function resetAppData() {
   setChildren([]);
   resetChats();
   resetMatching();
+  resetTransactions();
+  resetReports();
   resetChildMatching();
   resetCommunity();
   setPlans({ parent: null, teacher: null });

@@ -18,6 +18,24 @@ import { formatLongDate, MONTHS, toISODate } from '@/data/parent';
 import { students, teacherSessions, type TeacherSession } from '@/data/teacher';
 
 export default function TeacherJadwalScreen() {
+  if (students.length === 0) {
+    return (
+      <Screen>
+        <TabHeader title="Jadwal" />
+        <ClayCard>
+          <EmptyState
+            title="Belum ada jadwal pendampingan"
+            subtitle="Jadwal sesi muncul di sini setelah orang tua menyetujui kontrak pendampingan denganmu."
+          />
+        </ClayCard>
+        <PrimaryButton title="Cari Anak" leadingIcon="search" onPress={() => router.push('/teacher/cari-anak')} />
+      </Screen>
+    );
+  }
+  return <StudentSchedule />;
+}
+
+function StudentSchedule() {
   const [student, setStudent] = useState(students[0]);
   const sessions = teacherSessions
     .filter((s) => s.student === student.id)
@@ -160,7 +178,7 @@ function SessionCard({ session }: { session: TeacherSession }) {
       </View>
       {done ? (
         <Pressable
-          onPress={() => router.push({ pathname: '/report-card/[id]', params: { id: 's1' } })}
+          onPress={() => session.reportId && router.push({ pathname: '/report-card/[id]', params: { id: session.reportId } })}
           style={[styles.outline, Shadow.soft]}>
           <AppText style={styles.outlineText}>Lihat Laporan</AppText>
         </Pressable>
@@ -171,7 +189,7 @@ function SessionCard({ session }: { session: TeacherSession }) {
           onPress={() =>
             router.push({
               pathname: '/teacher/laporan-harian',
-              params: { student: session.student, session: String(session.number) },
+              params: { student: session.student, session: String(session.number), sessionId: session.id ?? '' },
             })
           }
         />

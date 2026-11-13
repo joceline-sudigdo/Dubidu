@@ -25,6 +25,9 @@ export type Teacher = {
   sessions: number;
   about: string;
   skills: Record<Skill, number>;
+  // alasan kecocokan untuk anak yang sedang dicari (dari server)
+  reasons?: string[];
+  caution?: string | null;
 };
 
 const s = (

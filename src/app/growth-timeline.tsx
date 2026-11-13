@@ -1,37 +1,69 @@
 import Feather from '@expo/vector-icons/Feather';
-import { StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import { ChildSwitcher } from '@/components/parent/child-switcher';
 import { ClayCard } from '@/components/parent/clay-card';
+import { EmptyState } from '@/components/parent/empty-state';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
 import { Tones } from '@/components/parent/tones';
 import { AppText } from '@/components/ui/app-text';
 import { Colors, Fonts, Radius } from '@/constants/theme';
-import { aspectGrowth, milestones, weeklyScores } from '@/data/growth';
+import { buildGrowth } from '@/data/growth';
 import { useChildren } from '@/lib/children-store';
+import { useReports } from '@/lib/reports-store';
 
 const MAX = 5;
 const CHART_H = 120;
 
 // perkembangan anak dari minggu ke minggu: skor holistik, per aspek, dan momen penting
 export default function GrowthTimelineScreen() {
-  const child = useChildren()[0];
+  const children = useChildren();
+  const [childId, setChildId] = useState(children[0]?.id);
+  const child = children.find((c) => c.id === childId) ?? children[0];
+  const { reports, loading } = useReports(child?.id);
+  const { weeklyScores, aspectGrowth, milestones } = buildGrowth(reports);
+
+  if (!child || weeklyScores.length === 0) {
+    return (
+      <Screen header={<ScreenHeader title="Growth Timeline" />} edges={['top', 'bottom']}>
+        {child && <ChildSwitcher value={child} onChange={(c) => setChildId(c.id)} />}
+        {loading ? (
+          <ActivityIndicator color={Colors.primary} />
+        ) : (
+          <EmptyState
+            title="Belum ada data perkembangan"
+            subtitle="Grafik muncul setelah shadow teacher mengirim report card sesi pertama."
+          />
+        )}
+      </Screen>
+    );
+  }
+
   const first = weeklyScores[0].value;
   const last = weeklyScores[weeklyScores.length - 1].value;
-  const growth = Math.round(((last - first) / first) * 100);
+  const growth = first ? Math.round(((last - first) / first) * 100) : 0;
 
   return (
     <Screen header={<ScreenHeader title="Growth Timeline" />} edges={['top', 'bottom']}>
+      <ChildSwitcher value={child} onChange={(c) => setChildId(c.id)} />
       <ClayCard tone="blue" style={styles.summary}>
         <View style={styles.flex}>
           <AppText variant="caption">Skor holistik {child.name}</AppText>
           <AppText style={styles.score}>
             {last.toFixed(1)} <AppText variant="caption">/ 5.0</AppText>
           </AppText>
-          <AppText variant="caption">6 minggu terakhir</AppText>
+          <AppText variant="caption">{weeklyScores.length} minggu terakhir</AppText>
         </View>
-        <Pill label={`+${growth}%`} tone="green" solid icon="trending-up" size="md" />
+        <Pill
+          label={`${growth >= 0 ? '+' : ''}${growth}%`}
+          tone={growth >= 0 ? 'green' : 'red'}
+          solid
+          icon={growth >= 0 ? 'trending-up' : 'trending-down'}
+          size="md"
+        />
       </ClayCard>
 
       <SectionHeader title="Skor Mingguan" />
@@ -93,7 +125,7 @@ export default function GrowthTimelineScreen() {
         {milestones.map((m, i) => {
           const t = Tones[m.tone];
           return (
-            <View key={m.title} style={styles.milestone}>
+            <View key={`${m.date}-${m.title}`} style={styles.milestone}>
               <View style={styles.rail}>
                 <View style={[styles.dot, { backgroundColor: t.fg }]} />
                 {i < milestones.length - 1 && <View style={styles.line} />}

@@ -15,7 +15,7 @@ import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { formatRupiah } from '@/data/parent';
 import { showAlert } from '@/lib/dialog';
 import { loadBalance, useBalance, withdraw } from '@/lib/payout-store';
-import { useTransactions } from '@/lib/transactions-store';
+import { loadTransactions, useTransactions } from '@/lib/transactions-store';
 
 // pencairan pendapatan shadow teacher & psikolog ke rekening utama
 export default function PencairanScreen() {
@@ -28,7 +28,12 @@ export default function PencairanScreen() {
   const PAYOUT_FEE = balance.payoutFee;
 
   // saldo & rekening bisa berubah (diganti di Rekening Pencairan / diproses admin), muat ulang saat layar dibuka
-  useFocusEffect(useCallback(() => void loadBalance().catch(() => {}), []));
+  useFocusEffect(
+    useCallback(() => {
+      loadBalance().catch(() => {});
+      loadTransactions().catch(() => {});
+    }, [])
+  );
 
   const amount = Number(amountText.replace(/\D/g, '')) || 0;
   const error =
