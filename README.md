@@ -236,6 +236,7 @@ Matching dihitung di server (`backend/src/lib/matching.ts`) dan hasilnya bisa di
 - **Kebutuhan anak** diambil dari pilihan kebutuhan saat registrasi dan kata kunci di keterangan diagnosis, lalu dipetakan ke 7 bidang: Speech Delay, Komunikasi, ADHD & Fokus, Sensori, Interaksi Sosial, Autisme, Akademik.
 - **Level keahlian teacher bukan klaim sepihak.** Teacher mengisi penilaian diri, psikolog mitra memberi rekomendasi setelah interview, dan admin menetapkan nilai akhir saat verifikasi (web admin › Verifikasi › Level keahlian). Nilai dari admin yang dipakai matching; penilaian diri tetap disimpan sebagai pembanding, dan setiap perubahan tercatat di audit log.
 - Hanya teacher berstatus **terverifikasi** yang muncul di hasil matching.
+- Setiap kartu teacher menampilkan **"Kenapa cocok?"**: keahlian terkuat yang sesuai kebutuhan anak, jarak/kota, dan rating, plus catatan bila ada kebutuhan anak yang keahlian teacher-nya masih di bawah 50. Alasan ini diturunkan langsung dari rumus skor di atas, jadi orang tua bisa memeriksa sendiri.
 - Bila `ANTHROPIC_API_KEY` diisi, 5 kandidat teratas juga dinilai model bahasa (alasan kecocokan dalam kalimat) dan skor akhir menjadi 40% skor aturan + 60% skor model. Tanpa kunci, matching sepenuhnya memakai skor aturan di atas.
 
 Rencana validasi: level keahlian diselaraskan dengan rubrik kompetensi yang disusun bersama psikolog mitra, dan kualitas matching diukur dari tingkat penerimaan tawaran serta ulasan setelah pendampingan.
@@ -268,7 +269,7 @@ Rencana validasi: level keahlian diselaraskan dengan rubrik kompetensi yang disu
 - **Chat belum realtime penuh.** Di hosting serverless, pesan baru diambil tiap ±4 detik (polling), bukan lewat websocket.
 - **Push notification dan video call** hanya berjalan di APK hasil build (bukan Expo Go); push notification iOS belum dikonfigurasi.
 - **Server paket gratis bisa "tertidur".** Sebuah jadwal ping tiap 5 menit menjaga server tetap responsif; bila ping terlambat, permintaan pertama bisa butuh beberapa detik.
-- **Layar yang masih memakai data contoh:** detail kontrak & termin, jadwal dan laporan harian shadow teacher, growth timeline, riwayat transaksi, dan klaim misi Doobie Rewards. Endpoint-nya sudah tersedia di backend.
+- **Klaim misi Doobie Rewards** masih memakai data contoh di aplikasi (poin & penukaran hadiah sudah tersimpan di server).
 - **Ketersediaan pendamping.** Hasil matching bergantung pada jumlah shadow teacher dan psikolog terverifikasi di tiap kota; akun sungguhan di kota tanpa pendamping akan melihat daftar kosong.
 - **Level keahlian** belum memakai rubrik klinis baku (lihat rencana validasi di bagian Smart Matching).
 - **Ukuran unggahan** maksimal 4 MB per file.

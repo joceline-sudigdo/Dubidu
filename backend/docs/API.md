@@ -79,7 +79,7 @@ Bidang keahlian (kunci): `speech`, `communication`, `adhd`, `sensory`, `social`,
 
 | Method | Path | Keterangan |
 |---|---|---|
-| GET 🔒 | `/matching/teachers?childId=` | (orang tua) **5 teacher paling cocok**: `{ child: { skills[] }, matchCount, skipsLeft, aiPending, cards[] }`. Kartu = `Teacher` di frontend: `id, name, city, price, rating, reviews, experience, responseRate, sessions, about, skills{speech:..}`, plus `matchPercent`, `ruleScore`, `ai: { score, reasons[], caution } \| null`, `connected`. `skipsLeft: null` = tanpa batas (Plus) |
+| GET 🔒 | `/matching/teachers?childId=` | (orang tua) **5 teacher paling cocok**: `{ child: { skills[] }, matchCount, skipsLeft, aiPending, cards[] }`. Kartu = `Teacher` di frontend: `id, name, city, price, rating, reviews, experience, responseRate, sessions, about, skills{speech:..}`, plus `matchPercent`, `ruleScore`, `ai: { score, reasons[], caution } \| null`, `reasons[]` (alasan kecocokan: dari AI bila ada, kalau tidak dari rumus skor), `caution` (string \| null), `connected`. `skipsLeft: null` = tanpa batas (Plus) |
 | POST 🔒 | `/matching/teachers/:teacherId/skip` | `{ childId }` — **Lewati**; balikan daftar baru (kandidat berikutnya masuk). Gratis 5×/hari → 429 kalau habis |
 | POST 🔒 | `/matching/teachers/:teacherId/connect` | `{ childId, message? }` — **Hubungkan**: pengajuan + chat langsung terbuka dengan pesan penawaran otomatis → `{ application, conversationId }` |
 | GET 🔒 | `/matching/teachers/compare?childId=&teacherIds=a,b` | **Bandingkan Teacher**: `{ teachers[2], recommendedId, reason }` |
@@ -164,6 +164,7 @@ Bidang keahlian (kunci): `speech`, `communication`, `adhd`, `sensory`, `social`,
 | GET 🔒 | `/payments` | riwayat transaksi |
 | GET 🔒 | `/payments/:id` | |
 | GET 🔒 | `/payments/methods` | daftar QRIS & rekening tujuan yang aktif |
+| GET 🔒 | `/payments/history` | riwayat transaksi pengguna (pembayaran, pendapatan, pencairan) terbaru dulu: `[{ id, title, subtitle, amount, method, date, status: 'Berhasil' \| 'Diproses' }]`; `amount` negatif = keluar |
 | POST 🔒 | `/payments/:id/checkout` | **manual:** `{ mode: "manual", amount, uniqueCode, amountDue, expiresAt, methods[], steps[] }` · **midtrans:** `{ mode, snapToken, redirectUrl }` · **mock:** `{ mode: "mock" }` |
 | POST 🔒 | `/payments/:id/proof` | (manual) `{ methodId, proofUrl, senderName, note? }` → status `VERIFYING` |
 | POST 🔒 | `/payments/:id/refresh` | cek status ke Midtrans setelah user kembali dari halaman bayar |

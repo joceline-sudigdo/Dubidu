@@ -13,9 +13,9 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 
 | Kategori | Jumlah perubahan |
 | --- | --- |
-| Bug fixing | 8 |
+| Bug fixing | 13 |
 | Deployment & stabilisasi | 4 |
-| UI/UX polishing | 4 |
+| UI/UX polishing | 5 |
 | Performance improvement | 5 |
 | Keamanan dasar | 6 |
 | Dokumentasi | 4 |
@@ -31,6 +31,11 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Error TypeScript & lint | 8 error TypeScript dan 3 error lint | 0 error TypeScript, 0 error lint | `src/app/chat/[id].tsx` dan berkas template di atas |
 | Uji otomatis "Lewati" tidak sesuai perilaku baru | 1 dari 31 skenario gagal | 36 dari 36 skenario lulus | `backend/tests/flow.test.ts` |
 | Pesan upload file terlalu besar tidak jelas | Server membalas error umum | Pesan "Ukuran file maksimal 4 MB" | `backend/src/lib/upload.ts`, `backend/src/lib/http.ts` |
+| Riwayat transaksi menampilkan data contoh | Daftar transaksi berasal dari data statis di aplikasi | Diambil dari server: pembayaran, pendapatan teacher/psikolog, dan pencairan dana, lengkap dengan status | `backend/src/routes/payments.ts` (`GET /payments/history`), `src/lib/transactions-store.ts`, `src/app/riwayat-transaksi.tsx`, `src/app/pencairan.tsx` |
+| Kalender laporan, report card & growth timeline memakai data contoh | Nilai dan grafik tidak sesuai laporan yang ditulis teacher; aplikasi crash bila anak belum punya laporan | Diambil dari laporan sesi di server, grafik mingguan & per aspek dihitung dari laporan asli; tampilan kosong yang jelas bila belum ada laporan | `src/lib/reports-store.ts`, `src/components/parent/report-calendar.tsx`, `src/app/report-card/[id].tsx`, `src/data/growth.ts`, `src/app/growth-timeline.tsx` |
+| Detail kontrak memakai data contoh | Hari, jam, dan jadwal sesi berikutnya tidak sesuai kontrak di server | Dibentuk dari kontrak & sesi di server; bisa dibuka langsung dari tautan | `src/lib/contracts-sync.ts`, `src/data/contracts.ts`, `src/app/kontrak/[id].tsx` |
+| Jadwal shadow teacher memakai data contoh | Teacher baru melihat jadwal milik orang lain; tanpa murid aplikasi error | Jadwal diambil dari server (±60 hari); tampilan kosong + tombol Cari Anak bila belum ada murid | `src/lib/sync.ts`, `src/app/teacher/(tabs)/jadwal.tsx`, `src/data/teacher.ts` |
+| Laporan harian teacher tidak terkirim | Form hanya menyimpan di HP, orang tua tidak pernah menerima laporan | Laporan (catatan, skor per aspek, foto) dikirim ke sesi terkait di server dan langsung muncul di report card orang tua | `src/app/teacher/laporan-harian.tsx`, `backend/src/routes/engagements.ts` |
 | Berhenti langganan Plus pada akun demo | Tidak bisa diulang untuk demonstrasi | Akun demo bisa menghentikan Plus agar alur langganan bisa dicoba lagi (akun sungguhan tetap aktif sampai akhir periode) | `backend/src/routes/payments.ts`, `src/app/plus.tsx` |
 
 ## 2. Deployment & stabilisasi
@@ -49,6 +54,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | QRIS dengan nominal terisi otomatis | Metode pembayaran QRIS yang sudah ada kini menampilkan QR yang nominalnya (termasuk kode unik) langsung terisi saat di-scan, sehingga pengguna tidak salah mengetik jumlah. Konfirmasi tetap oleh admin seperti sebelumnya (`backend/src/lib/qris.ts`, `src/components/ui/qr-code.tsx`, `src/app/pembayaran/[id].tsx`) |
 | Status QRIS di web admin | Kartu tujuan transfer menampilkan apakah QR terbaca sebagai QRIS dan nama merchant-nya |
 | Foto profil pada akun demo | Avatar inisial diganti foto pada kartu teacher & psikolog contoh (`src/data/images.ts`) |
+| Alasan kecocokan di kartu matching | Setiap kartu teacher menampilkan "Kenapa cocok?": keahlian terkuat yang sesuai kebutuhan anak, kota/jarak, rating, dan catatan bila ada kebutuhan yang belum dikuasai. Diturunkan dari rumus skor yang sama, bukan fitur baru (`backend/src/lib/matching.ts`, `src/components/parent/teacher-match-card.tsx`) |
 | Petunjuk pembayaran | Langkah bayar menyesuaikan metode (scan QRIS atau transfer bank) |
 
 ## 4. Performance improvement
@@ -86,7 +92,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Masukan | Tindak lanjut dalam rilis ini |
 | --- | --- |
 | Parameter validasi keahlian terapis perlu diselaraskan dengan standar klinis | README menjelaskan bahwa level keahlian ditetapkan admin setelah rekomendasi psikolog (bukan klaim teacher), berikut rencana rubrik kompetensi. Penyelarasan dengan standar klinis dicatat sebagai known limitation |
-| Validasi kualitas matching masih diperlukan | Rumus dan bobot matching didokumentasikan terbuka, beserta metrik yang akan dipakai untuk validasi |
+| Validasi kualitas matching masih diperlukan | Rumus dan bobot matching didokumentasikan terbuka, setiap kartu kini menunjukkan alasan kecocokannya sehingga orang tua dan juri bisa memeriksa hasilnya, dan metrik validasi (tingkat penerimaan tawaran, ulasan setelah pendampingan) dicatat di README |
 | Skalabilitas ketersediaan shadow teacher & profesional | Dicatat sebagai known limitation; daftar "Lewati" tidak lagi habis di kota dengan sedikit pendamping |
 
 ## Yang tidak berubah
