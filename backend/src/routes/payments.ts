@@ -242,6 +242,74 @@ paymentsRouter.get("/", async (req, res) => {
   res.json(rows.map(({ gatewayPayload: _g, ...p }) => p));
 });
 
+const METHOD_LABEL: Record<string, string> = { "manual-qris": "QRIS", "manual-bank_transfer": "Transfer bank", manual: "Transfer manual", mock: "Demo" };
+
+/**
+ * GET /api/payments/history — riwayat transaksi untuk layar "Riwayat Transaksi" (semua role).
+ * amount negatif = uang keluar (pembayaran, tarik saldo), positif = pendapatan teacher / psikolog.
+ */
+paymentsRouter.get("/history", async (req, res) => {
+  const userId = me(req).id;
+  const [paid, earned, payouts] = await Promise.all([
+    prisma.payment.findMany({ where: { userId, status: { in: ["PAID", "PENDING", "VERIFYING"] } }, include: { manualMethod: true }, orderBy: { createdAt: "desc" }, take: 100 }),
+    prisma.payment.findMany({ where: { payeeUserId: userId, status: "PAID" }, include: { user: { select: { fullName: true } } }, orderBy: { paidAt: "desc" }, take: 100 }),
+    prisma.payout.findMany({ where: { userId, status: { not: "REJECTED" } }, orderBy: { createdAt: "desc" }, take: 100 }),
+  ]);
+  const consultIds = [...paid, ...earned].filter((p) => p.purpose === "CONSULTATION").map((p) => p.referenceId);
+  const engagementIds = [...paid, ...earned].filter((p) => p.purpose === "ENGAGEMENT").map((p) => p.referenceId);
+  const subIds = paid.filter((p) => p.purpose === "SUBSCRIPTION").map((p) => p.referenceId);
+  const [consults, engagements, subs] = await Promise.all([
+    prisma.consultation.findMany({ where: { id: { in: consultIds } }, include: { psychologist: { include: { user: { select: { fullName: true } } } }, child: { select: { name: true } } } }),
+    prisma.engagement.findMany({ where: { id: { in: engagementIds } }, include: { teacher: { select: { fullName: true } }, child: { select: { name: true } } } }),
+    prisma.subscription.findMany({ where: { id: { in: subIds } }, select: { id: true, plan: true } }),
+  ]);
+
+  /** Judul & keterangan satu pembayaran dilihat dari sisi pembayar */
+  const describe = (p: { purpose: PaymentPurpose; referenceId: string }) => {
+    if (p.purpose === "CONSULTATION") {
+      const c = consults.find((x) => x.id === p.referenceId);
+      return { title: "Konsultasi Psikolog", subtitle: [c?.psychologist.user.fullName, c?.child?.name && `untuk ${c.child.name}`].filter(Boolean).join(" · ") };
+    }
+    if (p.purpose === "ENGAGEMENT") {
+      const e = engagements.find((x) => x.id === p.referenceId);
+      return { title: `Pendampingan ${e?.teacher.fullName ?? "shadow teacher"}`, subtitle: e ? `Pendampingan ${e.child.name}` : "Fee pendampingan" };
+    }
+    const plan = subs.find((x) => x.id === p.referenceId)?.plan;
+    return { title: "Dubidu Plus", subtitle: plan === "YEARLY" ? "Paket tahunan" : "Paket bulanan" };
+  };
+
+  const rows = [
+    ...paid.map((p) => ({
+      id: p.id,
+      ...describe(p),
+      amount: -(p.amountDue ?? p.amount),
+      method: p.manualMethod?.label ?? METHOD_LABEL[p.method ?? ""] ?? "Menunggu pembayaran",
+      at: p.paidAt ?? p.createdAt,
+      status: p.status === "PAID" ? "Berhasil" : "Diproses",
+    })),
+    ...earned.map((p) => ({
+      id: `in-${p.id}`,
+      title: p.purpose === "CONSULTATION" ? "Honor konsultasi" : "Pendapatan pendampingan",
+      subtitle: `${describe(p).subtitle} · dari ${p.user.fullName}`,
+      amount: p.payeeAmount ?? 0,
+      method: "Saldo Dubidu",
+      at: p.paidAt ?? p.createdAt,
+      status: "Berhasil",
+    })),
+    ...payouts.map((p) => ({
+      id: `out-${p.id}`,
+      title: `Tarik saldo ke ${p.bankName}`,
+      subtitle: `Diterima Rp${(p.amount - p.fee).toLocaleString("id-ID")} setelah biaya transfer`,
+      amount: -p.amount,
+      method: `${p.bankName} •••• ${p.accountNumber.slice(-4)}`,
+      at: p.processedAt ?? p.createdAt,
+      status: p.status === "TRANSFERRED" ? "Berhasil" : "Diproses",
+    })),
+  ].sort((a, b) => b.at.getTime() - a.at.getTime());
+
+  res.json(rows.map(({ at, ...r }) => ({ ...r, date: shortDate(at) })));
+});
+
 async function loadOwnPayment(req: Request) {
   const p = await prisma.payment.findUnique({ where: { id: param(req, "id") } });
   if (!p) throw notFound("Pembayaran");
