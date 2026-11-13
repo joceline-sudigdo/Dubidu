@@ -59,7 +59,7 @@ export function createApp() {
   });
 
   const limited = (message: string) => ({ error: message });
-  // anti tebak password: hanya percobaan yang GAGAL yang dihitung, jadi login normal tidak pernah terblokir
+  // anti tebak kata sandi — hanya percobaan yang GAGAL yang dihitung, jadi login normal tidak pernah terblokir
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 20,
