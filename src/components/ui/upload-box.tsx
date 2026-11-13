@@ -19,7 +19,7 @@ type Props = {
   icon: ComponentProps<typeof Feather>['name'];
   value: string | null;
   onChange: (uri: string | null) => void;
-  // 'document' = dokumen PDF (ijazah, sertifikat), 'image' = foto dari galeri
+  // 'document' = dokumen PDF (ijazah, sertifikat, CV, rekam medis), 'image' = foto dari galeri
   accept?: 'image' | 'document';
 };
 

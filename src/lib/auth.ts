@@ -108,7 +108,8 @@ export async function registerParent(data: ParentRegistration) {
     await api('/auth/me', { method: 'PATCH', body: { ktpUrl } });
   }
   if (data.needs.medicalRecordUri && res.children[0]) {
-    const medicalRecordUrl = await uploadFile(data.needs.medicalRecordUri, 'rekam-medis');
+    // rekam medis selalu dokumen PDF
+    const medicalRecordUrl = await uploadFile(data.needs.medicalRecordUri, 'rekam-medis', 'application/pdf');
     await api(`/children/${res.children[0].id}`, { method: 'PATCH', body: { medicalRecordUrl } });
   }
   return startSession(res.token, res.user);
@@ -139,12 +140,12 @@ export async function registerTeacher({ account, identity, teacher }: ParentRegi
       specializations: teacher.specializations,
     },
   });
-  // ijazah & sertifikat selalu dokumen PDF; KTP foto; CV boleh foto atau PDF
+  // ijazah, sertifikat & CV selalu dokumen PDF; KTP foto
   const docs: [string | null, string, string, boolean][] = [
     [identity.ktpUri, 'KTP', 'ktp', false],
     [teacher.ijazahUri, 'IJAZAH', 'ijazah', true],
     [teacher.certificateUri, 'SERTIFIKAT', 'sertifikat', true],
-    [teacher.cvUri, 'CV', 'cv', false],
+    [teacher.cvUri, 'CV', 'cv', true],
   ];
   for (const [uri, type, folder, pdf] of docs) {
     if (!uri) continue;

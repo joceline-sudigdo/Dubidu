@@ -103,6 +103,7 @@ export default function ChildNeedsScreen() {
         <UploadBox
           title="Ketuk untuk unggah rekam medis"
           icon="upload-cloud"
+          accept="document"
           value={medicalRecordUri}
           onChange={setMedicalRecordUri}
         />

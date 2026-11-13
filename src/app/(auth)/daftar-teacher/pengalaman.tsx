@@ -67,7 +67,13 @@ export default function PengalamanScreen() {
         <AppText variant="label" style={styles.label}>
           CV / Portofolio <AppText style={styles.hint}>(opsional)</AppText>
         </AppText>
-        <UploadBox title="Ketuk untuk unggah CV / portofolio" icon="file-text" value={cv} onChange={setCv} />
+        <UploadBox
+          title="Ketuk untuk unggah CV / portofolio"
+          icon="file-text"
+          accept="document"
+          value={cv}
+          onChange={setCv}
+        />
       </View>
 
       <View style={styles.group}>

@@ -14,7 +14,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Kategori | Jumlah perubahan |
 | --- | --- |
 | Bug fixing | 24 |
-| Deployment & stabilisasi | 5 |
+| Deployment & stabilisasi | 6 |
 | UI/UX polishing | 18 |
 | Performance improvement | 6 |
 | Keamanan dasar | 6 |
@@ -58,6 +58,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Migrasi database | `performance_indexes` dan `dynamic_qris` diterapkan otomatis saat deploy (`prisma migrate deploy`) |
 | Uji otomatis diperluas | 4 skenario baru: QRIS dinamis (CRC, validasi, sisip nominal, baca gambar QR) dan kunci akun demo |
 | Data demo shadow teacher | Akun demo teacher mendapat anak contoh di Cari Anak dan kuota "Lewati" dihitung di perangkat, sehingga alur lewati 5× → halaman Dubidu Plus selalu bisa didemokan; tombol "Ulang demo skip" untuk mengulang (sama seperti akun demo orang tua) (`src/lib/child-matching-store.ts`, `src/data/teacher.ts`) |
+| Akun demo teacher kedua | `ayas@dubidu.id` (Ayas Sudigdo, terverifikasi, level keahlian terisi) ditambahkan ke daftar akun demo dan dibuat otomatis oleh seed bila belum ada di database, supaya juri bisa mencoba dua teacher berbeda (`backend/prisma/seed.ts`, `src/data/dummy-accounts.json`) |
 
 ## 3. UI/UX polishing
 
@@ -79,7 +80,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Kartu Dubidu Plus | Chip fitur rata tengah; "Skip ∞" menjadi "Unlimited skip" |
 | Tab Riwayat | Label ringkas "Diasuh/Didampingi (n)" & "Pengajuan (n)"; tebal huruf kedua tab sama sehingga teks tidak melompat |
 | Daftar akun demo | Menampilkan peran tiap akun (Orang Tua / Shadow Teacher / Psikolog) dengan ikon |
-| Ijazah & sertifikat sebagai dokumen PDF | Pendaftaran teacher kini membuka pemilih dokumen (PDF) untuk ijazah & sertifikat, bukan galeri foto; dokumen tampil sebagai kartu nama file yang bisa dibuka. KTP tetap foto, CV boleh foto atau PDF (`src/components/ui/upload-box.tsx`, `src/app/(auth)/daftar-teacher/pendidikan.tsx`, `src/lib/auth.ts`) |
+| Dokumen diunggah sebagai PDF | Ijazah, sertifikat, dan CV saat pendaftaran teacher, serta rekam medis anak saat pendaftaran orang tua, kini memakai pemilih dokumen (PDF), bukan galeri foto; dokumen tampil sebagai kartu nama file yang bisa dibuka. KTP tetap foto (`src/components/ui/upload-box.tsx`, `src/app/(auth)/daftar-teacher/pendidikan.tsx`, `pengalaman.tsx`, `src/app/(auth)/parent/child-needs.tsx`, `src/lib/auth.ts`) |
 | Pill & kartu di baris geser tidak terpotong | Filter (Semua/Masuk/Keluar), chip anak, kartu Pengajuan Aktif, dan topik Doobie sebelumnya terpotong bagian bawah/bayangannya oleh ScrollView; kini diberi ruang tanpa mengubah jarak antarelemen (`src/components/parent/edge-scroll.tsx`, `src/components/shared/doobie-card.tsx`) |
 
 ## 4. Performance improvement

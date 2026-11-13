@@ -135,7 +135,7 @@ npx vercel@latest link        # sekali, buat project "dubidu-api"
 npx vercel@latest --prod      # setiap ada perubahan
 ```
 
-Environment Variables diisi di vercel.com → project → Settings → Environment Variables (lihat `backend/.env.example`). Di Cloudinary aktifkan **Settings → Security → Allow delivery of PDF and ZIP files** supaya dokumen PDF (ijazah, sertifikat) bisa dibuka psikolog & admin. Di Vercel chat tidak realtime (pakai `?after=` untuk cek pesan baru) dan upload maks ±4 MB (wajib Cloudinary).
+Environment Variables diisi di vercel.com → project → Settings → Environment Variables (lihat `backend/.env.example`). Di Cloudinary aktifkan **Settings → Security → Allow delivery of PDF and ZIP files** supaya dokumen PDF (ijazah, sertifikat, CV, rekam medis) bisa dibuka psikolog & admin. Di Vercel chat tidak realtime (pakai `?after=` untuk cek pesan baru) dan upload maks ±4 MB (wajib Cloudinary).
 
 ---
 
@@ -202,8 +202,8 @@ Profil build ada di `eas.json`: `development` (development build), `preview` (AP
 
 | Peran          | Fitur utama                                                                                                                                                                                                                               |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Orang tua      | registrasi profil kebutuhan anak, smart matching shadow teacher (bandingkan, skip, hubungkan), kontrak & pembayaran (QRIS / transfer), report card & growth timeline, laporan observasi psikolog, konsultasi psikolog, tambah anak (Plus) |
-| Shadow teacher | pendaftaran & verifikasi (ijazah & sertifikat dalam PDF), cari anak, tawaran jadwal di chat, laporan harian & akhir, pencairan pendapatan                                                                                                                                 |
+| Orang tua      | registrasi profil kebutuhan anak (rekam medis dalam PDF), smart matching shadow teacher (bandingkan, skip, hubungkan), kontrak & pembayaran (QRIS / transfer), report card & growth timeline, laporan observasi psikolog, konsultasi psikolog, tambah anak (Plus) |
+| Shadow teacher | pendaftaran & verifikasi (ijazah, sertifikat & CV dalam PDF), cari anak, tawaran jadwal di chat, laporan harian & akhir, pencairan pendapatan                                                                                                                                 |
 | Psikolog       | jadwal & sesi konsultasi (video/voice/onsite), kirim hasil observasi, rekomendasi verifikasi shadow teacher, pencairan pendapatan                                                                                                         |
 | Semua          | chat (gambar & jadwal), komunitas (posting foto + caption lewat kartu geser, komentar, simpan), Doobie (asisten topik + voice note), Doobie Rewards (ikan, misi, voucher), Dubidu Plus, notifikasi, unduh PDF                         |
 
