@@ -8,6 +8,10 @@ Aplikasi yang mempertemukan orang tua anak berkebutuhan khusus (ABK) dengan shad
 | `admin/`   | Web admin (verifikasi, pembayaran, pencairan, moderasi, konten) | Next.js                              |
 | `backend/` | API + database                                                  | Node.js, Express, Prisma, PostgreSQL |
 
+## Daftar isi
+
+[Tautan](#tautan) · [Cara mencoba](#cara-mencoba-untuk-juri) · [Tech stack](#tech-stack) · [Arsitektur](#arsitektur) · [Backend](#backend) · [Aplikasi mobile](#aplikasi-mobile) · [Web admin](#web-admin) · [Smart Matching](#cara-kerja-smart-matching) · [Keamanan](#keamanan-dasar) · [Kontribusi tim](#kontribusi-tim) · [Known limitations](#known-limitations) · [AI & pihak ketiga](#ai-use-and-third-party-declaration)
+
 ## Tautan
 
 | | |
@@ -19,17 +23,54 @@ Aplikasi yang mempertemukan orang tua anak berkebutuhan khusus (ABK) dengan shad
 
 ## Cara mencoba (untuk juri)
 
-1. Pasang APK dari halaman rilis, lalu di layar login tekan **Coba dengan Akun Demo**.
-2. Akun demo (password `dubidu123`): `devi@dubidu.id` (orang tua, Dubidu Plus), `pras@dubidu.id` (shadow teacher), `amanda@dubidu.id` (psikolog).
+1. Pasang APK dari halaman rilis, lalu di layar login tekan **Coba dengan Akun Demo**. Daftar akun menampilkan peran tiap akun.
+2. Akun demo (password `dubidu123`):
+
+   | Email | Peran | Catatan |
+   | --- | --- | --- |
+   | `devi@dubidu.id` | Orang tua | Sudah berlangganan Dubidu Plus (skip tanpa batas, multi anak) |
+   | `pras@dubidu.id` | Shadow teacher | Akun gratis: cocok untuk mendemokan batas 5× skip → halaman Dubidu Plus |
+   | `ayas@dubidu.id` | Shadow teacher | Akun teacher kedua |
+   | `amanda@dubidu.id` | Psikolog | Jadwal konsultasi, verifikasi teacher |
+
 3. Alur yang bisa dicoba dari awal sampai akhir:
    - **Orang tua:** Cari Teacher → Connect → chat → Konsultasi psikolog → pilih jadwal → bayar lewat QRIS (nominal terisi otomatis) → unggah bukti.
    - **Admin:** Bukti Transfer → Konfirmasi → status di aplikasi berubah menjadi lunas.
    - **Psikolog:** Jadwal → buka jam konsultasi → mulai sesi (video call) → kirim hasil observasi.
-   - **Shadow teacher:** Cari Anak → ajukan diri, isi level keahlian di Profil, Pencairan pendapatan.
+   - **Shadow teacher:** Cari Anak → ajukan diri / lewati (5× → halaman Dubidu Plus, tombol **Ulang demo skip** untuk mengulang), isi level keahlian di Profil, Pencairan pendapatan.
+   - **Semua peran:** Komunitas → ikon foto → pilih foto → geser kartu ke atas → tulis caption → Bagikan.
 4. Akun demo dipakai bersama, jadi tidak bisa dihapus atau diganti kata sandinya. Untuk mencoba pendaftaran, verifikasi, dan lupa kata sandi, buat akun baru dari tombol **Daftar di sini**.
 5. Akun demo dan akun sungguhan terpisah: akun yang baru didaftarkan tidak melihat data contoh (teacher/psikolog demo), dan sebaliknya.
 
 Akun admin untuk juri dikirim lewat formulir pengumpulan (tidak ditulis di repo publik).
+
+---
+
+## Tech stack
+
+| Lapisan | Teknologi | Alasan dipilih |
+| --- | --- | --- |
+| Aplikasi mobile | Expo SDK 58, React Native 0.88, React 19, TypeScript, Expo Router, Reanimated 4 | Satu kode untuk Android & iOS, build APK lewat EAS tanpa Android Studio |
+| Web admin | Next.js 16 (App Router), Tailwind CSS 4, shadcn/ui, TanStack Table, Recharts | Dashboard internal; data diambil dari server Next.js sehingga token admin tidak terekspos ke browser |
+| Backend | Node.js 20, Express 5, TypeScript, Zod, Socket.IO | API REST yang dipakai bersama aplikasi & web admin; validasi input di satu tempat |
+| Database | PostgreSQL (Neon) + Prisma 7 | Data relasional (anak, kontrak, sesi, pembayaran) dengan migrasi terversi |
+| AI | Anthropic Claude API (Doobie & AI matching) | Opsional: tanpa kunci API, aplikasi tetap berjalan dengan balasan bawaan & skor aturan |
+| Layanan | Vercel (hosting), Cloudinary (file), Daily.co / Jitsi (video call), Expo Push, Gmail SMTP, GitHub Actions | Paket gratis, cukup untuk skala MVP |
+
+## Arsitektur
+
+```
+┌──────────────────────┐        ┌───────────────────────┐
+│ Aplikasi mobile Expo │──HTTPS─▶│                       │──▶ PostgreSQL (Neon)
+│ orang tua · teacher  │        │  Backend Express API  │──▶ Cloudinary (foto, bukti bayar)
+│ · psikolog           │◀─push──│  (Vercel serverless)  │──▶ Claude API (Doobie, AI matching)
+└──────────────────────┘        │                       │──▶ Daily.co (video call)
+┌──────────────────────┐        │                       │──▶ Expo Push / Gmail SMTP
+│ Web admin Next.js    │──HTTPS─▶│                       │
+└──────────────────────┘        └───────────────────────┘
+```
+
+Aplikasi dan web admin tidak pernah mengakses database langsung; semua lewat API dengan token JWT dan pengecekan kepemilikan data.
 
 ---
 
@@ -107,6 +148,7 @@ Environment Variables diisi di vercel.com → project → Settings → Environme
 ├── app.json               ← nama aplikasi, scheme, package, plugin, EAS projectId
 ├── eas.json               ← profil build EAS + alamat backend per profil
 ├── assets/images/         ← maskot Doobie, ilustrasi splash/onboarding, ikon navbar
+│   └── avatars/           ← foto profil (crop wajah, nama file = nama orang); _source/ = foto asli
 └── src/
     ├── app/               ← layar (file-based routing)
     │   ├── (auth)/        ← login, daftar orang tua & shadow teacher, lupa sandi
@@ -163,7 +205,7 @@ Profil build ada di `eas.json`: `development` (development build), `preview` (AP
 | Orang tua      | registrasi profil kebutuhan anak, smart matching shadow teacher (bandingkan, skip, hubungkan), kontrak & pembayaran (QRIS / transfer), report card & growth timeline, laporan observasi psikolog, konsultasi psikolog, tambah anak (Plus) |
 | Shadow teacher | pendaftaran & verifikasi, cari anak, tawaran jadwal di chat, laporan harian & akhir, pencairan pendapatan                                                                                                                                 |
 | Psikolog       | jadwal & sesi konsultasi (video/voice/onsite), kirim hasil observasi, rekomendasi verifikasi shadow teacher, pencairan pendapatan                                                                                                         |
-| Semua          | chat (gambar & jadwal), komunitas (posting, komentar, simpan), Doobie (asisten topik + voice note), Doobie Rewards (ikan, misi, voucher), Dubidu Plus, notifikasi, unduh PDF                                                              |
+| Semua          | chat (gambar & jadwal), komunitas (posting foto + caption lewat kartu geser, komentar, simpan), Doobie (asisten topik + voice note), Doobie Rewards (ikan, misi, voucher), Dubidu Plus, notifikasi, unduh PDF                         |
 
 ---
 
@@ -273,6 +315,9 @@ Rencana validasi: level keahlian diselaraskan dengan rubrik kompetensi yang disu
 - **Ketersediaan pendamping.** Hasil matching bergantung pada jumlah shadow teacher dan psikolog terverifikasi di tiap kota; akun sungguhan di kota tanpa pendamping akan melihat daftar kosong.
 - **Level keahlian** belum memakai rubrik klinis baku (lihat rencana validasi di bagian Smart Matching).
 - **Ukuran unggahan** maksimal 4 MB per file.
+- **Kuota "Lewati" akun demo** dihitung di perangkat (bukan server) dan ditambah anak/teacher contoh, supaya alur skip → Dubidu Plus selalu bisa didemokan. Akun sungguhan memakai kuota dari server.
+- **Avatar anak** memakai ilustrasi sesuai gender (bukan foto asli anak) untuk menjaga privasi; foto profil akun demo adalah foto stok.
+- **Bahasa** aplikasi hanya Bahasa Indonesia; pesan error teknis dari server diterjemahkan di aplikasi.
 
 ---
 
@@ -281,7 +326,10 @@ Rencana validasi: level keahlian diselaraskan dengan rubrik kompetensi yang disu
 ### Penggunaan AI dalam pengembangan
 
 - **Claude (Anthropic) lewat Claude Code** dipakai sebagai asisten pemrograman untuk menulis dan merapikan kode aplikasi mobile, web admin, dan backend: menerjemahkan mockup desain ke layar, membuat komponen dan state per fitur, alur navigasi, serta audit fitur web admin.
-- **Aset visual** (maskot Doobie, ilustrasi puzzle & onboarding, ikon navbar, foto banner) dibuat dengan bantuan **AI generatif**, lalu dipilih dan disesuaikan oleh tim.
+- **Aset visual** (maskot Doobie, ilustrasi puzzle & onboarding, ikon navbar) dibuat dengan bantuan **AI generatif**, lalu dipilih dan disesuaikan oleh tim.
+- **Foto** (foto profil akun demo dan foto banner) **bukan** buatan AI: semuanya foto stok gratis dari Magnific (lihat tabel di bawah).
+- Pada tahap finalis, Claude Code juga dipakai untuk audit UI/UX & bug (tampilan kosong, teks keluar kartu, pesan error berbahasa Inggris), menyelesaikan merge conflict, serta menyusun draf README dan changelog ini.
+- Foto profil di-crop otomatis ke area wajah dengan skrip Python (Pillow); posisi wajah ditentukan manual oleh tim.
 - Semua keluaran AI ditinjau, diuji, dan disesuaikan oleh tim sebelum digabung. Keputusan produk, desain UI/UX, dan alur bisnis ditentukan oleh tim.
 
 ### Penggunaan AI di dalam produk
@@ -298,7 +346,7 @@ Rencana validasi: level keahlian diselaraskan dengan rubrik kompetensi yang disu
 | Web admin         | Next.js, Tailwind CSS, shadcn/ui, Base UI, lucide-react                                                                                                                          | MIT / ISC                              |
 | Backend           | Express, Prisma, Socket.IO, Zod, jsonwebtoken, bcryptjs, multer, nodemailer, helmet, express-rate-limit, expo-server-sdk, Anthropic SDK, jsqr, pngjs                             | MIT / Apache 2.0                       |
 | QR                | qrcode-generator (menggambar QRIS di aplikasi), jsqr + pngjs (membaca QRIS dari gambar di server)                                                                                | MIT / Apache 2.0                       |
-| Foto              | Foto profil contoh pada akun demo & foto banner (`assets/images/images/`): **TODO tim: tulis sumber & lisensi foto stok sebelum pengumpulan**                              | sesuai lisensi sumber                  |
+| Foto              | Foto profil contoh pada akun demo (`assets/images/avatars/`, asli di `avatars/_source/`) & foto banner Beranda (`assets/images/images/`): foto stok gratis dari [Magnific](https://www.magnific.com) (sebelumnya Freepik). Nama orang pada profil demo fiktif dan tidak merujuk ke model di foto. **Designed by Magnific** | Lisensi Free Magnific: boleh dipakai komersial dengan atribusi |
 | Font              | Poppins, Lato, Fredoka One (via `@expo-google-fonts` & Google Fonts)                                                                                                             | SIL Open Font License 1.1              |
 | Ikon              | Feather & Material Community Icons (via `@expo/vector-icons`)                                                                                                                    | MIT / Apache 2.0                       |
 | Layanan           | Expo EAS (build & push notification), Firebase Cloud Messaging (push Android), Vercel (hosting API & admin), Neon (PostgreSQL), Cloudinary (file), Daily.co / Jitsi (video call), Gmail SMTP (email reset), GitHub Actions (ping server), Anthropic API (opsional), Midtrans (opsional, belum diaktifkan) | sesuai ketentuan layanan masing-masing |

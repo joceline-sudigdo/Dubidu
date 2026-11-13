@@ -13,12 +13,12 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 
 | Kategori | Jumlah perubahan |
 | --- | --- |
-| Bug fixing | 13 |
-| Deployment & stabilisasi | 4 |
-| UI/UX polishing | 5 |
-| Performance improvement | 5 |
+| Bug fixing | 22 |
+| Deployment & stabilisasi | 5 |
+| UI/UX polishing | 16 |
+| Performance improvement | 6 |
 | Keamanan dasar | 6 |
-| Dokumentasi | 4 |
+| Dokumentasi | 5 |
 
 ## 1. Bug fixing
 
@@ -37,6 +37,15 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Jadwal shadow teacher memakai data contoh | Teacher baru melihat jadwal milik orang lain; tanpa murid aplikasi error | Jadwal diambil dari server (±60 hari); tampilan kosong + tombol Cari Anak bila belum ada murid | `src/lib/sync.ts`, `src/app/teacher/(tabs)/jadwal.tsx`, `src/data/teacher.ts` |
 | Laporan harian teacher tidak terkirim | Form hanya menyimpan di HP, orang tua tidak pernah menerima laporan | Laporan (catatan, skor per aspek, foto) dikirim ke sesi terkait di server dan langsung muncul di report card orang tua | `src/app/teacher/laporan-harian.tsx`, `backend/src/routes/engagements.ts` |
 | Berhenti langganan Plus pada akun demo | Tidak bisa diulang untuk demonstrasi | Akun demo bisa menghentikan Plus agar alur langganan bisa dicoba lagi (akun sungguhan tetap aktif sampai akhir periode) | `backend/src/routes/payments.ts`, `src/app/plus.tsx` |
+| "Teacher saat ini" tampil sebagai tombol putih kosong | Server mengirim sesi berikutnya `null` (sesi sudah lewat), sehingga pill jadwal kosong | Teks "Belum dijadwalkan" dengan ikon kalender; berlaku juga di Riwayat orang tua & teacher | `src/lib/sync.ts`, `src/app/(tabs)/beranda.tsx` |
+| Titik merah notifikasi selalu muncul | Indikator di ikon lonceng tetap tampil walau semua notifikasi sudah dibaca | Hanya muncul bila ada notifikasi belum dibaca, di ketiga peran; notifikasi teacher & psikolog kini punya tanda belum dibaca dan "tandai semua dibaca" | `src/lib/notification-store.ts`, beranda & `notifikasi.tsx` ketiga peran |
+| Pesan error berbahasa Inggris | Validasi server tampil apa adanya, mis. "Too small: expected string to have >=3 characters" | Diterjemahkan, mis. "Tulisan minimal 3 karakter."; pesan jaringan, upload, dan sesi login juga berbahasa Indonesia | `src/lib/api.ts`, `src/lib/chat-store.ts`, `src/lib/pdf.ts` |
+| Profil teacher crash tanpa profil anak & skor "NaN%" | Membuka profil teacher dari akun tanpa anak membuat aplikasi error; anak tanpa kebutuhan menghasilkan NaN | Ajakan "Tambah Anak" dan skor aman dari pembagian nol | `src/app/profil-teacher/[id].tsx`, `src/data/teachers.ts` |
+| Jadwal hari ini teacher "- • Sesi dengan Belum ada sesi!" | Teks gabungan placeholder | "Belum ada sesi hari ini. Waktunya istirahat!"; progress target tidak lagi NaN% untuk akun baru | `src/app/teacher/(tabs)/beranda.tsx`, `src/lib/sync.ts` |
+| Avatar anak selalu perempuan | Sinkronisasi memaksa `gender: 'female'` untuk semua anak | Gender asli dikirim server dan dipakai di seluruh tampilan anak | `backend/src/routes/applications.ts`, `engagements.ts`, `psychologists.ts`, `src/lib/sync.ts`, `src/lib/children-store.ts` |
+| Skip hanya bisa di sebagian kartu matching | Tombol Lewati nonaktif untuk teacher/anak yang pernah dihubungi | Semua kartu bisa dilewati; Connect menampilkan status "Menghubungkan..." sehingga tidak terkirim dobel | `src/components/parent/teacher-match-card.tsx`, `child-match-card.tsx`, `src/app/cari-teacher.tsx`, `src/app/teacher/cari-anak.tsx` |
+| Data kosong tampil janggal | Muncul "0 tahun", "Kelas -", dan "- - AUTISM" | Bagian yang belum diisi disembunyikan | `src/app/teacher/anak/[id].tsx`, `src/app/teacher/(tabs)/riwayat.tsx`, `src/app/kontrak/[id].tsx`, `src/lib/sync.ts` |
+| Teks keluar dari kartu | Nominal pendapatan, nama + gelar panjang, kota + harga, dan nilai Info Layanan bisa melewati batas kartu | Dibungkus / dikecilkan otomatis | beranda teacher & psikolog, `profil-teacher/[id].tsx`, `teacher-match-card.tsx` |
 
 ## 2. Deployment & stabilisasi
 
@@ -46,6 +55,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Akun demo tahan dipakai banyak penguji | Akun demo tidak bisa dihapus, diganti, atau direset kata sandinya (lihat Keamanan) |
 | Migrasi database | `performance_indexes` dan `dynamic_qris` diterapkan otomatis saat deploy (`prisma migrate deploy`) |
 | Uji otomatis diperluas | 4 skenario baru: QRIS dinamis (CRC, validasi, sisip nominal, baca gambar QR) dan kunci akun demo |
+| Data demo shadow teacher | Akun demo teacher mendapat anak contoh di Cari Anak dan kuota "Lewati" dihitung di perangkat, sehingga alur lewati 5× → halaman Dubidu Plus selalu bisa didemokan; tombol "Ulang demo skip" untuk mengulang (sama seperti akun demo orang tua) (`src/lib/child-matching-store.ts`, `src/data/teacher.ts`) |
 
 ## 3. UI/UX polishing
 
@@ -56,6 +66,17 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Foto profil pada akun demo | Avatar inisial diganti foto pada kartu teacher & psikolog contoh (`src/data/images.ts`) |
 | Alasan kecocokan di kartu matching | Setiap kartu teacher menampilkan "Kenapa cocok?": keahlian terkuat yang sesuai kebutuhan anak, kota/jarak, rating, dan catatan bila ada kebutuhan yang belum dikuasai. Diturunkan dari rumus skor yang sama, bukan fitur baru (`backend/src/lib/matching.ts`, `src/components/parent/teacher-match-card.tsx`) |
 | Petunjuk pembayaran | Langkah bayar menyesuaikan metode (scan QRIS atau transfer bank) |
+| Posting komunitas lewat kartu geser | Pilih foto → kartu kecil muncul di bawah dengan panah "Geser ke atas untuk tulis caption" → lembar berisi caption (penghitung minimal 3 karakter), foto, dan topik. Fitur posting yang sama, alur unggahnya dirapikan (`src/components/shared/post-composer-sheet.tsx`, `community-screen.tsx`) |
+| Transisi Komunitas | Pergantian kolom pencarian ↔ posting memakai crossfade dengan durasi sama; hasil filter/pencarian memudar halus, tidak melompat |
+| Foto profil tidak terpotong | Semua foto di-crop persegi dengan wajah di tengah (kepala Nielsen Dave dkk. tidak lagi terpotong di lingkaran); akun demo Devi, Prasetyo, Dimas Wicaksono, dan beberapa orang tua contoh kini berfoto; nama file = nama orang (`assets/images/avatars/`) |
+| Avatar anak | Ilustrasi child-boy / child-girl sesuai gender di sisi orang tua (Beranda, Profil, Report Card) dan teacher |
+| Foto profil Doobie | Maskot beruang (pita pink untuk orang tua, dasi biru untuk teacher) di header chat Doobie |
+| Halaman kosong di tengah layar | Chat, Riwayat, Jadwal, Verifikasi, Notifikasi, Postingan Tersimpan, Laporan Observasi, Riwayat Transaksi, dan halaman "tidak ditemukan"; empty state baru untuk "Teacher saat ini", konsultasi hari ini, dan notifikasi orang tua |
+| Kartu horizontal sejajar | Label status (Pending / Ditolak) di "Pengajuan Aktif" dan jadwal di "Teacher saat ini" selalu di dasar kartu |
+| Badge Verified | Di Beranda teacher & psikolog cukup ikon centang, tanpa tulisan |
+| Kartu Dubidu Plus | Chip fitur rata tengah; "Skip ∞" menjadi "Unlimited skip" |
+| Tab Riwayat | Label ringkas "Diasuh/Didampingi (n)" & "Pengajuan (n)"; tebal huruf kedua tab sama sehingga teks tidak melompat |
+| Daftar akun demo | Menampilkan peran tiap akun (Orang Tua / Shadow Teacher / Psikolog) dengan ikon |
 
 ## 4. Performance improvement
 
@@ -66,6 +87,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Indeks database | Query riwayat pembayaran, langganan, daftar chat, komentar, laporan, antrean verifikasi memindai tabel | 9 indeks baru pada kolom yang paling sering dicari |
 | Ukuran aset aplikasi | 27 MB (foto & ilustrasi beresolusi jauh di atas ukuran tampil) | 10 MB (diperkecil ke resolusi tampil, kualitas visual sama) |
 | Muat data awal orang tua | 2 permintaan menunggu giliran | Semua permintaan berjalan paralel |
+| Foto profil | Foto stok ukuran penuh (hingga 2781 px) dimuat untuk avatar 40–110 px | Versi crop 480 px; foto asli disimpan di `avatars/_source/` dan tidak ikut ter-bundle |
 
 ## 5. Keamanan dasar
 
@@ -86,6 +108,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Finalist Changelog | Dokumen ini |
 | Dokumentasi API | Endpoint QRIS dinamis, kunci akun demo, dan pembatasan laju (`backend/docs/API.md`) |
 | Penjelasan matching | Bobot skor, sumber data, peran verifikasi admin & psikolog, dan rencana validasi (menjawab masukan juri) |
+| README: tech stack & arsitektur | Tabel tech stack beserta alasan pemilihan, diagram arsitektur, tabel akun demo per peran, dan known limitations tambahan |
 
 ## Tanggapan atas masukan juri
 
