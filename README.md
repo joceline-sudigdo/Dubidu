@@ -202,10 +202,10 @@ Profil build ada di `eas.json`: `development` (development build), `preview` (AP
 
 | Peran          | Fitur utama                                                                                                                                                                                                                               |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Orang tua      | registrasi profil kebutuhan anak (rekam medis dalam PDF), smart matching shadow teacher (bandingkan, skip, hubungkan), kontrak & pembayaran (QRIS / transfer), report card & growth timeline, laporan observasi psikolog, konsultasi psikolog, tambah anak (Plus) |
+| Orang tua      | registrasi profil kebutuhan anak (rekam medis dalam PDF, opsi langsung konsultasi psikolog), smart matching shadow teacher (bandingkan, skip, hubungkan, favorit), kontrak & pembayaran (QRIS / transfer, ajukan perpanjangan), report card & growth timeline, laporan observasi psikolog, konsultasi psikolog, tambah anak (Plus) |
 | Shadow teacher | S&K Shadow Teacher wajib dibaca sebelum mendaftar, pendaftaran & verifikasi (ijazah, sertifikat & CV dalam PDF), cari anak, tawaran jadwal di chat, laporan harian & akhir, pencairan pendapatan                                                                                                                                 |
-| Psikolog       | jadwal & sesi konsultasi (video/voice/onsite), kirim hasil observasi, rekomendasi verifikasi shadow teacher, pencairan pendapatan                                                                                                         |
-| Semua          | chat (gambar & jadwal), komunitas (posting foto + caption lewat kartu geser, komentar, simpan), Doobie (asisten topik + voice note), Doobie Rewards (ikan, misi, voucher), Dubidu Plus, notifikasi, unduh PDF                         |
+| Psikolog       | jadwal & sesi konsultasi (video/voice/onsite), kirim hasil observasi, tinjau dokumen & rekomendasi verifikasi shadow teacher, edit profil, pencairan pendapatan |
+| Semua          | chat (gambar & jadwal, bisukan), komunitas (posting foto + caption lewat kartu geser, komentar, simpan, bagikan), Doobie (asisten topik + voice note), Doobie Rewards (ikan, misi, voucher), Dubidu Plus, notifikasi & pengaturannya, ganti email/HP & foto profil, unduh PDF |
 
 ---
 
@@ -288,8 +288,9 @@ Rencana validasi: level keahlian diselaraskan dengan rubrik kompetensi yang disu
 ## Keamanan dasar
 
 - Kata sandi disimpan sebagai hash bcrypt; token login JWT disimpan terenkripsi di perangkat (expo-secure-store).
-- Pembatasan laju: percobaan login gagal (20 / 15 menit), pendaftaran & kode reset (30 / jam), dan batas umum per alamat IP.
-- Akun yang dinonaktifkan admin langsung kehilangan akses; akun demo tidak bisa dihapus atau diganti kata sandinya.
+- Pembatasan laju: percobaan login gagal (20 / 15 menit), pendaftaran & kode reset (30 / jam), cek email/HP saat daftar (60 / jam), dan batas umum per alamat IP (1.500 / 5 menit).
+- Akun yang dinonaktifkan admin langsung kehilangan akses; akun demo tidak bisa dihapus, diganti kata sandi, atau diganti email/HP-nya.
+- Ganti email / nomor HP wajib memasukkan kata sandi saat ini, dan ditolak bila sudah dipakai akun lain.
 - Akses data dicek per pemilik (anak, chat, pembayaran, laporan); teacher hanya melihat inisial anak sampai tawaran diterima.
 - Unggahan dibatasi jenis file (JPG, PNG, WEBP, HEIC, PDF) dan ukuran 4 MB.
 - Perlindungan anak: shadow teacher wajib membaca & menyetujui Syarat & Ketentuan Shadow Teacher sebelum mendaftar. Dubidu dan lembaga tempat pendampingan berhak memberi peringatan dan mencabut penugasan teacher yang terbukti melakukan kekerasan atau tindakan tidak wajar; admin menonaktifkan akunnya dan riwayat pelanggaran dipakai dalam verifikasi.
@@ -303,6 +304,7 @@ Rencana validasi: level keahlian diselaraskan dengan rubrik kompetensi yang disu
 | --- | --- | --- |
 | Joceline Sudigdo | Frontend & desain | UI/UX aplikasi mobile (orang tua, shadow teacher, psikolog), web admin, aset visual, konfigurasi build |
 | Ni Putu Saraswati | Backend & database | skema database, API, pembayaran, integrasi aplikasi & web admin dengan backend, deployment, pengujian |
+| Elisya Effriani | Bisnis & riset pengguna | observasi lapangan & wawancara pengguna (orang tua, shadow teacher, GPK, psikolog), model bisnis & strategi, pitch deck |
 
 ---
 
@@ -312,7 +314,7 @@ Rencana validasi: level keahlian diselaraskan dengan rubrik kompetensi yang disu
 - **Chat belum realtime penuh.** Di hosting serverless, pesan baru diambil tiap ±4 detik (polling), bukan lewat websocket.
 - **Push notification dan video call** hanya berjalan di APK hasil build (bukan Expo Go); push notification iOS belum dikonfigurasi.
 - **Server paket gratis bisa "tertidur".** Sebuah jadwal ping tiap 5 menit menjaga server tetap responsif; bila ping terlambat, permintaan pertama bisa butuh beberapa detik.
-- **Klaim misi Doobie Rewards** masih memakai data contoh di aplikasi (poin & penukaran hadiah sudah tersimpan di server).
+- **Daftar misi Doobie Rewards** di aplikasi masih bawaan (belum diambil dari konten web admin); klaim misi, saldo ikan, dan penukaran hadiah sudah tersimpan di server.
 - **Ketersediaan pendamping.** Hasil matching bergantung pada jumlah shadow teacher dan psikolog terverifikasi di tiap kota; akun sungguhan di kota tanpa pendamping akan melihat daftar kosong.
 - **Level keahlian** belum memakai rubrik klinis baku (lihat rencana validasi di bagian Smart Matching).
 - **Ukuran unggahan** maksimal 4 MB per file.
@@ -331,7 +333,7 @@ Rencana validasi: level keahlian diselaraskan dengan rubrik kompetensi yang disu
 - **Claude (Anthropic) lewat Claude Code** dipakai sebagai asisten pemrograman untuk menulis dan merapikan kode aplikasi mobile, web admin, dan backend: menerjemahkan mockup desain ke layar, membuat komponen dan state per fitur, alur navigasi, serta audit fitur web admin.
 - **Aset visual** (maskot Doobie, ilustrasi puzzle & onboarding, ikon navbar) dibuat dengan bantuan **AI generatif**, lalu dipilih dan disesuaikan oleh tim.
 - **Foto** (foto profil akun demo dan foto banner) **bukan** buatan AI: semuanya foto stok gratis dari Magnific (lihat tabel di bawah).
-- Pada tahap finalis, Claude Code juga dipakai untuk audit UI/UX & bug (tampilan kosong, teks keluar kartu, pesan error berbahasa Inggris), menyelesaikan merge conflict, serta menyusun draf README dan changelog ini.
+- Pada tahap finalis, Claude Code juga dipakai untuk audit UI/UX & bug (tampilan kosong, teks keluar kartu, pesan error berbahasa Inggris), menyambungkan fitur yang sebelumnya hanya tersimpan di HP ke endpoint backend, menyelesaikan merge conflict, serta menyusun draf README dan changelog ini.
 - Foto profil di-crop otomatis ke area wajah dengan skrip Python (Pillow); posisi wajah ditentukan manual oleh tim.
 - Semua keluaran AI ditinjau, diuji, dan disesuaikan oleh tim sebelum digabung. Keputusan produk, desain UI/UX, dan alur bisnis ditentukan oleh tim.
 

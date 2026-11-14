@@ -120,7 +120,7 @@ export async function claimCheckin(mood = 'SENANG') {
   }
 }
 
-/** Klaim Madu dari misi lewat server (POST /missions/:id/claim, sekali per misi per hari). true = berhasil */
+/** Klaim ikan dari misi lewat server (POST /missions/:id/claim, sekali per misi per hari). true = berhasil */
 export async function claimMission(id: string, title: string, amount: number) {
   const role = currentRole();
   if (state.claimedMissions[role].includes(id)) return false;

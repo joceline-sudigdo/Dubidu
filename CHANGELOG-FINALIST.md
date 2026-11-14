@@ -6,6 +6,8 @@ Seluruh perubahan berada dalam lingkup refinement yang diizinkan: perbaikan bug,
 UI/UX polishing, peningkatan performa, keamanan dasar, dan dokumentasi. **Tidak ada fitur inti, peran pengguna,
 atau alur bisnis baru**: produk tetap aplikasi pendampingan ABK dengan smart matching, pemantauan perkembangan,
 konsultasi psikolog, komunitas, dan pembayaran lewat QRIS / transfer bank yang dikonfirmasi admin.
+Endpoint backend yang ditambahkan hanya melengkapi tombol dan layar yang **sudah ada sejak `submission-24h`**
+tetapi sebelumnya tidak tersimpan ke server (mis. favorit, bisukan chat, pengaturan notifikasi, ganti email).
 
 Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-24h...finalist-release
 
@@ -17,7 +19,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Deployment & stabilisasi | 6 |
 | UI/UX polishing | 24 |
 | Performance improvement | 6 |
-| Keamanan dasar | 8 |
+| Keamanan dasar | 10 |
 | Dokumentasi | 5 |
 
 ## 1. Bug fixing
@@ -54,7 +56,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Ganti email / HP & domisili tidak tersimpan | Mengubah email, nomor HP, atau domisili di halaman Profil hanya mengubah tampilan di HP | Email/HP diganti lewat server dengan konfirmasi kata sandi dan cek email/HP yang sudah dipakai; domisili tersimpan ke akun | `POST /auth/change-contact`, `src/lib/profile-store.ts`, `src/app/profil.tsx` |
 | Pengaturan notifikasi tidak berpengaruh | Saklar notifikasi di Pengaturan hanya tersimpan di HP; push tetap dikirim | Preferensi tersimpan di server dan dipatuhi saat mengirim push | `GET/PATCH /auth/me/settings`, `backend/src/lib/settings.ts`, `backend/src/lib/notify.ts`, `src/app/pengaturan.tsx` |
 | Bisukan chat tidak berpengaruh | "Bisukan notifikasi" di chat hanya berubah sesaat di layar | Tersimpan di server; pesan tetap masuk tanpa push notification | `PATCH /conversations/:id/mute`, `src/lib/chat-store.ts`, `src/app/chat/[id].tsx` |
-| Klaim misi & favorit hanya di HP | Madu dari misi Doobie Rewards dan daftar favorit hilang saat ganti HP / login ulang; misi bisa diklaim berulang | Klaim misi tercatat di server (sekali per misi per hari) dan favorit tersinkron antar-HP | `POST /missions/:id/claim`, `GET/PUT/DELETE /favorites`, `src/lib/points-store.ts`, `src/lib/favorites-store.ts` |
+| Klaim misi & favorit hanya di HP | Ikan dari misi Doobie Rewards dan daftar favorit hilang saat ganti HP / login ulang; misi bisa diklaim berulang | Klaim misi tercatat di server (sekali per misi per hari) dan favorit tersinkron antar-HP | `POST /missions/:id/claim`, `GET/PUT/DELETE /favorites`, `src/lib/points-store.ts`, `src/lib/favorites-store.ts` |
 | Ajukan perpanjangan kontrak & edit profil psikolog tidak terkirim | Perpanjangan kontrak hanya menampilkan pesan; "Tentang saya" & keahlian psikolog hanya tersimpan di HP | Permintaan perpanjangan dikirim ke pihak lain sebagai notifikasi; profil psikolog tersimpan di server | `POST /engagements/:id/extension-request`, `PATCH /psychologists/me`, `src/app/kontrak/[id].tsx` |
 | Psikolog tidak bisa melihat dokumen pendaftar | Mengetuk dokumen di halaman Tinjau hanya membuka penampil kosong | Dokumen dibuka dari file aslinya: PDF di penampil dokumen, foto (KTP) di penampil gambar | `src/app/psikolog/tinjau/[id].tsx`, `src/data/psychologist.ts` |
 | Batas ukuran upload tidak sama dengan server | Aplikasi menulis maks. 5 MB, server menolak di atas 4 MB, sehingga file 4–5 MB gagal tanpa alasan jelas | Aplikasi memakai batas 4 MB yang sama dengan server | `src/components/ui/upload-box.tsx` |
@@ -64,7 +66,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Perubahan | Keterangan |
 | --- | --- |
 | Server tidak lagi "tertidur" | Jadwal GitHub Actions memanggil `/api/health` tiap 5 menit, sehingga permintaan pertama tidak lagi menunggu ±5 detik (`.github/workflows/keep-warm.yml`) |
-| Akun demo tahan dipakai banyak penguji | Akun demo tidak bisa dihapus, diganti, atau direset kata sandinya (lihat Keamanan) |
+| Akun demo tahan dipakai banyak penguji | Akun demo tidak bisa dihapus, diganti kata sandi / email / HP-nya, atau direset kata sandinya (lihat Keamanan) |
 | Migrasi database | `performance_indexes`, `dynamic_qris`, dan `account_preferences` (preferensi notifikasi, bisukan chat, favorit, profil psikolog) diterapkan otomatis saat deploy (`prisma migrate deploy`) |
 | Uji otomatis diperluas | 4 skenario baru: QRIS dinamis (CRC, validasi, sisip nominal, baca gambar QR) dan kunci akun demo |
 | Data demo shadow teacher | Akun demo teacher mendapat anak contoh di Cari Anak dan kuota "Lewati" dihitung di perangkat, sehingga alur lewati 5× → halaman Dubidu Plus selalu bisa didemokan; tombol "Ulang demo skip" untuk mengulang (sama seperti akun demo orang tua) (`src/lib/child-matching-store.ts`, `src/data/teacher.ts`) |
@@ -120,6 +122,8 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Batas umum API | 1.500 request per 5 menit per alamat IP |
 | Validasi unggahan | Maksimal 4 MB dan satu berkas per request; jenis berkas dibatasi |
 | Kredensial admin dihapus dari README | Kata sandi admin bawaan tidak lagi ditulis di repo publik |
+| Ganti email / HP terlindungi | Wajib kata sandi saat ini, ditolak bila email/HP sudah dipakai akun lain, dan dikunci untuk akun demo (`POST /auth/change-contact`) |
+| Pembatasan cek email/HP saat daftar | `POST /auth/check-contact` dibatasi 60 per jam per alamat IP agar tidak dipakai menebak email terdaftar secara massal |
 | Hak pencabutan penugasan shadow teacher | Syarat & Ketentuan ditambah poin 8: Dubidu dan lembaga tempat pendampingan berhak memberi peringatan, menghentikan sementara, dan mencabut penugasan shadow teacher yang terbukti melakukan kekerasan atau tindakan tidak wajar terhadap anak; riwayat pelanggaran dipakai menyaring pendamping. Dicantumkan dasar hukumnya: UU Perlindungan Anak, UU Penyandang Disabilitas, UU TPKS, dan UU Pelindungan Data Pribadi (`backend/src/lib/content.ts`, `src/data/legal.ts`) |
 | S&K Shadow Teacher wajib dibaca sebelum mendaftar | Memilih peran Shadow Teacher kini membuka halaman Syarat & Ketentuan Shadow Teacher (kode etik, larangan, hak pemberhentian, proses laporan, sanksi, dasar hukum). Tombol lanjut baru aktif setelah dibaca sampai akhir dan disetujui; persetujuan akhir pendaftaran ditambah poin "Siap ditindak bila melanggar" (`src/app/(auth)/daftar-teacher/syarat.tsx`, `src/app/(auth)/register.tsx`, `src/app/(auth)/daftar-teacher/persetujuan.tsx`, `src/components/ui/form-screen.tsx`) |
 
@@ -127,9 +131,9 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 
 | Perubahan | Keterangan |
 | --- | --- |
-| README final | Tautan produk, cara mencoba untuk juri, cara kerja Smart Matching, keamanan dasar, kontribusi tim, known limitations, deklarasi AI & pihak ketiga diperbarui |
+| README final | Tautan produk, cara mencoba untuk juri, cara kerja Smart Matching, keamanan dasar, kontribusi tim (3 anggota), known limitations, deklarasi AI & pihak ketiga (termasuk sumber & atribusi foto) diperbarui |
 | Finalist Changelog | Dokumen ini |
-| Dokumentasi API | Endpoint QRIS dinamis, kunci akun demo, dan pembatasan laju (`backend/docs/API.md`) |
+| Dokumentasi API | Endpoint QRIS dinamis, kunci akun demo, pembatasan laju, serta endpoint baru pendukung fitur yang sudah ada: cek & ganti email/HP, preferensi notifikasi, bisukan chat, favorit, klaim misi, perpanjangan kontrak, profil psikolog (`backend/docs/API.md`) |
 | Penjelasan matching | Bobot skor, sumber data, peran verifikasi admin & psikolog, dan rencana validasi (menjawab masukan juri) |
 | README: tech stack & arsitektur | Tabel tech stack beserta alasan pemilihan, diagram arsitektur, tabel akun demo per peran, dan known limitations tambahan |
 

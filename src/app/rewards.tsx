@@ -43,7 +43,7 @@ export default function RewardsScreen() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('Semua');
   const [showHistory, setShowHistory] = useState(false);
 
-  // saldo Madu & misi yang sudah diklaim hari ini dari server
+  // saldo ikan & misi yang sudah diklaim hari ini dari server
   useEffect(() => {
     if (role !== 'psychologist') loadMissionClaims().catch(() => {});
   }, [role]);
@@ -68,7 +68,7 @@ export default function RewardsScreen() {
   const doMission = (m: Mission, claimed: boolean) => {
     if (claimed) return;
     if (m.done) {
-      // Madu baru bertambah setelah server mengonfirmasi klaim
+      // ikan baru bertambah setelah server mengonfirmasi klaim
       claimMission(m.id, m.title, m.reward).then((ok) => ok && celebrateFish(m.reward, 'Misi selesai!'));
     } else if (m.action.share) {
       Share.share({ message: m.action.share });
