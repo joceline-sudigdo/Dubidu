@@ -138,7 +138,7 @@ export default function CariTeacherScreen() {
               ({child.city}).
             </AppText>
             <View style={styles.infoRow}>
-              <Pill
+              <Pill inRow
                 label={plus ? 'Skip tanpa batas · Plus' : `Sisa skip hari ini: ${Math.max(skipsLeft, 0)}/${MAX_SKIPS}`}
                 tone={skipsLeft > 1 ? 'blue' : 'red'}
                 icon="refresh-cw"

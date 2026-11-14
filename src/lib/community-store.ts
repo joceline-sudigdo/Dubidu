@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
+import { rememberPhoto } from '@/data/images';
 import type { CommunityPost } from '@/data/parent';
 
 import { api, errorMessage, uploadFile } from './api';
@@ -9,9 +10,10 @@ import { getSession } from './session';
 export type PostRole = CommunityPost['role'];
 export type PhotoSource = string | number | null; // uri foto user, require() dari images.ts, atau null = placeholder
 
-export type FeedPost = Omit<CommunityPost, 'photos'> & { photos: PhotoSource[]; mine?: boolean };
+// avatarUrl = foto profil penulis dari server (null = belum punya foto)
+export type FeedPost = Omit<CommunityPost, 'photos'> & { photos: PhotoSource[]; mine?: boolean; avatarUrl?: string | null };
 
-export type PostComment = { id: string; author: string; role: PostRole; text: string; time: string; mine?: boolean };
+export type PostComment = { id: string; author: string; role: PostRole; text: string; time: string; mine?: boolean; avatarUrl?: string | null };
 
 const ROLE_LABEL = { parent: 'Orang Tua', teacher: 'Shadow Teacher', psychologist: 'Psikolog' } as const;
 
@@ -64,6 +66,7 @@ type ServerPost = {
   id: string;
   author: string;
   authorRole: PostRole;
+  authorAvatarUrl?: string | null;
   isMine: boolean;
   time: string;
   text: string;
@@ -74,9 +77,12 @@ type ServerPost = {
   topic: CommunityPost['topic'];
 };
 
-type ServerComment = { id: string; author: string; authorRole: PostRole; isMine: boolean; text: string; time: string };
+type ServerComment = { id: string; author: string; authorRole: PostRole; authorAvatarUrl?: string | null; isMine: boolean; text: string; time: string };
 
-const toPost = (p: ServerPost): FeedPost => ({
+const toPost = (p: ServerPost): FeedPost => {
+  // foto profil penulis dari server dipakai oleh Avatar di kartu postingan & komentar
+  rememberPhoto(p.author, p.authorAvatarUrl);
+  return {
   id: p.id,
   author: p.author,
   role: p.authorRole,
@@ -88,7 +94,9 @@ const toPost = (p: ServerPost): FeedPost => ({
   comments: p.commentCount,
   topic: p.topic,
   mine: p.isMine,
-});
+  avatarUrl: p.authorAvatarUrl ?? null,
+  };
+};
 
 export async function loadCommunity() {
   const { posts } = await api<{ posts: ServerPost[] }>('/posts');
@@ -101,7 +109,10 @@ export async function loadComments(postId: string) {
     ...state,
     comments: {
       ...state.comments,
-      [postId]: rows.map((c) => ({ id: c.id, author: c.author, role: c.authorRole, text: c.text, time: c.time, mine: c.isMine })),
+      [postId]: rows.map((c) => {
+        rememberPhoto(c.author, c.authorAvatarUrl);
+        return { id: c.id, author: c.author, role: c.authorRole, text: c.text, time: c.time, mine: c.isMine, avatarUrl: c.authorAvatarUrl ?? null };
+      }),
     },
   });
 }
@@ -126,7 +137,7 @@ export async function addPost(text: string, photos: string[], topic: CommunityPo
   try {
     const urls = await Promise.all(photos.map((uri) => uploadFile(uri, 'komunitas')));
     const saved = await api<{ id: string }>('/posts', { body: { text, topic, photos: urls } });
-    const post: FeedPost = { id: saved.id, author: me.nickname || me.name, role: ROLE_LABEL[me.role], time: 'Baru saja', text, photos: urls, likes: 0, comments: 0, topic, mine: true };
+    const post: FeedPost = { id: saved.id, author: me.nickname || me.name, role: ROLE_LABEL[me.role], time: 'Baru saja', text, photos: urls, likes: 0, comments: 0, topic, mine: true, avatarUrl: me.avatarUrl };
     set({ ...state, posts: [post, ...state.posts] });
     return true;
   } catch (e) {
@@ -168,7 +179,7 @@ export async function reportContent(targetType: 'POST' | 'COMMENT' | 'USER' | 'C
 
 export function addComment(postId: string, text: string) {
   const me = getSession();
-  const temp: PostComment = { id: `tmp-${Date.now()}`, author: me.nickname || me.name, role: ROLE_LABEL[me.role], text, time: 'Baru saja', mine: true };
+  const temp: PostComment = { id: `tmp-${Date.now()}`, author: me.nickname || me.name, role: ROLE_LABEL[me.role], text, time: 'Baru saja', mine: true, avatarUrl: me.avatarUrl };
   set({ ...state, comments: { ...state.comments, [postId]: [...(state.comments[postId] ?? []), temp] } });
   api<{ id: string }>(`/posts/${postId}/comments`, { body: { text } })
     .then((saved) =>

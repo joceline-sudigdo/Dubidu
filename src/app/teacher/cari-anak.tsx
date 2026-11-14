@@ -117,7 +117,7 @@ export default function CariAnakScreen() {
               {teacherProfile.city}), dan rating orang tua. Identitas anak ditampilkan dengan inisial.
             </AppText>
             <View style={styles.infoRow}>
-              <Pill
+              <Pill inRow
                 label={plus ? 'Skip tanpa batas · Plus' : `Sisa skip hari ini: ${Math.max(skipsLeft, 0)}/${CHILD_MAX_SKIPS}`}
                 tone={skipsLeft > 1 ? 'blue' : 'red'}
                 icon="refresh-cw"

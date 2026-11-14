@@ -177,7 +177,7 @@ function SessionCard({ session }: { session: TeacherSession }) {
             {done ? 'Laporan observasi sudah dikirim' : 'Laporan observasi belum dibuat'}
           </AppText>
         </View>
-        <Pill label={session.time} tone="blue" size="md" />
+        <Pill inRow label={session.time} tone="blue" size="md" />
       </View>
       {done ? (
         <Pressable

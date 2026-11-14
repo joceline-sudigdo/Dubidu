@@ -34,6 +34,7 @@ Base URL: `https://dubidu-api.vercel.app/api` (lokal: `http://localhost:4000/api
 
 | Method | Path | Body / Query | Keterangan |
 |---|---|---|---|
+| POST | `/auth/check-contact` | `{ contact }` | Cek email/HP sebelum daftar. Balikan `{ available, message? }` (dibatasi 60 per jam per IP) |
 | POST | `/auth/register` | `{ role: "PARENT"\|"TEACHER", fullName, contact, password, nickname?, domicile?, latitude?, longitude?, child?: { name, birthDate?: "2016-05-21", gender?: "MALE"\|"FEMALE", schoolLevel?: "TK"\|"SD"\|"SMP", grade?, domicile?, diagnosis?, conditions: string[] } }` | `contact` = email **atau** no. HP. Balikan `{ token, user, children }` |
 | POST | `/auth/login` | `{ contact, password, portal?: "admin" }` | `{ token, user }`. Akun nonaktif → 403 |
 | GET 🔒 | `/auth/me` | | profil + `children` + `plan` + `stats` |

@@ -13,6 +13,7 @@ import { AppText } from '@/components/ui/app-text';
 import { EdgeScroll } from '@/components/parent/edge-scroll';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { finalPrice, formatRupiah, psychologists, type Psychologist } from '@/data/parent';
+import { toggleFavorite, useFavorites } from '@/lib/favorites-store';
 
 const FILTERS = ['Semua', 'ADHD', 'Autisme', 'Speech Delay'] as const;
 type Filter = (typeof FILTERS)[number];
@@ -26,7 +27,9 @@ export default function PilihPsikologScreen() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('Semua');
   const [sort, setSort] = useState<(typeof SORTS)[number]['id']>('rating');
-  const [favorites, setFavorites] = useState<string[]>(['dimas']);
+  // favorit tersimpan per akun (bukan data contoh)
+  const favs = useFavorites();
+  const favorites = favs.psychologists;
 
   const q = query.trim().toLowerCase();
   const list = psychologists
@@ -34,8 +37,7 @@ export default function PilihPsikologScreen() {
     .filter((p) => !q || [p.name, p.title, ...p.tags].some((x) => x.toLowerCase().includes(q)))
     .sort((a, b) => (sort === 'rating' ? b.rating - a.rating : finalPrice(a) - finalPrice(b)));
 
-  const toggleFavorite = (id: string) =>
-    setFavorites((f) => (f.includes(id) ? f.filter((x) => x !== id) : [...f, id]));
+  const toggleFav = (id: string) => toggleFavorite('psychologists', id);
 
   return (
     <Screen header={<ScreenHeader title="Konsultasi Psikolog" />} edges={['top', 'bottom']}>
@@ -73,7 +75,7 @@ export default function PilihPsikologScreen() {
         <AppText variant="caption" style={styles.flex}>
           Ditemukan {list.length} Psikolog Tersertifikasi
         </AppText>
-        <Pill
+        <Pill inRow
           label={SORTS.find((s) => s.id === sort)!.label}
           icon="chevron-down"
           iconRight
@@ -90,14 +92,14 @@ export default function PilihPsikologScreen() {
         </View>
         <View style={styles.flex}>
           <View style={styles.inline}>
-            <Pill label="PLUS" tone="blue" solid />
+            <Pill inRow label="PLUS" tone="blue" solid />
             <AppText style={styles.plusTitle}>Hemat hingga 20%</AppText>
           </View>
           <AppText variant="caption" color={Colors.text}>
             Gunakan kuota bulanan gratis tanpa biaya tambahan
           </AppText>
         </View>
-        <Pill
+        <Pill inRow
           label="Cek Paket"
           size="md"
           tone="gray"
@@ -111,7 +113,7 @@ export default function PilihPsikologScreen() {
           key={p.id}
           item={p}
           favorite={favorites.includes(p.id)}
-          onToggleFavorite={() => toggleFavorite(p.id)}
+          onToggleFavorite={() => toggleFav(p.id)}
         />
       ))}
 
@@ -150,7 +152,7 @@ function PsychologistCard({
         </View>
         <View style={styles.flex}>
           <View style={styles.badgeRow}>
-            <Pill
+            <Pill inRow
               label={item.badge}
               tone={item.badgeTone}
               icon={item.badgeIcon === 'star' ? 'star' : undefined}
@@ -192,7 +194,7 @@ function PsychologistCard({
               <AppText variant="caption" style={styles.strike}>
                 {formatRupiah(item.basePrice)}
               </AppText>
-              <Pill label={`-${item.discountPercent}% Dubidu Plus`} tone="red" />
+              <Pill inRow label={`-${item.discountPercent}% Dubidu Plus`} tone="red" />
             </View>
           ) : (
             <AppText variant="caption">{item.priceLabel}</AppText>

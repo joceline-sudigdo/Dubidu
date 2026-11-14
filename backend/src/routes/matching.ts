@@ -70,7 +70,8 @@ function pairScore(child: ChildRow, teacher: TeacherRow) {
 }
 
 /** Statistik teacher untuk kartu: jumlah sesi selesai & tingkat respons chat */
-async function teacherStats(teacherUserIds: string[]) {
+/** Sesi selesai & tingkat respons chat per teacher (dipakai juga oleh GET /auth/me) */
+export async function teacherStats(teacherUserIds: string[]) {
   const [sessions, participations] = await Promise.all([
     prisma.session.findMany({
       where: { status: "DONE", engagement: { teacherUserId: { in: teacherUserIds } } },

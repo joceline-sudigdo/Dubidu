@@ -27,9 +27,9 @@ export function TagRow({ tags, solid, max = 2, stacked }: { tags: Tag[]; solid?:
   return (
     <View style={styles.row}>
       {visible.map((t) => (
-        <Pill key={t.label} label={t.label} tone={t.tone} solid={solid} size="md" style={styles.pill} />
+        <Pill inRow key={t.label} label={t.label} tone={t.tone} solid={solid} size="md" style={styles.pill} />
       ))}
-      {rest > 0 && <Pill label={`+${rest}`} tone="gray" size="md" style={styles.more} />}
+      {rest > 0 && <Pill inRow label={`+${rest}`} tone="gray" size="md" style={styles.more} />}
     </View>
   );
 }

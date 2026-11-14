@@ -144,7 +144,7 @@ function FinalForm({ name }: { name: string }) {
       <ClayCard style={styles.gap12}>
         <View style={styles.spaceBetween}>
           <AppText style={styles.cardTitle}>Perbandingan Sesi Awal vs Akhir</AppText>
-          <Pill label={`${d.comparisons.length} Aspek`} tone="gray" />
+          <Pill inRow label={`${d.comparisons.length} Aspek`} tone="gray" />
         </View>
         {d.comparisons.map((c) => (
           <View key={c.label} style={styles.compare}>
@@ -155,7 +155,7 @@ function FinalForm({ name }: { name: string }) {
                 </View>
                 <AppText style={styles.compareLabel}>{c.label}</AppText>
               </View>
-              <Pill label={`Meningkat (${c.change})`} tone="green" solid />
+              <Pill inRow label={`Meningkat (${c.change})`} tone="green" solid />
             </View>
             <View style={styles.spaceBetween}>
               <View style={styles.inline}>
@@ -292,7 +292,7 @@ function ChipEditor({
           placeholderTextColor={Colors.placeholder}
           style={styles.addInput}
         />
-        <Pill label="+ Tambah" tone={tone} solid size="md" onPress={add} />
+        <Pill inRow label="+ Tambah" tone={tone} solid size="md" onPress={add} />
       </View>
       <AppText variant="caption" color={Colors.text} style={styles.bold}>
         {fieldLabel}

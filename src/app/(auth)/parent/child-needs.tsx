@@ -1,8 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
+import { FieldError } from '@/components/ui/field-error';
 import { FormScreen } from '@/components/ui/form-screen';
 import { NeedCategory } from '@/components/ui/need-category';
 import { PrimaryButton } from '@/components/ui/primary-button';
@@ -23,15 +25,25 @@ export default function ChildNeedsScreen() {
   const [conditions, setConditions] = useState<string[]>(data.needs.conditions);
   const [medicalRecordUri, setMedicalRecordUri] = useState(data.needs.medicalRecordUri);
   const [expanded, setExpanded] = useState<string | null>(CATEGORIES[0].title);
+  // orang tua yang belum tahu kondisi anak: setelah akun dibuat langsung diarahkan ke pilihan psikolog
+  const [wantConsult, setWantConsult] = useState(false);
+  const [error, setError] = useState<string | undefined>();
 
-  const toggleOption = (option: string) =>
+  const toggleOption = (option: string) => {
     setConditions((prev) =>
       prev.includes(option) ? prev.filter((o) => o !== option) : [...prev, option]
     );
+    setError(undefined);
+  };
 
   const [saving, setSaving] = useState(false);
 
   const finish = async () => {
+    // kondisi boleh kosong kalau orang tua memilih konsultasi psikolog dulu
+    if (conditions.length === 0 && !wantConsult) {
+      setError('Pilih minimal satu kondisi anak, atau pilih "Konsultasi ke Psikolog" bila belum tahu.');
+      return;
+    }
     setSaving(true);
     try {
       if (adding) {
@@ -47,6 +59,7 @@ export default function ChildNeedsScreen() {
       reset();
       router.dismissAll();
       router.replace('/beranda');
+      if (wantConsult) router.push('/konsultasi');
     } catch (e) {
       showAlert(adding ? 'Profil anak belum tersimpan' : 'Pendaftaran belum berhasil', errorMessage(e));
     } finally {
@@ -75,25 +88,43 @@ export default function ChildNeedsScreen() {
             onToggleOption={toggleOption}
           />
         ))}
+        <FieldError message={error} />
       </View>
 
       <View style={styles.group}>
         <AppText variant="label" style={styles.label}>
           Belum tahu kondisi pasti anak kamu? <AppText style={styles.hint}>(opsional)</AppText>
         </AppText>
-        <PrimaryButton
-          title="Konsultasi ke Psikolog"
-          leadingIcon="heart"
-          color={Colors.red}
-          onPress={() =>
-            adding
-              ? router.push('/konsultasi')
-              : showAlert(
-                  'Konsultasi ke Psikolog',
-                  'Selesaikan pendaftaran dulu ya. Setelah akun aktif, kamu bisa langsung pilih psikolog dari menu Konsultasi di Beranda.'
-                )
-          }
-        />
+        {adding ? (
+          <PrimaryButton
+            title="Konsultasi ke Psikolog"
+            leadingIcon="heart"
+            color={Colors.red}
+            onPress={() => router.push('/konsultasi')}
+          />
+        ) : (
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: wantConsult }}
+            onPress={() => {
+              setWantConsult((w) => !w);
+              setError(undefined);
+            }}
+            style={[styles.consult, wantConsult && styles.consultOn]}>
+            {/* tetap ikon hati: kosong saat belum dipilih, terisi merah saat dipilih */}
+            <View style={[styles.consultIcon, wantConsult && styles.consultIconOn]}>
+              <MaterialCommunityIcons name={wantConsult ? 'heart' : 'heart-outline'} size={20} color={Colors.red} />
+            </View>
+            <View style={styles.flex}>
+              <AppText style={styles.consultTitle}>Konsultasi ke Psikolog</AppText>
+              <AppText variant="caption">
+                {wantConsult
+                  ? 'Setelah akun dibuat, kamu langsung diarahkan untuk memilih psikolog.'
+                  : 'Ketuk bila ingin konsultasi dulu. Kondisi anak boleh dikosongkan.'}
+              </AppText>
+            </View>
+          </Pressable>
+        )}
       </View>
 
       <View style={styles.group}>
@@ -110,9 +141,9 @@ export default function ChildNeedsScreen() {
       </View>
 
       <PrimaryButton
-        title={saving ? 'Menyimpan…' : 'Selesai'}
+        title={saving ? 'Menyimpan…' : wantConsult ? 'Selesai & Pilih Psikolog' : 'Selesai'}
         icon="check-circle"
-        disabled={conditions.length === 0 || saving}
+        disabled={saving}
         style={styles.button}
         onPress={finish}
       />
@@ -134,5 +165,38 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 8,
+  },
+  flex: {
+    flex: 1,
+  },
+  consult: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: Colors.redSoft,
+  },
+  consultOn: {
+    borderColor: Colors.red,
+    backgroundColor: Colors.redSoft,
+  },
+  consultIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.redSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  consultIconOn: {
+    backgroundColor: '#FFFFFF',
+  },
+  consultTitle: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 15,
+    color: Colors.text,
   },
 });

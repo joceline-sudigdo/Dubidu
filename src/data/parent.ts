@@ -63,7 +63,7 @@ export const activeTeachers = [
 
 export type NotificationItem = {
   id: string;
-  group: 'today' | 'yesterday' | 'week';
+  group: 'today' | 'yesterday' | 'week' | 'older';
   category: 'chat' | 'booking' | 'laporan' | 'lainnya';
   icon: string;
   tone: Tone;

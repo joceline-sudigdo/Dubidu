@@ -149,7 +149,7 @@ export default function ReportDetailScreen() {
         </View>
       }>
       <View style={styles.metaRow}>
-        <Pill label="Laporan Resmi Terverifikasi" tone="green" icon="check-circle" />
+        <Pill inRow label="Laporan Resmi Terverifikasi" tone="green" icon="check-circle" />
         <View style={styles.metaTime}>
           <Feather name="clock" size={12} color={Colors.textSecondary} />
           <AppText variant="caption">{d.verifiedAt}</AppText>
@@ -162,7 +162,7 @@ export default function ReportDetailScreen() {
           <View style={styles.flex}>
             <View style={styles.inline}>
               <AppText style={styles.childName}>{child.fullName}</AppText>
-              <Pill label={child.grade} tone="blue" />
+              <Pill inRow label={child.grade} tone="blue" />
             </View>
             <View style={styles.inline}>
               <Feather name="calendar" size={13} color={Colors.textSecondary} />
@@ -259,6 +259,7 @@ export default function ReportDetailScreen() {
             </View>
             <View style={styles.trend}>
               <Pill
+                style={styles.centerPill}
                 label={a.trend}
                 tone={a.tone}
                 icon={a.tone === 'green' ? 'trending-up' : a.tone === 'red' ? 'alert-circle' : 'minus'}
@@ -498,6 +499,9 @@ const styles = StyleSheet.create({
   trend: {
     alignItems: 'center',
     gap: 2,
+  },
+  centerPill: {
+    alignSelf: 'center',
   },
   delta: {
     fontFamily: Fonts.body,

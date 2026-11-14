@@ -96,7 +96,7 @@ export default function ProfilAnakScreen() {
         <View style={styles.body}>
           <View style={styles.nameRow}>
             <AppText style={styles.name}>{title}</AppText>
-            <Pill label={student ? 'Murid Aktif' : 'Mencari Pendamping'} tone={student ? 'green' : 'blue'} solid />
+            <Pill inRow label={student ? 'Murid Aktif' : 'Mencari Pendamping'} tone={student ? 'green' : 'blue'} solid />
           </View>
           <View style={styles.inline}>
             <Feather name="user" size={16} color={Colors.primary} />

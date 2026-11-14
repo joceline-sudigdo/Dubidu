@@ -4,8 +4,9 @@ import { Pressable, StyleSheet } from 'react-native';
 import { AppText } from '@/components/ui/app-text';
 import { openImages } from '@/components/ui/image-viewer';
 import { Colors, Fonts } from '@/constants/theme';
-import { photoFor } from '@/data/images';
+import { photoFor, remotePhotoFor } from '@/data/images';
 import { useProfile } from '@/lib/profile-store';
+import { getSession } from '@/lib/session';
 
 const PALETTE = [Colors.primary, Colors.green, Colors.red, Colors.yellow, Colors.primaryDark];
 
@@ -21,7 +22,12 @@ type Props = {
 // kalau belum ada foto, tampilkan inisial dengan warna yang konsisten per nama
 export function Avatar({ name, size = 44, source, ring, viewable }: Props) {
   const uploaded = useProfile().photos[name];
-  const image = uploaded ? { uri: uploaded } : (source ?? photoFor(name));
+  const me = getSession();
+  const base = (n: string) => n.split(',')[0].trim().toLowerCase();
+  // foto akun yang sedang login (dicocokkan dengan nama lengkap) tersimpan di server sebagai avatarUrl
+  const own = me.avatarUrl && me.name && base(me.name) === base(name) ? me.avatarUrl : undefined;
+  const remote = own ?? remotePhotoFor(name);
+  const image = uploaded ? { uri: uploaded } : (source ?? (remote ? { uri: remote } : photoFor(name)));
   const initials = name
     .replace(/^(Kak|Dr\.|Bunda|Mama|Papi|Mami)\s+/i, '')
     .split(' ')

@@ -34,11 +34,11 @@ export function ConsultationCard({ item, showAction }: { item: Consultation; sho
           </AppText>
         </View>
         {status === 'done' ? (
-          <Pill label="Selesai" tone="green" />
+          <Pill inRow label="Selesai" tone="green" />
         ) : status === 'report' ? (
-          <Pill label="Isi laporan" tone="red" />
+          <Pill inRow label="Isi laporan" tone="red" />
         ) : (
-          <Pill label={item.day} tone="yellow" />
+          <Pill inRow label={item.day} tone="yellow" />
         )}
       </View>
 

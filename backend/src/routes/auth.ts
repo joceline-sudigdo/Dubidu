@@ -13,6 +13,7 @@ import { resetPasswordEmail, sendMail } from "../lib/mail.js";
 import { warmMatchesForChild } from "../lib/aiMatching.js";
 import { presentChild, publicUser } from "../lib/present.js";
 import { childInput, createChild } from "./children.js";
+import { teacherStats } from "./matching.js";
 
 export const authRouter = Router();
 
@@ -47,6 +48,18 @@ const registerSchema = z.object({
   longitude: z.number().optional(),
   // registrasi orang tua sekaligus membuat profil anak pertama (layar child-data & child-needs)
   child: childInput.optional(),
+});
+
+/**
+ * POST /api/auth/check-contact { contact } → { available, message? }
+ * Dipakai layar daftar langkah pertama supaya email/HP yang sudah terdaftar
+ * langsung diberi tahu saat menekan Next, bukan di langkah terakhir.
+ */
+authRouter.post("/check-contact", async (req, res) => {
+  const { contact } = parse(z.object({ contact: contactSchema }), req.body);
+  const { email, phone } = splitContact(contact);
+  const exists = await prisma.user.findFirst({ where: email ? { email } : { phone }, select: { id: true } });
+  res.json(exists ? { available: false, message: "Email / nomor HP sudah terdaftar, silakan login" } : { available: true });
 });
 
 /**
@@ -151,13 +164,16 @@ authRouter.get("/me", requireAuth, async (req, res) => {
     },
   });
 
+  // tingkat respons chat teacher (null = belum pernah menerima chat)
+  const responseRate = user.role === "TEACHER" ? ((await teacherStats([user.id])).get(user.id)?.responseRate ?? null) : null;
+
   res.json({
     user: publicUser(rest as typeof user),
     teacherProfile: rest.teacherProfile,
     psychologistProfile: rest.psychologistProfile,
     children: children.map(presentChild),
     plan: subscriptions[0] ?? null,
-    stats: { sessionsDone, points: user.points, joined: user.createdAt },
+    stats: { sessionsDone, points: user.points, joined: user.createdAt, responseRate },
   });
 });
 

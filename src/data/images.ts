@@ -115,6 +115,18 @@ export const rewardPhotos: Record<string, Photo> = {
 
 const normalize = (name: string) => name.split(",")[0].trim().toLowerCase();
 
+// ===== foto profil yang diunggah pengguna sendiri (dari server: avatarUrl) =====
+// diisi saat data komunitas, matching, dan akun dimuat; dipakai Avatar sebelum foto contoh di atas
+const remotePhotos: Record<string, string> = {};
+
+export function rememberPhoto(name: string | null | undefined, url: string | null | undefined) {
+  if (name && url) remotePhotos[normalize(name)] = url;
+}
+
+export function remotePhotoFor(name: string): string | undefined {
+  return remotePhotos[normalize(name)];
+}
+
 // cari foto berdasarkan nama, nama depan saja juga bisa (misal "Larasati")
 export function photoFor(name: string): number | undefined {
   const target = normalize(name);

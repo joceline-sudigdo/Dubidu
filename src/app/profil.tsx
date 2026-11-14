@@ -98,7 +98,7 @@ export default function ProfilScreen() {
             <View style={styles.flex}>
               <View style={styles.inline}>
                 <AppText style={styles.childName}>{c.fullName}</AppText>
-                <Pill label={c.grade} tone="blue" />
+                <Pill inRow label={c.grade} tone="blue" />
               </View>
               <AppText variant="caption" color={Colors.primary}>
                 {c.condition}
@@ -149,13 +149,13 @@ export default function ProfilScreen() {
         <View style={styles.flex}>
           <View style={styles.inline}>
             <AppText style={styles.planName}>{plus ? 'Dubidu Plus' : 'Paket Gratis'}</AppText>
-            {plus && <Pill label={plus === 'tahunan' ? 'Tahunan' : 'Bulanan'} tone="green" solid />}
+            {plus && <Pill inRow label={plus === 'tahunan' ? 'Tahunan' : 'Bulanan'} tone="green" solid />}
           </View>
           <AppText variant="caption" color={Colors.text}>
             {plus ? 'Skip tanpa batas & diskon psikolog 20% aktif' : 'Upgrade untuk skip tanpa batas & diskon psikolog'}
           </AppText>
         </View>
-        <Pill
+        <Pill inRow
           label={plus ? 'Kelola' : 'Upgrade'}
           size="md"
           tone={plus ? 'gray' : 'yellow'}

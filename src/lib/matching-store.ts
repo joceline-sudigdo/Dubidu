@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useSyncExternalStore } from 'react';
 
+import { rememberPhoto } from '@/data/images';
 import type { Child } from '@/data/parent';
 import {
   AYAS,
@@ -58,18 +59,22 @@ type Card = {
   rating: number;
   reviews: number;
   experience: number;
-  responseRate: number;
+  responseRate: number | null;
   sessions: number;
   skills: Record<Skill, number>;
   matchPercent: number;
   connected: boolean;
   reasons?: string[];
   caution?: string | null;
+  avatarUrl?: string | null;
 };
 
 type MatchList = { skipsLeft: number | null; cards: Card[] };
 
-const toTeacher = (c: Card): Teacher => ({
+const toTeacher = (c: Card): Teacher => {
+  // foto profil teacher dari server dipakai Avatar di kartu matching & profil
+  rememberPhoto(c.name, c.avatarUrl);
+  return {
   id: c.id,
   name: c.name,
   city: c.city ?? '-',
@@ -77,13 +82,15 @@ const toTeacher = (c: Card): Teacher => ({
   rating: c.rating,
   reviews: c.reviews,
   experience: c.experience,
-  responseRate: c.responseRate,
+  // null = belum pernah menerima chat → tampil 0%
+  responseRate: c.responseRate ?? 0,
   sessions: c.sessions,
   about: c.about ?? '',
   skills: c.skills,
   reasons: c.reasons,
   caution: c.caution,
-});
+  };
+};
 
 // --- akun demo orang tua -------------------------------------------------------
 // Antrian kandidat & jumlah "Lewati" hari ini dihitung di perangkat, supaya alur

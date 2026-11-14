@@ -112,7 +112,7 @@ export default function JadwalKonsultasiScreen() {
         </View>
       }>
       <View style={styles.stepRow}>
-        <Pill label="Langkah 2 dari 3 : Waktu & Sesi" tone="blue" icon="circle" />
+        <Pill inRow label="Langkah 2 dari 3 : Waktu & Sesi" tone="blue" icon="circle" />
         <View style={styles.inline}>
           <Feather name="shield" size={14} color={Colors.green} />
           <AppText variant="caption" color={Colors.green}>

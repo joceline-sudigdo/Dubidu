@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { ChoiceChip } from '@/components/ui/choice-chip';
+import { FieldError } from '@/components/ui/field-error';
 import { FormScreen } from '@/components/ui/form-screen';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { SecureNote } from '@/components/ui/secure-note';
@@ -11,6 +12,7 @@ import { TextField } from '@/components/ui/text-field';
 import { UploadBox } from '@/components/ui/upload-box';
 import { Colors, Fonts } from '@/constants/theme';
 import { useParentRegistration } from '@/context/parent-registration';
+import { noErrors, requiredError } from '@/lib/validation';
 
 const EDUCATION = ['SMA/SMK', 'D3', 'S1', 'S2'];
 
@@ -23,7 +25,21 @@ export default function PendidikanScreen() {
   const [ijazah, setIjazah] = useState<string | null>(data.teacher.ijazahUri);
   const [certificate, setCertificate] = useState<string | null>(data.teacher.certificateUri);
 
-  const canSubmit = !!education && institution.trim().length > 0 && major.trim().length > 0 && !!ijazah;
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  const clear = (key: string) => setErrors((e) => ({ ...e, [key]: undefined }));
+
+  const next = () => {
+    const found = {
+      education: education ? undefined : 'Pilih pendidikan terakhir.',
+      institution: requiredError(institution, 'Institusi / universitas', 3),
+      major: requiredError(major, 'Jurusan', 3),
+      ijazah: ijazah ? undefined : 'Unggah ijazah terakhir dalam format PDF.',
+    };
+    setErrors(found);
+    if (!noErrors(found)) return;
+    update('teacher', { education, institution: institution.trim(), major: major.trim(), ijazahUri: ijazah, certificateUri: certificate });
+    router.push('/daftar-teacher/pengalaman');
+  };
 
   return (
     <FormScreen
@@ -36,9 +52,19 @@ export default function PendidikanScreen() {
         </AppText>
         <View style={styles.row}>
           {EDUCATION.map((e) => (
-            <ChoiceChip key={e} label={e} selected={education === e} onPress={() => setEducation(e)} style={styles.flex} />
+            <ChoiceChip
+              key={e}
+              label={e}
+              selected={education === e}
+              onPress={() => {
+                setEducation(e);
+                clear('education');
+              }}
+              style={styles.flex}
+            />
           ))}
         </View>
+        <FieldError message={errors.education} />
       </View>
 
       <TextField
@@ -46,14 +72,22 @@ export default function PendidikanScreen() {
         icon="book"
         placeholder="Contoh: Universitas Negeri Malang"
         value={institution}
-        onChangeText={setInstitution}
+        onChangeText={(v) => {
+          setInstitution(v);
+          clear('institution');
+        }}
+        error={errors.institution}
       />
       <TextField
         label="Jurusan"
         icon="bookmark"
         placeholder="Contoh: Pendidikan Luar Biasa"
         value={major}
-        onChangeText={setMajor}
+        onChangeText={(v) => {
+          setMajor(v);
+          clear('major');
+        }}
+        error={errors.major}
       />
 
       <View style={styles.group}>
@@ -65,8 +99,12 @@ export default function PendidikanScreen() {
           icon="upload-cloud"
           accept="document"
           value={ijazah}
-          onChange={setIjazah}
+          onChange={(v) => {
+            setIjazah(v);
+            clear('ijazah');
+          }}
         />
+        <FieldError message={errors.ijazah} />
       </View>
       <View style={styles.group}>
         <AppText variant="label" style={styles.label}>
@@ -83,12 +121,8 @@ export default function PendidikanScreen() {
 
       <PrimaryButton
         title="Next"
-        disabled={!canSubmit}
         style={styles.button}
-        onPress={() => {
-          update('teacher', { education, institution: institution.trim(), major: major.trim(), ijazahUri: ijazah, certificateUri: certificate });
-          router.push('/daftar-teacher/pengalaman');
-        }}
+        onPress={next}
       />
       <SecureNote />
     </FormScreen>

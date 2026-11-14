@@ -1,7 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { router } from 'expo-router';
-import { useState, type ComponentProps } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ClayCard } from '@/components/parent/clay-card';
@@ -15,7 +15,7 @@ import { EdgeScroll } from '@/components/parent/edge-scroll';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { notifications as initial, type NotificationItem } from '@/data/parent';
 import { markAllNotificationsRead, markNotificationRead, useUnreadIds } from '@/lib/notification-store';
-import { appLink } from '@/lib/sync';
+import { appLink, refreshNotifications } from '@/lib/sync';
 
 type Filter = 'all' | NotificationItem['category'];
 
@@ -30,6 +30,7 @@ const GROUPS = [
   { id: 'today', title: 'Hari Ini' },
   { id: 'yesterday', title: 'Kemarin' },
   { id: 'week', title: 'Minggu Ini' },
+  { id: 'older', title: 'Sebelumnya' },
 ] as const;
 
 export default function NotifikasiScreen() {
@@ -37,6 +38,15 @@ export default function NotifikasiScreen() {
   const unreadIds = useUnreadIds();
   const items = initial.map((n) => ({ ...n, unread: unreadIds.has(n.id) }));
   const [filter, setFilter] = useState<Filter>('all');
+  // notifikasi terbaru dimuat ulang setiap halaman dibuka, lalu daftar tampil ulang
+  const [, setVersion] = useState(0);
+  useFocusEffect(
+    useCallback(() => {
+      refreshNotifications('parent')
+        .then(() => setVersion((v) => v + 1))
+        .catch(() => {});
+    }, [])
+  );
 
   const unread = items.filter((n) => n.unread).length;
   const visible = filter === 'all' ? items : items.filter((n) => n.category === filter);
@@ -66,19 +76,6 @@ export default function NotifikasiScreen() {
           }
         />
       }>
-      <ClayCard tone="blue" style={styles.summary}>
-        <View style={styles.summaryIcon}>
-          <MaterialCommunityIcons name="bell-ring" size={24} color="#FFFFFF" />
-        </View>
-        <View style={styles.flex}>
-          <AppText style={styles.summaryTitle}>Ruang Kabar Elisya</AppText>
-          <AppText variant="caption" numberOfLines={1}>
-            {unread > 0 ? `${unread} kabar membutuhkan perhatian Bunda` : 'Semua kabar sudah dibaca'}
-          </AppText>
-        </View>
-        {unread > 0 && <Pill label={`${unread} Baru`} tone="red" solid />}
-      </ClayCard>
-
       <EdgeScroll contentContainerStyle={styles.filters}>
         {FILTERS.map((f) => (
           <Pill
@@ -120,16 +117,6 @@ export default function NotifikasiScreen() {
         );
       })}
 
-      <ClayCard tone="gray" style={styles.footer}>
-        <MaterialCommunityIcons name="shield-check" size={26} color={Colors.primary} />
-        <View style={styles.flex}>
-          <AppText style={styles.footerTitle}>Penyimpanan Aman Dubidu</AppText>
-          <AppText variant="caption">
-            Semua kabar penting tersimpan aman. Notifikasi lama diarsipkan otomatis setelah 30 hari untuk ketenangan
-            pikiran Bunda.
-          </AppText>
-        </View>
-      </ClayCard>
     </Screen>
   );
 }
@@ -168,10 +155,10 @@ function NotificationCard({ item, onPress }: { item: NotificationItem; onPress: 
           </AppText>
         )}
         <View style={styles.cardBottom}>
-          <Pill label={item.tag} tone={item.tagTone} />
+          <Pill inRow label={item.tag} tone={item.tagTone} />
           {item.action &&
             (item.actionPrimary ? (
-              <Pill label={item.action} tone={item.tone} solid size="md" icon="arrow-right" iconRight onPress={onPress} />
+              <Pill inRow label={item.action} tone={item.tone} solid size="md" icon="arrow-right" iconRight onPress={onPress} />
             ) : (
               <Pressable onPress={onPress} hitSlop={6} style={styles.textAction}>
                 <AppText style={styles.textActionLabel}>{item.action}</AppText>
@@ -195,24 +182,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  summary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-  },
-  summaryIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  summaryTitle: {
-    fontFamily: Fonts.heading,
-    fontSize: 17,
   },
   filters: {
     gap: 10,
@@ -293,15 +262,5 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 13,
     color: Colors.primary,
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  footerTitle: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 15,
-    marginBottom: 2,
   },
 });

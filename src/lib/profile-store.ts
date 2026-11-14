@@ -5,7 +5,8 @@ import { parentProfile } from '@/data/parent';
 import { psychologistProfile } from '@/data/psychologist';
 import { teacherProfile } from '@/data/teacher';
 
-import { api, errorMessage } from './api';
+import { api, errorMessage, uploadFile } from './api';
+import { updateSession } from './session';
 import { showAlert } from './dialog';
 
 // data profil yang bisa diedit user. Diisi ulang dari server setelah login (refreshProfile),
@@ -113,6 +114,17 @@ export async function changePhoto(name: string) {
     quality: 0.8,
   });
   if (result.canceled) return;
-  set({ ...state, photos: { ...state.photos, [name]: result.assets[0].uri } });
-  showAlert('Foto berhasil diganti');
+  const uri = result.assets[0].uri;
+  const before = state.photos;
+  // tampil langsung di HP, lalu disimpan ke server supaya terlihat pengguna lain & tetap ada setelah aplikasi ditutup
+  set({ ...state, photos: { ...state.photos, [name]: uri } });
+  try {
+    const avatarUrl = await uploadFile(uri, 'avatar');
+    await api('/auth/me', { method: 'PATCH', body: { avatarUrl } });
+    updateSession({ avatarUrl });
+    showAlert('Foto berhasil diganti', 'Foto profil barumu kini terlihat juga di Komunitas dan chat.');
+  } catch (e) {
+    set({ ...state, photos: before });
+    showAlert('Foto belum tersimpan', errorMessage(e));
+  }
 }

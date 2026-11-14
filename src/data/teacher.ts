@@ -193,7 +193,7 @@ teacherChatThreads.push({
 
 export type TeacherNotification = {
   id: string;
-  group: 'today' | 'yesterday';
+  group: 'today' | 'yesterday' | 'earlier';
   category: 'match' | 'chat' | 'booking' | 'laporan' | 'lainnya';
   icon: string;
   tone: Tone;

@@ -76,6 +76,14 @@ export function createApp() {
     legacyHeaders: false,
     message: limited("Terlalu banyak permintaan dari jaringan ini. Coba lagi nanti."),
   });
+  // cek email/HP saat daftar: cukup longgar untuk pengguna, tapi membatasi pengecekan massal
+  const checkLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: 60,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: limited("Terlalu banyak permintaan dari jaringan ini. Coba lagi nanti."),
+  });
   // batas umum per alamat IP (chat mengecek pesan baru tiap 4 detik = ±75 request / 5 menit per layar)
   const apiLimiter = rateLimit({
     windowMs: 5 * 60 * 1000,
@@ -89,6 +97,7 @@ export function createApp() {
   api.use(apiLimiter);
   api.use(["/auth/login", "/auth/reset-password"], authLimiter);
   api.use(["/auth/register", "/auth/forgot-password"], signupLimiter);
+  api.use("/auth/check-contact", checkLimiter);
   api.use("/auth", authRouter);
   // webhook Midtrans & halaman finish TANPA login → harus dipasang sebelum router yang memakai requireAuth global
   api.use("/payments", paymentWebhookRouter);

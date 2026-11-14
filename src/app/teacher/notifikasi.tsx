@@ -1,7 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
-import { useState, type ComponentProps } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ClayCard } from '@/components/parent/clay-card';
@@ -14,6 +14,7 @@ import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { EdgeScroll } from '@/components/parent/edge-scroll';
 import { Colors, Fonts, Shadow } from '@/constants/theme';
+import { refreshNotifications } from '@/lib/sync';
 import { markAllNotificationsRead, markNotificationRead, useUnreadIds } from '@/lib/notification-store';
 import { teacherNotifications, type TeacherNotification } from '@/data/teacher';
 
@@ -30,11 +31,21 @@ const FILTERS: { id: Filter; label: string }[] = [
 const GROUPS = [
   { id: 'today', title: 'Hari Ini' },
   { id: 'yesterday', title: 'Kemarin' },
+  { id: 'earlier', title: 'Sebelumnya' },
 ] as const;
 
 export default function TeacherNotifikasiScreen() {
   const unreadIds = useUnreadIds();
   const [filter, setFilter] = useState<Filter>('all');
+  // notifikasi terbaru dimuat ulang setiap halaman dibuka, lalu daftar tampil ulang
+  const [, setVersion] = useState(0);
+  useFocusEffect(
+    useCallback(() => {
+      refreshNotifications('teacher')
+        .then(() => setVersion((v) => v + 1))
+        .catch(() => {});
+    }, [])
+  );
   const visible = filter === 'all' ? teacherNotifications : teacherNotifications.filter((n) => n.category === filter);
 
   return (
