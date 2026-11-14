@@ -17,7 +17,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | --- | --- |
 | Bug fixing | 34 |
 | Deployment & stabilisasi | 6 |
-| UI/UX polishing | 24 |
+| UI/UX polishing | 25 |
 | Performance improvement | 6 |
 | Keamanan dasar | 10 |
 | Dokumentasi | 5 |
@@ -100,6 +100,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Label & tombol sejajar | Label kecil (peran, status, jadwal, "% cocok") kini sejajar dengan teks di sebelahnya di 40 tempat pada semua peran, sebelumnya menempel ke atas atau rata kiri di kartu yang rata tengah; label tombol utama tetap satu baris dan mengecil otomatis sehingga tidak ada celah besar sebelum ikon (`src/components/parent/pill.tsx`, `src/components/ui/primary-button.tsx`) |
 | Dokumen diunggah sebagai PDF | Ijazah, sertifikat, dan CV saat pendaftaran teacher, serta rekam medis anak saat pendaftaran orang tua, kini memakai pemilih dokumen (PDF), bukan galeri foto; dokumen tampil sebagai kartu nama file yang bisa dibuka. KTP tetap foto (`src/components/ui/upload-box.tsx`, `src/app/(auth)/daftar-teacher/pendidikan.tsx`, `pengalaman.tsx`, `src/app/(auth)/parent/child-needs.tsx`, `src/lib/auth.ts`) |
 | Pill & kartu di baris geser tidak terpotong | Filter (Semua/Masuk/Keluar), chip anak, kartu Pengajuan Aktif, dan topik Doobie sebelumnya terpotong bagian bawah/bayangannya oleh ScrollView; kini diberi ruang tanpa mengubah jarak antarelemen (`src/components/parent/edge-scroll.tsx`, `src/components/shared/doobie-card.tsx`) |
+| Bar Komunitas menempel & ketuk ulang tab | Saat digulir, kolom posting/pencarian menempel di atas dengan latar belakang ter-blur bening (tanpa lapisan putih) dari tepi atas layar sampai bawah bar, juga di Android lewat `BlurTargetView` (judul, tombol cari, dan filter topik ikut tergulir); jarak bar ke filter topik dilonggarkan. Di semua peran, mengetuk lagi ikon tab yang sedang aktif mengembalikan halaman ke atas (`src/components/shared/community-screen.tsx`, `src/components/parent/screen.tsx`, `src/components/navigation/role-tab-bar.tsx`) |
 
 ## 4. Performance improvement
 

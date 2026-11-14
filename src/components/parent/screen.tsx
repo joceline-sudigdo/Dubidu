@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
-import { useEffect, type ComponentRef, type ReactNode, type Ref } from 'react';
+import { useScrollToTop } from 'expo-router';
+import { useEffect, useRef, type ComponentProps, type ComponentRef, type ReactNode, type RefObject } from 'react';
 import {
   KeyboardAvoidingView,
   ScrollView,
@@ -20,9 +21,11 @@ type Props = {
   scroll?: boolean;
   edges?: Edge[];
   contentStyle?: StyleProp<ViewStyle>;
-  scrollRef?: Ref<ComponentRef<typeof ScrollView>>;
+  scrollRef?: RefObject<ComponentRef<typeof ScrollView> | null>;
   // true: konten mengisi tinggi layar (untuk halaman kosong yang dipusatkan dengan <EmptyFill>)
   fill?: boolean;
+  // boleh fungsi biasa atau useAnimatedScrollHandler (berjalan di UI thread, tanpa lag)
+  onScroll?: ComponentProps<typeof Animated.ScrollView>['onScroll'];
 };
 
 // kerangka halaman parent: background putih + gelembung biru lembut
@@ -35,7 +38,13 @@ export function Screen({
   contentStyle,
   scrollRef,
   fill,
+  onScroll,
 }: Props) {
+  // tab yang sedang aktif diketuk lagi di navbar → kembali ke atas halaman
+  const innerRef = useRef<ComponentRef<typeof ScrollView>>(null);
+  const ref = scrollRef ?? innerRef;
+  useScrollToTop(ref);
+
   return (
     <View style={styles.root}>
       <Blobs />
@@ -43,14 +52,16 @@ export function Screen({
         <KeyboardAvoidingView style={styles.flex} behavior="padding">
           {header && <View style={styles.header}>{header}</View>}
           {scroll ? (
-            <ScrollView
-              ref={scrollRef}
+            <Animated.ScrollView
+              ref={ref}
+              onScroll={onScroll}
+              scrollEventThrottle={16}
               style={styles.flex}
               contentContainerStyle={[styles.content, fill && styles.grow, contentStyle]}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}>
               {children}
-            </ScrollView>
+            </Animated.ScrollView>
           ) : (
             <View style={[styles.flex, contentStyle]}>{children}</View>
           )}

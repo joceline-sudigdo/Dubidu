@@ -58,7 +58,7 @@ const TABS: Record<string, TabConfig> = {
 const RADIUS = 28;
 const LINE = 4;
 
-export function RoleTabBar({ state, navigateToTab, insets }: BottomTabBarProps) {
+export function RoleTabBar({ state, emitter, navigateToTab, insets }: BottomTabBarProps) {
   const [width, setWidth] = useState(0);
   const count = state.routes.length;
   const tabWidth = width / count;
@@ -116,7 +116,9 @@ export function RoleTabBar({ state, navigateToTab, insets }: BottomTabBarProps) 
             accessibilityLabel={tab.label}
             accessibilityState={{ selected: focused }}
             onPress={() => {
-              if (!focused) navigateToTab(route.key);
+              // event 'tabPress' dipakai useScrollToTop: tab yang sedang aktif diketuk lagi → halaman kembali ke atas
+              const event = emitter.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+              if (!focused && !event.defaultPrevented) navigateToTab(route.key);
             }}
             style={styles.item}>
             {'vector' in tab ? (
