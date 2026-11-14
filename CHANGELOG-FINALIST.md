@@ -15,7 +15,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | --- | --- |
 | Bug fixing | 24 |
 | Deployment & stabilisasi | 6 |
-| UI/UX polishing | 18 |
+| UI/UX polishing | 19 |
 | Performance improvement | 6 |
 | Keamanan dasar | 8 |
 | Dokumentasi | 5 |
@@ -65,6 +65,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Perubahan | Keterangan |
 | --- | --- |
 | QRIS dengan nominal terisi otomatis | Metode pembayaran QRIS yang sudah ada kini menampilkan QR yang nominalnya (termasuk kode unik) langsung terisi saat di-scan, sehingga pengguna tidak salah mengetik jumlah. Konfirmasi tetap oleh admin seperti sebelumnya (`backend/src/lib/qris.ts`, `src/components/ui/qr-code.tsx`, `src/app/pembayaran/[id].tsx`) |
+| Ikon aplikasi & notifikasi DUBIDU | Ikon aplikasi, ikon adaptif Android, ikon notifikasi, dan favicon masih memakai logo template Expo; kini memakai logo DUBIDU (cincin puzzle + beruang) dari aset splash yang sudah ada. Ikon notifikasi berupa siluet putih sesuai aturan Android (`assets/images/`, `app.json`) |
 | Status QRIS di web admin | Kartu tujuan transfer menampilkan apakah QR terbaca sebagai QRIS dan nama merchant-nya |
 | Foto profil pada akun demo | Avatar inisial diganti foto pada kartu teacher & psikolog contoh (`src/data/images.ts`) |
 | Alasan kecocokan di kartu matching | Setiap kartu teacher menampilkan "Kenapa cocok?": keahlian terkuat yang sesuai kebutuhan anak, kota/jarak, rating, dan catatan bila ada kebutuhan yang belum dikuasai. Diturunkan dari rumus skor yang sama, bukan fitur baru (`backend/src/lib/matching.ts`, `src/components/parent/teacher-match-card.tsx`) |
