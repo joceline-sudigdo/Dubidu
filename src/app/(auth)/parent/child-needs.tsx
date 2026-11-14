@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import Feather from '@expo/vector-icons/Feather';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
@@ -111,8 +111,9 @@ export default function ChildNeedsScreen() {
               setError(undefined);
             }}
             style={[styles.consult, wantConsult && styles.consultOn]}>
+            {/* tetap ikon hati: kosong saat belum dipilih, terisi merah saat dipilih */}
             <View style={[styles.consultIcon, wantConsult && styles.consultIconOn]}>
-              <Feather name={wantConsult ? 'check' : 'heart'} size={18} color={wantConsult ? '#FFFFFF' : Colors.red} />
+              <MaterialCommunityIcons name={wantConsult ? 'heart' : 'heart-outline'} size={20} color={Colors.red} />
             </View>
             <View style={styles.flex}>
               <AppText style={styles.consultTitle}>Konsultasi ke Psikolog</AppText>
@@ -191,7 +192,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   consultIconOn: {
-    backgroundColor: Colors.red,
+    backgroundColor: '#FFFFFF',
   },
   consultTitle: {
     fontFamily: Fonts.bodyBold,

@@ -150,7 +150,7 @@ function CommentItem({ comment, postId }: { comment: PostComment; postId: string
           <AppText style={styles.commentAuthor} numberOfLines={1}>
             {comment.author}
           </AppText>
-          <Pill label={comment.role} tone={roleTone(comment.role)} />
+          <Pill inRow label={comment.role} tone={roleTone(comment.role)} />
           <AppText variant="caption">· {comment.time}</AppText>
         </View>
         <AppText style={styles.commentText}>{comment.text}</AppText>

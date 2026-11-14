@@ -15,7 +15,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | --- | --- |
 | Bug fixing | 29 |
 | Deployment & stabilisasi | 6 |
-| UI/UX polishing | 22 |
+| UI/UX polishing | 23 |
 | Performance improvement | 6 |
 | Keamanan dasar | 8 |
 | Dokumentasi | 5 |
@@ -50,7 +50,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Tingkat respons "null%" | Teacher yang belum pernah menerima chat tampil "null%"; profil teacher sendiri selalu menampilkan angka contoh 95% | Tampil 0% bila belum ada chat; profil teacher sendiri memakai tingkat respons dari server | `src/lib/matching-store.ts`, `src/app/profil-teacher/[id].tsx`, `backend/src/routes/auth.ts`, `src/lib/sync.ts` |
 | Favorit tidak tersimpan | "Simpan ke favorit" hanya menampilkan pesan; status favorit tidak pernah aktif. Favorit psikolog berisi data contoh | Favorit teacher & psikolog tersimpan per akun; ikon hati di profil teacher dan label menu mengikuti status | `src/lib/favorites-store.ts`, `src/app/profil-teacher/[id].tsx`, `src/app/konsultasi.tsx` |
 | Foto profil tidak muncul di Komunitas | Foto profil yang diganti hanya tersimpan di HP sendiri (hilang setelah aplikasi ditutup) dan foto penulis dari server diabaikan | Foto diunggah ke server, lalu dipakai di postingan, komentar, kartu matching, dan profil | `src/lib/profile-store.ts`, `src/lib/community-store.ts`, `src/components/parent/avatar.tsx`, `src/data/images.ts` |
-| Notifikasi tidak diperbarui | Daftar notifikasi hanya dimuat sekali saat login, notif baru tidak muncul sampai aplikasi dibuka ulang | Dimuat ulang setiap halaman Notifikasi dibuka, di ketiga peran | `src/lib/sync.ts`, `notifikasi.tsx` ketiga peran |
+| Notifikasi tidak diperbarui | Daftar notifikasi hanya dimuat sekali saat login, notif baru tidak muncul sampai aplikasi dibuka ulang | Dimuat ulang setiap halaman Notifikasi dibuka, di ketiga peran. Notifikasi lebih dari 7 hari kini tampil di grup "Sebelumnya" (sebelumnya hilang sehingga halaman kosong), dan notifikasi contoh akun demo selalu terlihat baru | `src/lib/sync.ts`, `notifikasi.tsx` ketiga peran, `backend/src/routes/notifications.ts` |
 | Psikolog tidak bisa melihat dokumen pendaftar | Mengetuk dokumen di halaman Tinjau hanya membuka penampil kosong | Dokumen dibuka dari file aslinya: PDF di penampil dokumen, foto (KTP) di penampil gambar | `src/app/psikolog/tinjau/[id].tsx`, `src/data/psychologist.ts` |
 | Batas ukuran upload tidak sama dengan server | Aplikasi menulis maks. 5 MB, server menolak di atas 4 MB, sehingga file 4–5 MB gagal tanpa alasan jelas | Aplikasi memakai batas 4 MB yang sama dengan server | `src/components/ui/upload-box.tsx` |
 
@@ -89,6 +89,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Konsultasi psikolog saat pendaftaran | Orang tua yang belum tahu kondisi anak bisa memilih "Konsultasi ke Psikolog"; kondisi anak boleh dikosongkan dan setelah akun dibuat langsung diarahkan ke halaman pilih psikolog (`src/app/(auth)/parent/child-needs.tsx`) |
 | Halaman Notifikasi lebih ringkas | Kartu "Ruang Kabar" dan "Penyimpanan Aman" dihapus, daftar notifikasi langsung ditampilkan (`src/app/notifikasi.tsx`) |
 | Bagikan dengan tautan aplikasi | Bagikan profil teacher & postingan komunitas kini berisi kalimat pembuka yang hangat dan tautan yang langsung membuka halaman tersebut di aplikasi DUBIDU; postingan dari tautan dimuat otomatis (`src/lib/share.ts`, `src/app/postingan/[id].tsx`) |
+| Label & tombol sejajar | Label kecil (peran, status, jadwal, "% cocok") kini sejajar dengan teks di sebelahnya di 40 tempat pada semua peran, sebelumnya menempel ke atas atau rata kiri di kartu yang rata tengah; label tombol utama tetap satu baris dan mengecil otomatis sehingga tidak ada celah besar sebelum ikon (`src/components/parent/pill.tsx`, `src/components/ui/primary-button.tsx`) |
 | Dokumen diunggah sebagai PDF | Ijazah, sertifikat, dan CV saat pendaftaran teacher, serta rekam medis anak saat pendaftaran orang tua, kini memakai pemilih dokumen (PDF), bukan galeri foto; dokumen tampil sebagai kartu nama file yang bisa dibuka. KTP tetap foto (`src/components/ui/upload-box.tsx`, `src/app/(auth)/daftar-teacher/pendidikan.tsx`, `pengalaman.tsx`, `src/app/(auth)/parent/child-needs.tsx`, `src/lib/auth.ts`) |
 | Pill & kartu di baris geser tidak terpotong | Filter (Semua/Masuk/Keluar), chip anak, kartu Pengajuan Aktif, dan topik Doobie sebelumnya terpotong bagian bawah/bayangannya oleh ScrollView; kini diberi ruang tanpa mengubah jarak antarelemen (`src/components/parent/edge-scroll.tsx`, `src/components/shared/doobie-card.tsx`) |
 

@@ -190,7 +190,7 @@ function ApplicationRow({
           <AppText style={styles.appName} numberOfLines={1}>
             {item.teacher.split(',')[0]}
           </AppText>
-          <Pill label={status.label} tone={status.tone} solid={status.solid} size="md" />
+          <Pill inRow label={status.label} tone={status.tone} solid={status.solid} size="md" />
         </View>
         <AppText variant="caption" color={Colors.primary}>
           {item.specialty} · untuk {item.child}

@@ -101,7 +101,7 @@ export function PostCard({ post, detail, onDeleted }: Props) {
             <AppText style={styles.author} numberOfLines={1}>
               {post.author}
             </AppText>
-            <Pill label={post.role} tone={roleTone(post.role)} />
+            <Pill inRow label={post.role} tone={roleTone(post.role)} />
           </View>
           <AppText variant="caption">{post.time}</AppText>
         </View>

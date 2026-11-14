@@ -40,7 +40,7 @@ export default function ObservasiListScreen() {
                 {r.date} · {r.mode}
               </AppText>
             </View>
-            {isNew(r.id) && <Pill label="Baru" tone="red" solid />}
+            {isNew(r.id) && <Pill inRow label="Baru" tone="red" solid />}
           </View>
           <View style={styles.inline}>
             <Pill label={`Untuk ${r.child}`} tone="blue" />

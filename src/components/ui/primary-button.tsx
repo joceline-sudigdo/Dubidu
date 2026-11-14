@@ -48,7 +48,9 @@ export function PrimaryButton({
         ) : (
           leadingIcon && <Feather name={leadingIcon} size={20} color="#FFFFFF" />
         )}
-        <AppText style={styles.title} numberOfLines={2}>
+        {/* satu baris; label panjang mengecil otomatis (bukan membungkus), karena di Android teks yang
+            membungkus diukur selebar tombol sehingga muncul celah besar sebelum ikon */}
+        <AppText style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
           {title}
         </AppText>
         {icon && <Feather name={icon} size={20} color="#FFFFFF" />}
@@ -69,11 +71,11 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     transform: [{ scale: 0.98 }],
   },
-  // label panjang di tombol sempit pindah ke baris kedua, tidak keluar dari tombol
+  // label panjang di tombol sempit mengecil otomatis, tidak keluar dari tombol
   content: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 6,
     maxWidth: '100%',
   },
   title: {

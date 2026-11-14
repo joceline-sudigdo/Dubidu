@@ -74,8 +74,8 @@ export default function KonsultasiDetailScreen() {
         <View style={styles.flex}>
           <View style={styles.nameRow}>
             <AppText style={styles.name}>{c.child}</AppText>
-            <Pill label={c.parent} tone="gray" style={styles.white} />
-            <Pill label={`${c.age} th`} tone="gray" style={styles.white} />
+            <Pill inRow label={c.parent} tone="gray" style={styles.white} />
+            <Pill inRow label={`${c.age} th`} tone="gray" style={styles.white} />
           </View>
           <View style={styles.wrap}>
             {c.needs.map((n, i) => (

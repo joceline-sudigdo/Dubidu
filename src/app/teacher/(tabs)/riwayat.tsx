@@ -85,7 +85,7 @@ export default function TeacherRiwayatScreen() {
                       {a.initials}
                       {a.age > 0 ? ` · ${a.age} tahun` : ''}
                     </AppText>
-                    <Pill label={status.label} tone={status.tone} solid={status.solid} size="md" />
+                    <Pill inRow label={status.label} tone={status.tone} solid={status.solid} size="md" />
                   </View>
                   <AppText variant="caption">Diajukan {a.date}</AppText>
                   <Pressable onPress={action.onPress} style={[styles.link, styles.appLink]}>

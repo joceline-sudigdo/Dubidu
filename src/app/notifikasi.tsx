@@ -30,6 +30,7 @@ const GROUPS = [
   { id: 'today', title: 'Hari Ini' },
   { id: 'yesterday', title: 'Kemarin' },
   { id: 'week', title: 'Minggu Ini' },
+  { id: 'older', title: 'Sebelumnya' },
 ] as const;
 
 export default function NotifikasiScreen() {
@@ -154,10 +155,10 @@ function NotificationCard({ item, onPress }: { item: NotificationItem; onPress: 
           </AppText>
         )}
         <View style={styles.cardBottom}>
-          <Pill label={item.tag} tone={item.tagTone} />
+          <Pill inRow label={item.tag} tone={item.tagTone} />
           {item.action &&
             (item.actionPrimary ? (
-              <Pill label={item.action} tone={item.tone} solid size="md" icon="arrow-right" iconRight onPress={onPress} />
+              <Pill inRow label={item.action} tone={item.tone} solid size="md" icon="arrow-right" iconRight onPress={onPress} />
             ) : (
               <Pressable onPress={onPress} hitSlop={6} style={styles.textAction}>
                 <AppText style={styles.textActionLabel}>{item.action}</AppText>

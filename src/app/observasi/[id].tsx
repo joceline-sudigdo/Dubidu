@@ -178,7 +178,7 @@ export default function ObservasiDetailScreen() {
                 <View key={a.label} style={[styles.area, i < r.areas.length - 1 && styles.divider]}>
                   <View style={styles.areaHead}>
                     <AppText style={styles.areaLabel}>{a.label}</AppText>
-                    <Pill label={s.label} tone={s.tone} />
+                    <Pill inRow label={s.label} tone={s.tone} />
                   </View>
                   <AppText variant="caption" color={Colors.text}>
                     {a.note}

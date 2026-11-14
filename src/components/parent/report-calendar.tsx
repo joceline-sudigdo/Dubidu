@@ -123,7 +123,7 @@ export function ReportCalendar() {
       <View style={styles.dateRow}>
         <MaterialCommunityIcons name="calendar-text" size={22} color={Colors.primary} />
         <AppText style={styles.dateTitle}>{formatLongDate(selected)}</AppText>
-        {report && <Pill label={`Sesi #${report.number}`} tone="red" />}
+        {report && <Pill inRow label={`Sesi #${report.number}`} tone="red" />}
       </View>
 
       {report ? (
@@ -150,7 +150,7 @@ function SessionCard({ report }: { report: SessionReport }) {
             Shadow Teacher
           </AppText>
         </View>
-        <Pill label={report.time} tone="blue" size="md" />
+        <Pill inRow label={report.time} tone="blue" size="md" />
       </View>
 
       <View style={styles.scores}>

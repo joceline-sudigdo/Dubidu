@@ -162,7 +162,13 @@ export default function ProfilTeacherScreen() {
             )}
           </View>
           {child && (
-            <Pill label={`${matchScore(teacher, child)}% cocok untuk ${child.name}`} tone="blue" solid icon="star" />
+            <Pill
+              label={`${matchScore(teacher, child)}% cocok untuk ${child.name}`}
+              tone="blue"
+              solid
+              icon="star"
+              style={styles.centerPill}
+            />
           )}
         </ClayCard>
         <View style={styles.avatarWrap}>
@@ -284,6 +290,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Pill bawaannya rata kiri (alignSelf flex-start); di kartu hero yang rata tengah ikut ditengahkan
+  centerPill: {
+    alignSelf: 'center',
   },
   heroWrap: {
     paddingTop: 50,

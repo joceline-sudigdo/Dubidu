@@ -31,6 +31,7 @@ const FILTERS: { id: Filter; label: string }[] = [
 const GROUPS = [
   { id: 'today', title: 'Hari Ini' },
   { id: 'yesterday', title: 'Kemarin' },
+  { id: 'earlier', title: 'Sebelumnya' },
 ] as const;
 
 export default function TeacherNotifikasiScreen() {

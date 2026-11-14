@@ -37,7 +37,7 @@ export function ChildSwitcher<T extends SwitcherItem>({
         <View style={styles.flex}>
           <View style={styles.nameRow}>
             <AppText style={styles.name}>{value.name}</AppText>
-            <Pill label={value.grade} tone="blue" />
+            <Pill inRow label={value.grade} tone="blue" />
             <Feather name={open ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.primary} />
           </View>
           <AppText variant="caption" color={Colors.primary}>

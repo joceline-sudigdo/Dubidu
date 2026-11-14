@@ -75,7 +75,7 @@ export default function PilihPsikologScreen() {
         <AppText variant="caption" style={styles.flex}>
           Ditemukan {list.length} Psikolog Tersertifikasi
         </AppText>
-        <Pill
+        <Pill inRow
           label={SORTS.find((s) => s.id === sort)!.label}
           icon="chevron-down"
           iconRight
@@ -92,14 +92,14 @@ export default function PilihPsikologScreen() {
         </View>
         <View style={styles.flex}>
           <View style={styles.inline}>
-            <Pill label="PLUS" tone="blue" solid />
+            <Pill inRow label="PLUS" tone="blue" solid />
             <AppText style={styles.plusTitle}>Hemat hingga 20%</AppText>
           </View>
           <AppText variant="caption" color={Colors.text}>
             Gunakan kuota bulanan gratis tanpa biaya tambahan
           </AppText>
         </View>
-        <Pill
+        <Pill inRow
           label="Cek Paket"
           size="md"
           tone="gray"
@@ -152,7 +152,7 @@ function PsychologistCard({
         </View>
         <View style={styles.flex}>
           <View style={styles.badgeRow}>
-            <Pill
+            <Pill inRow
               label={item.badge}
               tone={item.badgeTone}
               icon={item.badgeIcon === 'star' ? 'star' : undefined}
@@ -194,7 +194,7 @@ function PsychologistCard({
               <AppText variant="caption" style={styles.strike}>
                 {formatRupiah(item.basePrice)}
               </AppText>
-              <Pill label={`-${item.discountPercent}% Dubidu Plus`} tone="red" />
+              <Pill inRow label={`-${item.discountPercent}% Dubidu Plus`} tone="red" />
             </View>
           ) : (
             <AppText variant="caption">{item.priceLabel}</AppText>

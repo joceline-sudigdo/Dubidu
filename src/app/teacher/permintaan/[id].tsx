@@ -67,7 +67,7 @@ export default function PermintaanMatchScreen() {
             <AppText style={styles.name}>
               {child.initials} · {child.age} tahun
             </AppText>
-            <Pill label="Siswa Baru" tone="blue" solid />
+            <Pill inRow label="Siswa Baru" tone="blue" solid />
           </View>
           <View style={styles.inline}>
             <Feather name="map-pin" size={16} color={Colors.primary} />

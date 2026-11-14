@@ -85,7 +85,7 @@ export default function DetailKontrakScreen() {
               {isTeacher ? `Orang tua: ${c.parentName}` : `Mendampingi ${c.childName}${age}`}
             </AppText>
           </View>
-          <Pill label="Aktif" tone="green" solid size="md" />
+          <Pill inRow label="Aktif" tone="green" solid size="md" />
         </View>
         <TagRow tags={c.tags} solid max={3} />
         <View style={styles.spaceBetween}>

@@ -159,7 +159,7 @@ export default function MetodePembayaranScreen() {
             <View style={styles.flex}>
               <View style={styles.inline}>
                 <AppText style={styles.label}>{m.label}</AppText>
-                {m.id === main && <Pill label="Utama" tone="green" solid />}
+                {m.id === main && <Pill inRow label="Utama" tone="green" solid />}
               </View>
               <AppText variant="caption">{m.detail}</AppText>
             </View>

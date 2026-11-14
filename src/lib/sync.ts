@@ -121,7 +121,7 @@ type Checkin = { days: { day: string; reward: number; status: string }[]; todayD
 
 type ServerNotification = {
   id: string;
-  group: 'today' | 'yesterday' | 'week';
+  group: 'today' | 'yesterday' | 'week' | 'older';
   time: string;
   category: 'chat' | 'booking' | 'laporan' | 'lainnya';
   icon: string | null;
@@ -514,7 +514,8 @@ function applyTeacherNotifications(items: ServerNotification[]) {
     items.map(
       (n): TeacherNotification => ({
         id: n.id,
-        group: n.group === 'today' ? 'today' : 'yesterday',
+        // lebih lama dari kemarin masuk "Sebelumnya" (bukan dilabeli Kemarin)
+        group: n.group === 'today' || n.group === 'yesterday' ? n.group : 'earlier',
         category: n.category,
         icon: n.icon ?? 'bell',
         tone: n.tone ?? 'blue',
@@ -535,7 +536,7 @@ function applyPsychologistNotifications(items: ServerNotification[]) {
     items.map(
       (n): PsychologistNotification => ({
         id: n.id,
-        group: n.group === 'week' ? 'earlier' : n.group,
+        group: n.group === 'today' || n.group === 'yesterday' ? n.group : 'earlier',
         category: n.category === 'booking' ? 'booking' : n.category === 'chat' ? 'chat' : 'pembayaran',
         icon: n.icon ?? 'bell',
         tone: n.tone ?? 'blue',

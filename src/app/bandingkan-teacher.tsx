@@ -160,7 +160,7 @@ function SkillRow({ label, a, b, isNeed }: { label: string; a: number; b: number
         <AppText style={[styles.skillValue, a >= b && styles.winner, { color: A_COLOR }]}>{a}</AppText>
         <View style={styles.inline}>
           <AppText style={styles.skillLabel}>{label}</AppText>
-          {isNeed && <Pill label="Kebutuhan" tone="blue" />}
+          {isNeed && <Pill inRow label="Kebutuhan" tone="blue" />}
         </View>
         <AppText style={[styles.skillValue, b >= a && styles.winner, { color: Colors.yellowDark }]}>{b}</AppText>
       </View>
