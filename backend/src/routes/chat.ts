@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma, type Message } from "../db.js";
 import { me, requireAuth, requireRole } from "../lib/auth.js";
 import { hhmm, shortDate, wibDate } from "../lib/dates.js";
-import { forbidden, HttpError, notFound, param, parse } from "../lib/http.js";
+import { forbidden, HttpError, notFound, param, parse, queryDate, queryInt } from "../lib/http.js";
 import { notify } from "../lib/notify.js";
 import { displayName, initials } from "../lib/present.js";
 import { emitToUser } from "../lib/realtime.js";
@@ -90,10 +90,10 @@ chatRouter.get("/", async (req, res) => {
 chatRouter.get("/:id/messages", async (req, res) => {
   const userId = me(req).id;
   await loadConversation(param(req, "id"), userId);
-  const limit = Math.min(Number(req.query.limit ?? 50), 100);
-  const before = req.query.before ? new Date(String(req.query.before)) : undefined;
+  const limit = queryInt(req, "limit", 50, 1, 100);
+  const before = queryDate(req, "before");
   // ?after=<createdAt pesan terakhir> → hanya pesan baru (untuk cek berkala tiap beberapa detik)
-  const after = req.query.after ? new Date(String(req.query.after)) : undefined;
+  const after = queryDate(req, "after");
 
   const rows = await prisma.message.findMany({
     where: {

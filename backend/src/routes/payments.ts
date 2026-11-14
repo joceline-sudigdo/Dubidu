@@ -477,6 +477,10 @@ paymentsRouter.post("/:id/pay", async (req, res) => {
     await markUnpaid(p.id, "EXPIRED");
     throw new HttpError(410, "Batas waktu pembayaran sudah lewat");
   }
+  // tagihan yang sudah gagal / kedaluwarsa / menunggu cek admin tidak boleh "dibayar" lewat jalur demo
+  if (p.status !== "PENDING" && p.status !== "PAID") {
+    throw new HttpError(409, "Tagihan ini sudah tidak bisa dibayar. Buat pemesanan baru.");
+  }
   const { gatewayPayload: _g, ...paid } = await markPaid(p.id, "mock");
   res.json(paid);
 });

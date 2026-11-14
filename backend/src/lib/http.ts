@@ -48,6 +48,30 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
   res.status(500).json({ error: "Terjadi kesalahan di server" });
 }
 
+/**
+ * Angka bulat dari query string (?limit=20). Nilai kosong → `fallback`; nilai bukan angka /
+ * di luar batas → 400 (sebelumnya `Number("abc")` = NaN membuat Prisma error 500,
+ * dan limit negatif membalik urutan data).
+ */
+export function queryInt(req: Request, name: string, fallback: number, min: number, max: number): number {
+  const raw = req.query[name];
+  if (raw === undefined || raw === "") return fallback;
+  const value = Number(Array.isArray(raw) ? raw[0] : raw);
+  if (!Number.isInteger(value) || value < min || value > max) {
+    throw new HttpError(400, `Parameter ${name} harus angka bulat ${min}–${max}`);
+  }
+  return value;
+}
+
+/** Tanggal ISO dari query string (?after=...). Kosong → undefined; format salah → 400. */
+export function queryDate(req: Request, name: string): Date | undefined {
+  const raw = req.query[name];
+  if (raw === undefined || raw === "") return undefined;
+  const value = new Date(String(Array.isArray(raw) ? raw[0] : raw));
+  if (Number.isNaN(value.getTime())) throw new HttpError(400, `Parameter ${name} bukan tanggal yang valid`);
+  return value;
+}
+
 /** Ambil parameter URL (`/:id`) sebagai string. */
 export function param(req: Request, name: string): string {
   const value = req.params[name];

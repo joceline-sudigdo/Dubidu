@@ -126,6 +126,7 @@ reportsRouter.post("/sessions/:sessionId/report", requireRole("TEACHER"), async 
   if (!session) throw notFound("Sesi");
   if (session.engagement.teacherUserId !== me(req).id) throw forbidden();
   if (session.report) throw new HttpError(409, "Report card sesi ini sudah dikirim");
+  if (session.status === "CANCELLED") throw new HttpError(409, "Sesi ini dibatalkan, jadi tidak perlu laporan");
 
   const report = await prisma.$transaction(async (tx) => {
     await tx.session.update({ where: { id: session.id }, data: { status: "DONE" } });

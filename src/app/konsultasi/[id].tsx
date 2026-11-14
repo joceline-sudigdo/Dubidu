@@ -311,7 +311,8 @@ function BillRow({
     <View style={styles.billRow}>
       <View style={[styles.inline, styles.flex]}>
         {icon && <Feather name={icon} size={15} color={color} />}
-        <AppText style={[styles.billText, { color }]}>{label}</AppText>
+        {/* label panjang turun baris, tidak menimpa nominal di kanan */}
+        <AppText style={[styles.billText, styles.flex, { color }]}>{label}</AppText>
       </View>
       <AppText style={[styles.billText, { color }]}>{value}</AppText>
     </View>

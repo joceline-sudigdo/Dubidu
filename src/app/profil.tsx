@@ -389,6 +389,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   planName: {
+    // teks panjang turun baris, label di sebelahnya tidak terdorong keluar kartu
+    flexShrink: 1,
     fontFamily: Fonts.headingSemiBold,
     fontSize: 16,
   },

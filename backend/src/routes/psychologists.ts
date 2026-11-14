@@ -7,7 +7,7 @@ import { assertOwnChild, assertSameWorld, isDemoUser } from "../lib/access.js";
 import { me, requireAuth, requireRole } from "../lib/auth.js";
 import { getSettings, promoPercent } from "../lib/content.js";
 import { dayShort, hhmm, isoDate, shortDate, wibDate } from "../lib/dates.js";
-import { forbidden, HttpError, notFound, param, parse } from "../lib/http.js";
+import { forbidden, HttpError, notFound, param, parse, queryDate, queryInt } from "../lib/http.js";
 import { createMeetingRoom, joinUrl } from "../lib/meeting.js";
 import { notify } from "../lib/notify.js";
 import { displayName } from "../lib/present.js";
@@ -97,7 +97,7 @@ psychologistsRouter.get("/:id/availability", async (req, res) => {
   const owner = await prisma.psychologistProfile.findUnique({ where: { id: param(req, "id") }, include: { user: true } });
   if (!owner) throw notFound("Psikolog");
   await assertSameWorld(me(req), owner.user.isDemo, "Psikolog");
-  const days = Math.min(Number(req.query.days ?? 7), 30);
+  const days = queryInt(req, "days", 7, 1, 30);
   const from = new Date();
   const to = new Date(wibDate().getTime() - 7 * 3600000 + days * 86400000);
   const slots = await prisma.psychologistSlot.findMany({

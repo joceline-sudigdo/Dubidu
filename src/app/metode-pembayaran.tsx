@@ -208,6 +208,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
+    // teks panjang turun baris, label di sebelahnya tidak terdorong keluar kartu
+    flexShrink: 1,
     fontFamily: Fonts.bodyBold,
     fontSize: 15,
     color: Colors.text,

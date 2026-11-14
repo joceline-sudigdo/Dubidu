@@ -187,10 +187,12 @@ function PsychologistCard({
 
       <View style={styles.divider} />
 
+      {/* harga selebar kartu di atas, tombol di bawahnya: label diskon tidak lagi
+          tertumpuk tombol favorit di layar sempit */}
       <View style={styles.bottom}>
-        <View style={styles.flex}>
+        <View>
           {item.discountPercent > 0 ? (
-            <View style={styles.inline}>
+            <View style={styles.discountRow}>
               <AppText variant="caption" style={styles.strike}>
                 {formatRupiah(item.basePrice)}
               </AppText>
@@ -203,18 +205,20 @@ function PsychologistCard({
             {formatRupiah(price)} <AppText variant="caption">/ {item.duration} mnt</AppText>
           </AppText>
         </View>
-        <Pressable
-          accessibilityLabel={favorite ? 'Hapus dari favorit' : 'Tambah ke favorit'}
-          onPress={onToggleFavorite}
-          style={[styles.heart, Shadow.soft]}>
-          <MaterialCommunityIcons name={favorite ? 'heart' : 'heart-outline'} size={22} color={Colors.red} />
-        </Pressable>
-        <Pressable
-          onPress={() => router.push({ pathname: '/konsultasi/[id]', params: { id: item.id } })}
-          style={[styles.book, Shadow.button]}>
-          <Feather name="calendar" size={18} color="#FFFFFF" />
-          <AppText style={styles.bookText}>Booking</AppText>
-        </Pressable>
+        <View style={styles.actions}>
+          <Pressable
+            accessibilityLabel={favorite ? 'Hapus dari favorit' : 'Tambah ke favorit'}
+            onPress={onToggleFavorite}
+            style={[styles.heart, Shadow.soft]}>
+            <MaterialCommunityIcons name={favorite ? 'heart' : 'heart-outline'} size={22} color={Colors.red} />
+          </Pressable>
+          <Pressable
+            onPress={() => router.push({ pathname: '/konsultasi/[id]', params: { id: item.id } })}
+            style={[styles.book, Shadow.button]}>
+            <Feather name="calendar" size={18} color="#FFFFFF" />
+            <AppText style={styles.bookText}>Booking</AppText>
+          </Pressable>
+        </View>
       </View>
     </ClayCard>
   );
@@ -344,6 +348,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.border,
   },
   bottom: {
+    gap: 12,
+  },
+  // harga coret + label diskon; turun ke baris baru bila tidak muat
+  discountRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+  },
+  actions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -366,8 +380,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   book: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
     height: 46,
     paddingHorizontal: 18,

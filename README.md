@@ -126,7 +126,7 @@ Lihat [backend/docs/API.md](backend/docs/API.md) untuk daftar endpoint dan [back
 
 ### Deploy ke Vercel (gratis, tanpa kartu)
 
-File khusus: `index.js` (titik masuk serverless), `vercel.json` (install + build + migrasi), `.vercelignore`, `public/`.
+File khusus: `index.js` (titik masuk serverless), `vercel.json` (install + build + migrasi + seed), `.vercelignore`, `public/`. Seed aman diulang setiap deploy: database yang sudah berisi data hanya ditambah akun demo yang belum ada (mis. `ayas@dubidu.id`), data lain tidak diubah.
 
 ```bash
 cd backend
@@ -292,6 +292,8 @@ Rencana validasi: level keahlian diselaraskan dengan rubrik kompetensi yang disu
 - Akun yang dinonaktifkan admin langsung kehilangan akses; akun demo tidak bisa dihapus, diganti kata sandi, atau diganti email/HP-nya.
 - Ganti email / nomor HP wajib memasukkan kata sandi saat ini, dan ditolak bila sudah dipakai akun lain.
 - Akses data dicek per pemilik (anak, chat, pembayaran, laporan); teacher hanya melihat inisial anak sampai tawaran diterima.
+- Status final dikunci: kontrak yang sudah selesai/dibatalkan tidak bisa diaktifkan lagi, tagihan yang gagal/kedaluwarsa tidak bisa dilunasi, dan sesi yang dibatalkan tidak bisa diberi laporan.
+- Parameter query (`limit`, `days`, tanggal) divalidasi; nilai salah dijawab 400, bukan error server.
 - Unggahan dibatasi jenis file (JPG, PNG, WEBP, HEIC, PDF) dan ukuran 4 MB.
 - Perlindungan anak: shadow teacher wajib membaca & menyetujui Syarat & Ketentuan Shadow Teacher sebelum mendaftar. Dubidu dan lembaga tempat pendampingan berhak memberi peringatan dan mencabut penugasan teacher yang terbukti melakukan kekerasan atau tindakan tidak wajar; admin menonaktifkan akunnya dan riwayat pelanggaran dipakai dalam verifikasi.
 - Web admin: sesi cookie httpOnly bertanda tangan, semua aksi tercatat di audit log, data anak & isi chat tidak ditampilkan.

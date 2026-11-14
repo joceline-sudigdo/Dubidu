@@ -424,6 +424,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   childName: {
+    // teks panjang turun baris, label di sebelahnya tidak terdorong keluar kartu
+    flexShrink: 1,
     fontFamily: Fonts.heading,
     fontSize: 18,
   },

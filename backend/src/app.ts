@@ -53,7 +53,7 @@ export function createApp() {
 
   app.get("/", (_req, res) => res.json({ name: "DUBIDU API", docs: "/api/health" }));
 
-  /** GET /api/health — dipakai Render untuk cek server hidup & database tersambung */
+  /** GET /api/health — cek server hidup & database tersambung (dipakai GitHub Actions untuk ping server) */
   app.get("/api/health", async (_req, res) => {
     await prisma.$queryRaw`SELECT 1`;
     res.json({ ok: true, time: new Date().toISOString() });

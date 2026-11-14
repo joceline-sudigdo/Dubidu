@@ -5,7 +5,7 @@ import { prisma } from "../db.js";
 import { isDemoUser } from "../lib/access.js";
 import { me, requireAuth } from "../lib/auth.js";
 import { hhmm, shortDate, wibDate } from "../lib/dates.js";
-import { param, parse } from "../lib/http.js";
+import { param, parse, queryInt } from "../lib/http.js";
 
 export const notificationsRouter = Router();
 notificationsRouter.use(requireAuth);
@@ -30,7 +30,7 @@ notificationsRouter.get("/", async (req, res) => {
   const category = req.query.category
     ? parse(z.enum(["CHAT", "BOOKING", "LAPORAN", "LAINNYA"]), req.query.category)
     : undefined;
-  const limit = Math.min(Number(req.query.limit ?? 50), 100);
+  const limit = queryInt(req, "limit", 50, 1, 100);
   const [rows, unread, demo] = await Promise.all([
     prisma.notification.findMany({ where: { userId, category }, orderBy: { createdAt: "desc" }, take: limit }),
     prisma.notification.count({ where: { userId, readAt: null } }),

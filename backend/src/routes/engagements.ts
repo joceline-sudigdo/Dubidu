@@ -156,7 +156,7 @@ engagementsRouter.post("/", requireRole("PARENT", "TEACHER"), async (req, res) =
 /** PATCH /api/engagements/:id { status?, phase?, location?, frequency? } */
 engagementsRouter.patch("/:id", async (req, res) => {
   const user = me(req);
-  await loadEngagement(param(req, "id"), user.id);
+  const current = await loadEngagement(param(req, "id"), user.id);
   const body = parse(
     z.object({
       status: z.enum(["ACTIVE", "COMPLETED", "CANCELLED"]).optional(),
@@ -166,6 +166,10 @@ engagementsRouter.patch("/:id", async (req, res) => {
     }),
     req.body,
   );
+  // kontrak yang sudah selesai / dibatalkan bersifat final: tidak bisa diaktifkan atau diubah lagi
+  if (current.status !== "ACTIVE") {
+    throw new HttpError(409, "Kontrak ini sudah selesai atau dibatalkan, jadi tidak bisa diubah lagi");
+  }
   const e = await prisma.engagement.update({ where: { id: param(req, "id") }, data: body, include: INCLUDE });
   res.json(await present(e, user.id));
 });

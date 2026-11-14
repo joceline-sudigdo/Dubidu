@@ -104,7 +104,7 @@ Bidang keahlian (kunci): `speech`, `communication`, `adhd`, `sensory`, `social`,
 | POST 🔒 | `/engagements` | `{ applicationId, ratePerSession, totalSessions, frequency?, location?, phase?, startDate?, endDate? }` |
 | GET 🔒 | `/engagements?status=ACTIVE` | bentuk `activeMatches` |
 | GET 🔒 | `/engagements/:id` | + `sessions[]`, `payments[]` |
-| PATCH 🔒 | `/engagements/:id` | `{ status?, phase?, location?, frequency? }` |
+| PATCH 🔒 | `/engagements/:id` | `{ status?, phase?, location?, frequency? }`; kontrak yang sudah `COMPLETED`/`CANCELLED` → 409 |
 | POST 🔒 | `/engagements/:id/sessions` | `{ sessions: [{ startAt, endAt, location? }] }` (ISO, mis. `2026-11-02T08:00:00+07:00`) |
 | POST 🔒 | `/engagements/:id/payments` | (orang tua) `{ sessions }` → Payment |
 | PATCH 🔒 | `/sessions/:id` | `{ status?, startAt?, endAt?, location? }` |
@@ -124,7 +124,7 @@ Bidang keahlian (kunci): `speech`, `communication`, `adhd`, `sensory`, `social`,
 |---|---|---|
 | GET 🔒 | `/conversations` | daftar chat + `unread` + `muted` |
 | PATCH 🔒 | `/conversations/:id/mute` | `{ muted }` — bisukan chat: pesan tetap masuk & tersimpan, tanpa push notification |
-| GET 🔒 | `/conversations/:id/messages?before=&after=&limit=50` | bentuk `ChatMessage`. `after=<createdAt pesan terakhir>` → hanya pesan baru (dipakai untuk cek berkala tiap 3–5 detik saat layar chat terbuka) |
+| GET 🔒 | `/conversations/:id/messages?before=&after=&limit=50` | bentuk `ChatMessage` (`limit` 1–100, tanggal ISO; nilai salah → 400). `after=<createdAt pesan terakhir>` → hanya pesan baru (dipakai untuk cek berkala tiap 3–5 detik saat layar chat terbuka) |
 | POST 🔒 | `/conversations/:id/messages` | `{ type: "TEXT", text }` / `{ type: "IMAGE", imageUrl }` / `{ type: "SCHEDULE", schedule: { title, date, hours, place } }` |
 | POST 🔒 | `/conversations/:id/read` | tandai dibaca |
 | GET 🔒 | `/quick-questions?pending=true` | |
@@ -143,7 +143,7 @@ Bidang keahlian (kunci): `speech`, `communication`, `adhd`, `sensory`, `social`,
 |---|---|---|
 | GET 🔒 | `/psychologists?category=ADHD` | bentuk `Psychologist` |
 | GET 🔒 | `/psychologists/:id` | + `reviewsList` |
-| GET 🔒 | `/psychologists/:id/availability?days=7` | `[{ date, day, dayOfMonth, status: open\|few\|full, times: [{ slotId, time, status: open\|last\|full }] }]` |
+| GET 🔒 | `/psychologists/:id/availability?days=7` (1–30) | `[{ date, day, dayOfMonth, status: open\|few\|full, times: [{ slotId, time, status: open\|last\|full }] }]` |
 | POST 🔒 | `/psychologists/me/slots` | (psikolog) `{ startAts: ["2026-11-02T09:00:00+07:00"] }` |
 | DELETE 🔒 | `/psychologists/me/slots/:slotId` | |
 | POST 🔒 | `/consultations/quote` | `{ psychologistId, promoCode? }` → harga akhir |
@@ -173,7 +173,7 @@ Bidang keahlian (kunci): `speech`, `communication`, `adhd`, `sensory`, `social`,
 | POST 🔒 | `/payments/:id/checkout` | **manual:** `{ mode: "manual", amount, uniqueCode, amountDue, expiresAt, methods[], steps[] }` · **midtrans:** `{ mode, snapToken, redirectUrl }` · **mock:** `{ mode: "mock" }` |
 | POST 🔒 | `/payments/:id/proof` | (manual) `{ methodId, proofUrl, senderName, note? }` → status `VERIFYING` |
 | POST 🔒 | `/payments/:id/refresh` | cek status ke Midtrans setelah user kembali dari halaman bayar |
-| POST 🔒 | `/payments/:id/pay` | **hanya mode mock** (server tanpa kunci Midtrans) — langsung lunas |
+| POST 🔒 | `/payments/:id/pay` | **hanya mode mock** (server tanpa kunci Midtrans) — langsung lunas; hanya tagihan `PENDING` (selain itu 409) |
 | POST | `/payments/midtrans/notification` | **webhook Midtrans** (diverifikasi `signature_key`) — isi di Dashboard Midtrans |
 | GET | `/payments/finish` | halaman setelah bayar → kembali ke aplikasi (`dubidu://pembayaran`) |
 | GET 🔒 | `/subscription` | status Plus + harga |

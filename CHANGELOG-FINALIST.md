@@ -15,11 +15,11 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 
 | Kategori | Jumlah perubahan |
 | --- | --- |
-| Bug fixing | 36 |
+| Bug fixing | 38 |
 | Deployment & stabilisasi | 6 |
-| UI/UX polishing | 25 |
+| UI/UX polishing | 26 |
 | Performance improvement | 6 |
-| Keamanan dasar | 10 |
+| Keamanan dasar | 12 |
 | Dokumentasi | 5 |
 
 ## 1. Bug fixing
@@ -62,6 +62,8 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Batas ukuran upload tidak sama dengan server | Aplikasi menulis maks. 5 MB, server menolak di atas 4 MB, sehingga file 4–5 MB gagal tanpa alasan jelas | Aplikasi memakai batas 4 MB yang sama dengan server | `src/components/ui/upload-box.tsx` |
 | Laporan sesi masih bisa ditulis ulang | Setelah teacher mengirim laporan harian, kartu sesi di tab Jadwal tetap menampilkan "Tulis Laporan Sekarang" | Jadwal langsung berubah menjadi "Laporan observasi sudah dikirim" dengan tombol Lihat Laporan | `src/data/teacher.ts`, `src/app/teacher/(tabs)/jadwal.tsx`, `src/lib/sync.ts` |
 | Error email/HP terpakai muncul di langkah terakhir | Bila email/HP ternyata sudah terdaftar saat pendaftaran dikirim, pesan muncul di langkah Kebutuhan Anak / Persetujuan sehingga pengguna harus mundur jauh | Pengguna dibawa kembali ke langkah "Buat akun baru" dan pesannya tampil di kolom Email / No. HP | `src/lib/validation.ts`, `src/app/(auth)/register.tsx`, `src/app/(auth)/parent/child-needs.tsx`, `src/app/(auth)/daftar-teacher/persetujuan.tsx` |
+| Parameter query tidak divalidasi | `?limit=abc`, `?days=-1`, atau `?after=bukan-tanggal` di chat, notifikasi, dan jadwal psikolog membuat server error 500 atau membalik urutan data | Ditolak dengan pesan 400 yang jelas; batas `limit` 1–100 dan `days` 1–30 (`queryInt` / `queryDate` di `backend/src/lib/http.ts`) | `backend/src/routes/chat.ts`, `notifications.ts`, `psychologists.ts` |
+| Laporan untuk sesi yang dibatalkan | Teacher bisa mengirim report card untuk sesi berstatus dibatalkan | Ditolak (409) | `backend/src/routes/reports.ts` |
 
 ## 2. Deployment & stabilisasi
 
@@ -72,7 +74,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Migrasi database | `performance_indexes`, `dynamic_qris`, dan `account_preferences` (preferensi notifikasi, bisukan chat, favorit, profil psikolog) diterapkan otomatis saat deploy (`prisma migrate deploy`) |
 | Uji otomatis diperluas | 4 skenario baru: QRIS dinamis (CRC, validasi, sisip nominal, baca gambar QR) dan kunci akun demo |
 | Data demo shadow teacher | Akun demo teacher mendapat anak contoh di Cari Anak dan kuota "Lewati" dihitung di perangkat, sehingga alur lewati 5× → halaman Dubidu Plus selalu bisa didemokan; tombol "Ulang demo skip" untuk mengulang (sama seperti akun demo orang tua) (`src/lib/child-matching-store.ts`, `src/data/teacher.ts`) |
-| Akun demo teacher kedua | `ayas@dubidu.id` (Ayas Sudigdo, terverifikasi, level keahlian terisi) ditambahkan ke daftar akun demo dan dibuat otomatis oleh seed bila belum ada di database, supaya juri bisa mencoba dua teacher berbeda (`backend/prisma/seed.ts`, `src/data/dummy-accounts.json`) |
+| Akun demo teacher kedua | `ayas@dubidu.id` (Ayas Sudigdo, terverifikasi, level keahlian terisi) ditambahkan ke daftar akun demo dan dibuat otomatis oleh seed bila belum ada di database, supaya juri bisa mencoba dua teacher berbeda. Seed kini ikut berjalan setiap deploy (setelah migrasi), karena sebelumnya akun ini belum ada di database produksi sehingga login gagal (`backend/prisma/seed.ts`, `backend/vercel.json`, `src/data/dummy-accounts.json`) |
 
 ## 3. UI/UX polishing
 
@@ -103,6 +105,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Dokumen diunggah sebagai PDF | Ijazah, sertifikat, dan CV saat pendaftaran teacher, serta rekam medis anak saat pendaftaran orang tua, kini memakai pemilih dokumen (PDF), bukan galeri foto; dokumen tampil sebagai kartu nama file yang bisa dibuka. KTP tetap foto (`src/components/ui/upload-box.tsx`, `src/app/(auth)/daftar-teacher/pendidikan.tsx`, `pengalaman.tsx`, `src/app/(auth)/parent/child-needs.tsx`, `src/lib/auth.ts`) |
 | Pill & kartu di baris geser tidak terpotong | Filter (Semua/Masuk/Keluar), chip anak, kartu Pengajuan Aktif, dan topik Doobie sebelumnya terpotong bagian bawah/bayangannya oleh ScrollView; kini diberi ruang tanpa mengubah jarak antarelemen. Badge kebutuhan/keahlian (mis. "ADHD & Fokus", "Sensori") di kartu teacher, kartu anak, kontrak, dan detail anak juga tidak lagi terpotong bagian bawahnya (`src/components/parent/edge-scroll.tsx`, `src/components/shared/doobie-card.tsx`, `src/components/parent/tag-row.tsx`) |
 | Bar Komunitas menempel & ketuk ulang tab | Saat digulir, kolom posting/pencarian menempel di atas dengan latar belakang ter-blur bening (tanpa lapisan putih) dari tepi atas layar sampai bawah bar, juga di Android lewat `BlurTargetView` (judul, tombol cari, dan filter topik ikut tergulir); jarak bar ke filter topik dilonggarkan. Di semua peran, mengetuk lagi ikon tab yang sedang aktif mengembalikan halaman ke atas (`src/components/shared/community-screen.tsx`, `src/components/parent/screen.tsx`, `src/components/navigation/role-tab-bar.tsx`) |
+| Label diskon tidak tertumpuk tombol favorit | Di kartu Konsultasi Psikolog (orang tua), label "-20% Dubidu Plus" tertimpa tombol favorit karena harga, favorit, dan Booking berbagi satu baris. Kini harga & label diskon selebar kartu (label turun baris bila perlu), tombol favorit dan Booking di baris bawahnya. Audit serupa di semua peran: nama anak / nama paket / metode pembayaran / aspek observasi yang panjang kini turun baris alih-alih mendorong label di sebelahnya keluar kartu, dan label rincian biaya diskon tidak menimpa nominal (`src/app/konsultasi.tsx`, `src/app/konsultasi/[id].tsx`, `src/app/profil.tsx`, `src/app/report-card/[id].tsx`, `src/app/metode-pembayaran.tsx`, `src/app/observasi/[id].tsx`) |
 
 ## 4. Performance improvement
 
@@ -129,6 +132,8 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Pembatasan cek email/HP saat daftar | `POST /auth/check-contact` dibatasi 60 per jam per alamat IP agar tidak dipakai menebak email terdaftar secara massal |
 | Hak pencabutan penugasan shadow teacher | Syarat & Ketentuan ditambah poin 8: Dubidu dan lembaga tempat pendampingan berhak memberi peringatan, menghentikan sementara, dan mencabut penugasan shadow teacher yang terbukti melakukan kekerasan atau tindakan tidak wajar terhadap anak; riwayat pelanggaran dipakai menyaring pendamping. Dicantumkan dasar hukumnya: UU Perlindungan Anak, UU Penyandang Disabilitas, UU TPKS, dan UU Pelindungan Data Pribadi (`backend/src/lib/content.ts`, `src/data/legal.ts`) |
 | S&K Shadow Teacher wajib dibaca sebelum mendaftar | Memilih peran Shadow Teacher kini membuka halaman Syarat & Ketentuan Shadow Teacher (kode etik, larangan, hak pemberhentian, proses laporan, sanksi, dasar hukum). Tombol lanjut baru aktif setelah dibaca sampai akhir dan disetujui; persetujuan akhir pendaftaran ditambah poin "Siap ditindak bila melanggar" (`src/app/(auth)/daftar-teacher/syarat.tsx`, `src/app/(auth)/register.tsx`, `src/app/(auth)/daftar-teacher/persetujuan.tsx`, `src/components/ui/form-screen.tsx`) |
+| Kontrak selesai / dibatalkan bersifat final | `PATCH /engagements/:id` sebelumnya bisa mengaktifkan lagi kontrak yang sudah selesai atau dibatalkan tanpa pembayaran baru; kini ditolak (409) |
+| Bayar demo hanya untuk tagihan aktif | `POST /payments/:id/pay` (mode mock) sebelumnya bisa melunasi tagihan yang sudah gagal, kedaluwarsa, atau menunggu cek admin; kini hanya tagihan yang masih menunggu pembayaran |
 
 ## 6. Dokumentasi
 

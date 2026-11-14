@@ -368,6 +368,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   areaLabel: {
+    // teks panjang turun baris, label di sebelahnya tidak terdorong keluar kartu
+    flexShrink: 1,
     flex: 1,
     fontFamily: Fonts.bodyBold,
     fontSize: 15,
