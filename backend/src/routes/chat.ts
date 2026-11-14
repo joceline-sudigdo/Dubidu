@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 
-import { prisma } from "../db.js";
+import { prisma, type Message } from "../db.js";
 import { me, requireAuth, requireRole } from "../lib/auth.js";
 import { hhmm, shortDate, wibDate } from "../lib/dates.js";
 import { forbidden, HttpError, notFound, param, parse } from "../lib/http.js";
@@ -106,20 +106,23 @@ chatRouter.get("/:id/messages", async (req, res) => {
     where: { conversationId: param(req, "id"), userId: { not: userId } },
   });
 
-  res.json(
-    rows.reverse().map((m) => ({
-      id: m.id,
-      from: m.senderId === userId ? "me" : "them",
-      type: m.type.toLowerCase(),
-      text: m.text,
-      uri: m.imageUrl,
-      ...(m.schedule as object | null),
-      time: hhmm(m.createdAt),
-      createdAt: m.createdAt,
-      read: m.senderId === userId && partner ? partner.lastReadAt >= m.createdAt : undefined,
-    })),
-  );
+  res.json(rows.reverse().map((m) => presentMessage(m, userId, partner?.lastReadAt)));
 });
+
+/** Bentuk pesan untuk aplikasi (= ChatMessage di frontend): jadwal ikut dibuka (title, date, hours, place) */
+function presentMessage(m: Message, userId: string, partnerLastReadAt?: Date) {
+  return {
+    id: m.id,
+    from: m.senderId === userId ? "me" : "them",
+    type: m.type.toLowerCase(),
+    text: m.text,
+    uri: m.imageUrl,
+    ...(m.schedule as object | null),
+    time: hhmm(m.createdAt),
+    createdAt: m.createdAt,
+    read: m.senderId === userId && partnerLastReadAt ? partnerLastReadAt >= m.createdAt : undefined,
+  };
+}
 
 const messageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("TEXT"), text: z.string().trim().min(1).max(4000) }),
@@ -136,7 +139,7 @@ chatRouter.post("/:id/messages", async (req, res) => {
   const convo = await loadConversation(param(req, "id"), sender.id);
   const body = parse(messageSchema, req.body);
   const message = await sendMessage(convo.id, sender.id, body);
-  res.status(201).json({ ...message, from: "me", time: hhmm(message.createdAt) });
+  res.status(201).json(presentMessage(message, sender.id));
 });
 
 type OutgoingMessage = z.infer<typeof messageSchema>;

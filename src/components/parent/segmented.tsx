@@ -68,13 +68,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 6,
   },
+  // tebal huruf sama di kedua tab: saat berpindah hanya warnanya yang berubah, teks tidak "melompat"
   segmentText: {
-    fontFamily: Fonts.body,
+    fontFamily: Fonts.bodyBold,
     fontSize: 14,
-    color: Colors.text,
+    color: Colors.textSecondary,
   },
   segmentTextActive: {
-    fontFamily: Fonts.bodyBold,
     color: '#FFFFFF',
   },
 });

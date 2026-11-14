@@ -1,90 +1,100 @@
 import Feather from '@expo/vector-icons/Feather';
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ClayCard } from '@/components/parent/clay-card';
 import { AppText } from '@/components/ui/app-text';
+import { celebrateFish } from '@/components/ui/fish-celebration';
 import { PrimaryButton } from '@/components/ui/primary-button';
-import { Colors, Fonts } from '@/constants/theme';
-import { showAlert } from '@/lib/dialog';
+import { Colors, Fonts, Radius } from '@/constants/theme';
+import { getSession } from '@/lib/session';
+import { claimCheckin, hasPoints, usePoints } from '@/lib/points-store';
 
-const WEEK = [
-  { day: 'Sen', reward: 10, done: true },
-  { day: 'Sel', reward: 15, done: true },
-  { day: 'Rab', reward: 20, done: true },
-  { day: 'Kam', reward: 25, today: true },
-  { day: 'Jum', reward: 30 },
-  { day: 'Sab', reward: 40 },
-  { day: 'Min', reward: 100, bonus: true },
-];
+export function CheckinCard() {
+  const role = getSession().role;
+  const points = usePoints();
+  if (!hasPoints(role)) return null;
+  const claimed = points.checkinClaimed[role];
+  const week = points.week;
 
-const MOODS = [
-  { id: 'senang', label: 'Senang', emoji: '😄' },
-  { id: 'tenang', label: 'Tenang', emoji: '😊' },
-  { id: 'biasa', label: 'Biasa', emoji: '🙂' },
-  { id: 'rewel', label: 'Rewel', emoji: '😫' },
-  { id: 'sedih', label: 'Sedih', emoji: '😢' },
-];
-
-export function CheckinCard({ childName }: { childName: string }) {
-  const [mood, setMood] = useState('senang');
+  const claim = async () => {
+    const earned = await claimCheckin();
+    if (earned) celebrateFish(earned, 'Check-in hari ini berhasil!');
+  };
 
   return (
     <ClayCard style={styles.checkin}>
-      <AppText style={styles.checkinTitle}>Check-in hari ini!</AppText>
-      <AppText variant="caption">Ceritakan mood {childName} hari ini, raih Madu!</AppText>
-      <View style={styles.week}>
-        {WEEK.map((d) => (
-          <View
-            key={d.day}
-            style={[styles.dayCol, d.today && styles.dayToday, d.bonus && styles.dayBonus]}>
-            <AppText style={[styles.dayLabel, d.today && { color: Colors.yellowDark }]}>{d.day}</AppText>
-            <View style={[styles.dayIcon, d.done && { backgroundColor: Colors.primary }]}>
-              {d.done ? (
-                <Feather name="check" size={14} color="#FFFFFF" />
-              ) : d.bonus ? (
-                <AppText style={styles.dayEmoji}>🎁</AppText>
-              ) : (
-                <Image source={require('@/assets/images/icons/ikan.png')} style={styles.fish} contentFit="contain" />
-              )}
-            </View>
-            <AppText style={[styles.dayReward, d.today && { color: Colors.yellowDark }]}>+{d.reward}</AppText>
-          </View>
-        ))}
+      <View style={styles.head}>
+        <View style={styles.flex}>
+          <AppText style={styles.checkinTitle}>Check-in hari ini!</AppText>
+          <AppText variant="caption">Check-in setiap hari dan kumpulkan ikan sebanyak-banyaknya!</AppText>
+        </View>
+        <Pressable accessibilityLabel="Buka Doobie Rewards" onPress={() => router.push('/rewards')} style={styles.balance}>
+          <Image source={require('@/assets/images/icons/ikan.png')} style={styles.fish} contentFit="contain" />
+          <AppText style={styles.balanceText}>{points.points[role].toLocaleString('id-ID')}</AppText>
+        </Pressable>
       </View>
-      <View style={styles.divider} />
-      <AppText style={styles.moodTitle}>Bagaimana suasana hati si kecil hari ini?</AppText>
-      <View style={styles.moods}>
-        {MOODS.map((m) => {
-          const active = m.id === mood;
+      <View style={styles.week}>
+        {week.map((d) => {
+          const done = d.done || (d.today && claimed);
           return (
-            <Pressable key={m.id} onPress={() => setMood(m.id)} style={styles.mood}>
-              <View style={[styles.moodCircle, active && styles.moodCircleActive]}>
-                <AppText style={styles.moodEmoji}>{m.emoji}</AppText>
+            <View key={d.day} style={[styles.dayCol, d.today && styles.dayToday, d.bonus && styles.dayBonus]}>
+              <AppText style={[styles.dayLabel, d.today && { color: Colors.yellowDark }]}>{d.day}</AppText>
+              <View style={[styles.dayIcon, done && { backgroundColor: Colors.primary }]}>
+                {done ? (
+                  <Feather name="check" size={14} color="#FFFFFF" />
+                ) : d.bonus ? (
+                  <AppText style={styles.dayEmoji}>🎁</AppText>
+                ) : (
+                  <Image source={require('@/assets/images/icons/ikan.png')} style={styles.fish} contentFit="contain" />
+                )}
               </View>
-              <AppText style={[styles.moodLabel, active && { color: Colors.primary, fontFamily: Fonts.bodyBold }]}>
-                {m.label}
-              </AppText>
-            </Pressable>
+              <AppText style={[styles.dayReward, d.today && { color: Colors.yellowDark }]}>+{d.reward}</AppText>
+            </View>
           );
         })}
       </View>
       <PrimaryButton
-        title="Klaim madu hari ini!"
-        onPress={() => showAlert('Yeay!', 'Kamu dapat +25 Madu 🍯')}
+        title={claimed ? 'Sudah diklaim hari ini' : 'Klaim ikan hari ini!'}
+        disabled={claimed}
+        onPress={claim}
+        style={styles.button}
       />
     </ClayCard>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   checkin: {
     gap: 6,
+  },
+  head: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
   },
   checkinTitle: {
     fontFamily: Fonts.heading,
     fontSize: 20,
+    lineHeight: 28,
+  },
+  balance: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.yellowSoft,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  balanceText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 14,
+    color: Colors.yellowDark,
   },
   week: {
     flexDirection: 'row',
@@ -132,45 +142,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
   },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginVertical: 12,
-  },
-  moodTitle: {
-    fontFamily: Fonts.headingSemiBold,
-    fontSize: 15,
-    textAlign: 'center',
-  },
-  moods: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginVertical: 12,
-  },
-  mood: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  moodCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: Colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  moodCircleActive: {
-    backgroundColor: Colors.primarySoft,
-    borderWidth: 3,
-    borderColor: Colors.primary,
-  },
-  moodEmoji: {
-    fontSize: 20,
-    lineHeight: 26,
-  },
-  moodLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.textSecondary,
+  button: {
+    marginTop: 12,
   },
 });

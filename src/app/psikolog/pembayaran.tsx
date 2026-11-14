@@ -1,5 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ClayCard } from '@/components/parent/clay-card';
@@ -11,9 +12,8 @@ import { SecureNote } from '@/components/ui/secure-note';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { formatRupiah } from '@/data/parent';
 import { psychologistPayment as p } from '@/data/psychologist';
-import { showAlert } from '@/lib/dialog';
+import { downloadPdf } from '@/lib/pdf';
 
-const soon = (title: string) => showAlert(title, 'Fitur ini akan segera tersedia.');
 
 export default function PsikologPembayaranScreen() {
   return (
@@ -45,8 +45,21 @@ export default function PsikologPembayaranScreen() {
         <Row label="Diterima" value={formatRupiah(p.rate - p.fee)} color={Colors.green} total last />
       </ClayCard>
 
-      <PrimaryButton title="Unduh Bukti Transfer" leadingIcon="download" onPress={() => soon('Unduh bukti transfer')} />
-      <Pressable onPress={() => soon('Riwayat pembayaran')} style={styles.link}>
+      <PrimaryButton title="Unduh Bukti Transfer" leadingIcon="download" onPress={() =>
+          downloadPdf('Bukti Transfer Dubidu', p.time, [
+            {
+              title: 'Rincian Pembayaran',
+              rows: [
+                ['Dari', p.from],
+                ['Tarif per sesi', formatRupiah(p.rate)],
+                ['Biaya platform', p.fee ? `-${formatRupiah(p.fee)}` : 'Gratis'],
+                ['Diterima', formatRupiah(p.rate - p.fee)],
+                ['Status', 'Berhasil'],
+              ],
+            },
+          ])
+        } />
+      <Pressable onPress={() => router.push('/riwayat-transaksi')} style={styles.link}>
         <AppText variant="link">Lihat Riwayat Pembayaran</AppText>
         <Feather name="arrow-right" size={16} color={Colors.primary} />
       </Pressable>

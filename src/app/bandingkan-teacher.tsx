@@ -11,9 +11,9 @@ import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius } from '@/constants/theme';
-import { children } from '@/data/parent';
 import { formatPrice, matchScore, SKILL_LABELS, teacherPool, type Skill, type Teacher } from '@/data/teachers';
 import { connectTeacher, useMatching } from '@/lib/matching-store';
+import { useChildren } from '@/lib/children-store';
 
 const A_COLOR = Colors.primary;
 const B_COLOR = Colors.yellow;
@@ -21,6 +21,7 @@ const B_COLOR = Colors.yellow;
 type Stat = { label: string; a: number; b: number; format: (v: number) => string; lowerIsBetter?: boolean };
 
 export default function BandingkanTeacherScreen() {
+  const children = useChildren();
   const params = useLocalSearchParams<{ a: string; b: string; child: string }>();
   const matching = useMatching();
   const child = children.find((c) => c.id === params.child) ?? children[0];
@@ -105,7 +106,8 @@ export default function BandingkanTeacherScreen() {
             <PrimaryButton
               key={t.id}
               title={connected ? 'Buka Chat' : `Connect ${t.name.split(' ')[0]}`}
-              icon={connected ? 'message-circle' : 'send'}
+              icon={connected ? undefined : 'send'}
+              leadingIcon={connected ? 'chat' : undefined}
               color={t.id === a.id ? A_COLOR : Colors.primaryDark}
               onPress={() => connectTeacher(t, child)}
               style={styles.flex}
@@ -158,7 +160,7 @@ function SkillRow({ label, a, b, isNeed }: { label: string; a: number; b: number
         <AppText style={[styles.skillValue, a >= b && styles.winner, { color: A_COLOR }]}>{a}</AppText>
         <View style={styles.inline}>
           <AppText style={styles.skillLabel}>{label}</AppText>
-          {isNeed && <Pill label="Kebutuhan" tone="blue" />}
+          {isNeed && <Pill inRow label="Kebutuhan" tone="blue" />}
         </View>
         <AppText style={[styles.skillValue, b >= a && styles.winner, { color: Colors.yellowDark }]}>{b}</AppText>
       </View>

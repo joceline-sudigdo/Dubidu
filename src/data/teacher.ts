@@ -9,6 +9,7 @@ import { SKILL_LABELS, type Skill } from './teachers';
 export type Gender = 'male' | 'female';
 
 export const teacherProfile = {
+  verified: true, // sudah diverifikasi admin (dari server)
   name: 'Pras Karunia, S.Pd',
   shortName: 'Pras',
   title: 'Spesialis ADHD & Speech Delay',
@@ -33,8 +34,8 @@ export const teacherProfile = {
   earnings: { total: 'Rp1.2 Jt', growth: '+14% minggu ini' },
   target: { done: 12, total: 16 },
   reviews: [
-    { name: 'Mami Larasati', rating: 5, text: '“Kak Pras sangat sabar dan komunikatif, Keenan jadi lebih percaya diri.”' },
-    { name: 'Papi Alvin', rating: 5, text: '“Pendampingan sangat terstruktur dan laporan hariannya selalu detail.”' },
+    { name: 'Larasita Hadi', rating: 5, text: '“Kak Pras sangat sabar dan komunikatif, Keenan jadi lebih percaya diri.”' },
+    { name: 'Alvin Pratama', rating: 5, text: '“Pendampingan sangat terstruktur dan laporan hariannya selalu detail.”' },
   ],
 };
 
@@ -64,7 +65,7 @@ export const students: Student[] = [
     condition: 'ADHD & Regulasi Sensori',
     gender: 'female',
     age: 8,
-    parent: 'Bunda Sarah',
+    parent: 'Sarah Wijaya',
     chatId: 'tc-sarah',
     tags: [
       { label: 'Speech Delay', tone: 'green' },
@@ -83,7 +84,7 @@ export const students: Student[] = [
     condition: 'ADHD & Sensorik',
     gender: 'male',
     age: 7,
-    parent: 'Bunda Larasati',
+    parent: 'Laras Setiawati',
     chatId: 'tc-larasati',
     tags: [
       { label: 'ADHD', tone: 'red' },
@@ -102,7 +103,7 @@ export const students: Student[] = [
     condition: 'Speech Delay',
     gender: 'female',
     age: 9,
-    parent: 'Mama Rini',
+    parent: 'Rini Hartati',
     chatId: 'tc-rini',
     tags: [{ label: 'Speech Delay', tone: 'green' }],
     nextSession: 'Senin, 14:00',
@@ -141,7 +142,7 @@ export const teacherApplications: {
 export const teacherChatThreads: ChatThread[] = [
   {
     id: 'tc-sarah',
-    name: 'Bunda Sarah',
+    name: 'Sarah Wijaya',
     role: 'Orang Tua',
     verified: true,
     online: true,
@@ -157,7 +158,7 @@ export const teacherChatThreads: ChatThread[] = [
   },
   {
     id: 'tc-larasati',
-    name: 'Bunda Larasati',
+    name: 'Laras Setiawati',
     role: 'Orang Tua',
     verified: true,
     online: false,
@@ -175,7 +176,7 @@ export const teacherChatThreads: ChatThread[] = [
 
 teacherChatThreads.push({
   id: 'tc-rini',
-  name: 'Mama Rini',
+  name: 'Rini Hartati',
   role: 'Orang Tua',
   verified: true,
   online: false,
@@ -192,7 +193,7 @@ teacherChatThreads.push({
 
 export type TeacherNotification = {
   id: string;
-  group: 'today' | 'yesterday';
+  group: 'today' | 'yesterday' | 'earlier';
   category: 'match' | 'chat' | 'booking' | 'laporan' | 'lainnya';
   icon: string;
   tone: Tone;
@@ -273,6 +274,8 @@ export const reviewDetail = {
 };
 
 export type TeacherSession = {
+  id?: string; // id sesi di server (untuk mengirim laporan)
+  reportId?: string | null; // report card yang sudah dikirim
   date: string;
   student: string;
   number: number;
@@ -299,6 +302,12 @@ export const teacherSessions: TeacherSession[] = [
   { date: '2026-09-14', student: 'bella', number: 10, time: '14:00 - 16:00', reportDone: false },
 ];
 
+/** Tandai sesi sudah punya laporan (setelah laporan harian terkirim) */
+export function markSessionReported(sessionId: string, reportId: string) {
+  const i = teacherSessions.findIndex((s) => s.id === sessionId);
+  if (i >= 0) teacherSessions[i] = { ...teacherSessions[i], reportDone: true, reportId };
+}
+
 // ===== anak yang sedang mencari shadow teacher =====
 
 export type SeekingChild = {
@@ -321,25 +330,34 @@ export type SeekingChild = {
   parentReviews: number;
   budget: number;
   distanceKm: number;
+  // id pengajuan dari orang tua (halaman Permintaan), kalau anak ini datang dari permintaan
+  requestId?: string | null;
 };
 
 export const seekingChildren: SeekingChild[] = [
-  { id: 'c-arka', initials: 'Arka', age: 7, gender: 'male', city: 'Malang', area: 'Sukun, Kota Malang', needs: ['adhd', 'sensory'], frequency: '2x Seminggu', timeOfDay: 'Sore hari', days: 'Senin & Kamis', hours: '15:30 – 17:00 WIB (90 menit)', system: 'Kunjungan langsung ke rumah (Home visit)', goal: 'Lebih tenang dan fokus saat transisi aktivitas belajar di rumah', note: 'Orang tua Arka mencari shadow teacher yang sabar dalam melatih fokus sensorik dan membangun rutinitas transisi harian dengan pendekatan menyenangkan.', parent: 'Bunda Kirana', parentRating: 4.9, parentReviews: 5, budget: 150000, distanceKm: 3 },
-  { id: 'c-kas', initials: 'KAS', age: 7, gender: 'female', city: 'Kediri', area: 'Mojoroto, Kediri', needs: ['adhd'], frequency: '2x Seminggu', timeOfDay: 'Pagi hari', days: 'Selasa & Jumat', hours: '08:00 – 11:00 WIB (180 menit)', system: 'Pendampingan di sekolah', goal: 'Bisa mengikuti pelajaran kelas 1 tanpa sering keluar kelas', note: 'KAS aktif dan ceria, butuh pendamping yang tegas namun hangat.', parent: 'Mama Sinta', parentRating: 4.9, parentReviews: 2, budget: 140000, distanceKm: 95 },
-  { id: 'c-nps', initials: 'NPS', age: 12, gender: 'female', city: 'Malang', area: 'Lowokwaru, Kota Malang', needs: ['adhd', 'academic'], frequency: '3x Seminggu', timeOfDay: 'Sore hari', days: 'Senin, Rabu, Jumat', hours: '15:00 – 16:30 WIB (90 menit)', system: 'Kunjungan langsung ke rumah (Home visit)', goal: 'Mengerjakan PR mandiri dan fokus belajar menjelang ujian', note: 'NPS cerdas tapi mudah terdistraksi gawai.', parent: 'Bunda Putri', parentRating: 4.7, parentReviews: 3, budget: 160000, distanceKm: 5 },
-  { id: 'c-dafa', initials: 'DFA', age: 5, gender: 'male', city: 'Malang', area: 'Blimbing, Kota Malang', needs: ['speech', 'communication'], frequency: '2x Seminggu', timeOfDay: 'Pagi hari', days: 'Selasa & Kamis', hours: '09:00 – 10:30 WIB (90 menit)', system: 'Pendampingan di TK', goal: 'Menambah kosakata dan berani meminta tolong di kelas', note: 'Dafa sudah bisa 30 kata, orang tua ingin melatih kalimat sederhana.', parent: 'Mama Fitri', parentRating: 5.0, parentReviews: 4, budget: 130000, distanceKm: 6 },
-  { id: 'c-ccs', initials: 'CCS', age: 7, gender: 'male', city: 'Batu', area: 'Junrejo, Batu', needs: ['sensory', 'social'], frequency: '2x Seminggu', timeOfDay: 'Sore hari', days: 'Rabu & Sabtu', hours: '14:00 – 15:30 WIB (90 menit)', system: 'Kunjungan langsung ke rumah (Home visit)', goal: 'Lebih nyaman bermain bersama teman sebaya', note: 'CCS sensitif terhadap suara keras dan keramaian.', parent: 'Bunda Lia', parentRating: 4.8, parentReviews: 6, budget: 150000, distanceKm: 18 },
-  { id: 'c-rara', initials: 'RRA', age: 6, gender: 'female', city: 'Malang', area: 'Klojen, Kota Malang', needs: ['speech', 'social'], frequency: '2x Seminggu', timeOfDay: 'Pagi hari', days: 'Senin & Rabu', hours: '08:00 – 10:00 WIB (120 menit)', system: 'Pendampingan di sekolah', goal: 'Berani bicara di depan kelas dan menjawab pertanyaan guru', note: 'Rara pemalu tapi suka menggambar.', parent: 'Mama Dewi', parentRating: 4.9, parentReviews: 8, budget: 145000, distanceKm: 2 },
-  { id: 'c-js', initials: 'JS', age: 14, gender: 'male', city: 'Surabaya', area: 'Rungkut, Surabaya', needs: ['autism', 'social'], frequency: '3x Seminggu', timeOfDay: 'Sore hari', days: 'Senin, Rabu, Jumat', hours: '15:00 – 17:00 WIB (120 menit)', system: 'Kunjungan langsung ke rumah (Home visit)', goal: 'Membangun kemandirian dan keterampilan sosial remaja', note: 'JS suka komputer, butuh pendekatan visual.', parent: 'Papi Hendra', parentRating: 4.6, parentReviews: 2, budget: 170000, distanceKm: 90 },
-  { id: 'c-alif', initials: 'ALF', age: 8, gender: 'male', city: 'Malang', area: 'Kedungkandang, Kota Malang', needs: ['adhd', 'communication'], frequency: '2x Seminggu', timeOfDay: 'Sore hari', days: 'Selasa & Kamis', hours: '15:30 – 17:00 WIB (90 menit)', system: 'Kunjungan langsung ke rumah (Home visit)', goal: 'Mengelola emosi saat kalah bermain dan menyampaikan perasaan', note: 'Alif mudah frustrasi, butuh pendamping yang sabar.', parent: 'Bunda Nisa', parentRating: 4.8, parentReviews: 3, budget: 140000, distanceKm: 7 },
-  { id: 'c-sasa', initials: 'SSA', age: 9, gender: 'female', city: 'Malang', area: 'Lowokwaru, Kota Malang', needs: ['academic', 'adhd'], frequency: '2x Seminggu', timeOfDay: 'Sore hari', days: 'Rabu & Jumat', hours: '15:00 – 16:30 WIB (90 menit)', system: 'Kunjungan langsung ke rumah (Home visit)', goal: 'Mengejar ketertinggalan membaca dan berhitung', note: 'Sasa semangat belajar tapi cepat lelah.', parent: 'Mama Ayu', parentRating: 4.7, parentReviews: 5, budget: 135000, distanceKm: 4 },
-  { id: 'c-gilang', initials: 'GLG', age: 6, gender: 'male', city: 'Batu', area: 'Bumiaji, Batu', needs: ['speech', 'sensory'], frequency: '2x Seminggu', timeOfDay: 'Pagi hari', days: 'Senin & Kamis', hours: '09:00 – 10:30 WIB (90 menit)', system: 'Pendampingan di TK', goal: 'Bisa mengikuti instruksi sederhana di kelas', note: 'Gilang suka musik, bisa jadi media belajar.', parent: 'Bunda Rina', parentRating: 4.9, parentReviews: 4, budget: 130000, distanceKm: 20 },
+  { id: 'c-arka', initials: 'Arka', age: 7, gender: 'male', city: 'Malang', area: 'Sukun, Kota Malang', needs: ['adhd', 'sensory'], frequency: '2x Seminggu', timeOfDay: 'Sore hari', days: 'Senin & Kamis', hours: '15:30 – 17:00 WIB (90 menit)', system: 'Kunjungan langsung ke rumah (Home visit)', goal: 'Lebih tenang dan fokus saat transisi aktivitas belajar di rumah', note: 'Orang tua Arka mencari shadow teacher yang sabar dalam melatih fokus sensorik dan membangun rutinitas transisi harian dengan pendekatan menyenangkan.', parent: 'Ratna Sari', parentRating: 4.9, parentReviews: 5, budget: 150000, distanceKm: 3 },
+  { id: 'c-kas', initials: 'KAS', age: 7, gender: 'female', city: 'Kediri', area: 'Mojoroto, Kediri', needs: ['adhd'], frequency: '2x Seminggu', timeOfDay: 'Pagi hari', days: 'Selasa & Jumat', hours: '08:00 – 11:00 WIB (180 menit)', system: 'Pendampingan di sekolah', goal: 'Bisa mengikuti pelajaran kelas 1 tanpa sering keluar kelas', note: 'KAS aktif dan ceria, butuh pendamping yang tegas namun hangat.', parent: 'Sinta Maharani', parentRating: 4.9, parentReviews: 2, budget: 140000, distanceKm: 95 },
+  { id: 'c-nps', initials: 'NPS', age: 12, gender: 'female', city: 'Malang', area: 'Lowokwaru, Kota Malang', needs: ['adhd', 'academic'], frequency: '3x Seminggu', timeOfDay: 'Sore hari', days: 'Senin, Rabu, Jumat', hours: '15:00 – 16:30 WIB (90 menit)', system: 'Kunjungan langsung ke rumah (Home visit)', goal: 'Mengerjakan PR mandiri dan fokus belajar menjelang ujian', note: 'NPS cerdas tapi mudah terdistraksi gawai.', parent: 'Putri Ayuningtyas', parentRating: 4.7, parentReviews: 3, budget: 160000, distanceKm: 5 },
+  { id: 'c-dafa', initials: 'DFA', age: 5, gender: 'male', city: 'Malang', area: 'Blimbing, Kota Malang', needs: ['speech', 'communication'], frequency: '2x Seminggu', timeOfDay: 'Pagi hari', days: 'Selasa & Kamis', hours: '09:00 – 10:30 WIB (90 menit)', system: 'Pendampingan di TK', goal: 'Menambah kosakata dan berani meminta tolong di kelas', note: 'Dafa sudah bisa 30 kata, orang tua ingin melatih kalimat sederhana.', parent: 'Fitri Handayani', parentRating: 5.0, parentReviews: 4, budget: 130000, distanceKm: 6 },
+  { id: 'c-ccs', initials: 'CCS', age: 7, gender: 'male', city: 'Batu', area: 'Junrejo, Batu', needs: ['sensory', 'social'], frequency: '2x Seminggu', timeOfDay: 'Sore hari', days: 'Rabu & Sabtu', hours: '14:00 – 15:30 WIB (90 menit)', system: 'Kunjungan langsung ke rumah (Home visit)', goal: 'Lebih nyaman bermain bersama teman sebaya', note: 'CCS sensitif terhadap suara keras dan keramaian.', parent: 'Lia Kartika', parentRating: 4.8, parentReviews: 6, budget: 150000, distanceKm: 18 },
+  { id: 'c-rara', initials: 'RRA', age: 6, gender: 'female', city: 'Malang', area: 'Klojen, Kota Malang', needs: ['speech', 'social'], frequency: '2x Seminggu', timeOfDay: 'Pagi hari', days: 'Senin & Rabu', hours: '08:00 – 10:00 WIB (120 menit)', system: 'Pendampingan di sekolah', goal: 'Berani bicara di depan kelas dan menjawab pertanyaan guru', note: 'Rara pemalu tapi suka menggambar.', parent: 'Dewi Safitri', parentRating: 4.9, parentReviews: 8, budget: 145000, distanceKm: 2 },
+  { id: 'c-js', initials: 'JS', age: 14, gender: 'male', city: 'Surabaya', area: 'Rungkut, Surabaya', needs: ['autism', 'social'], frequency: '3x Seminggu', timeOfDay: 'Sore hari', days: 'Senin, Rabu, Jumat', hours: '15:00 – 17:00 WIB (120 menit)', system: 'Kunjungan langsung ke rumah (Home visit)', goal: 'Membangun kemandirian dan keterampilan sosial remaja', note: 'JS suka komputer, butuh pendekatan visual.', parent: 'Hendra Wijaya', parentRating: 4.6, parentReviews: 2, budget: 170000, distanceKm: 90 },
+  { id: 'c-alif', initials: 'ALF', age: 8, gender: 'male', city: 'Malang', area: 'Kedungkandang, Kota Malang', needs: ['adhd', 'communication'], frequency: '2x Seminggu', timeOfDay: 'Sore hari', days: 'Selasa & Kamis', hours: '15:30 – 17:00 WIB (90 menit)', system: 'Kunjungan langsung ke rumah (Home visit)', goal: 'Mengelola emosi saat kalah bermain dan menyampaikan perasaan', note: 'Alif mudah frustrasi, butuh pendamping yang sabar.', parent: 'Nisa Rahmawati', parentRating: 4.8, parentReviews: 3, budget: 140000, distanceKm: 7 },
+  { id: 'c-sasa', initials: 'SSA', age: 9, gender: 'female', city: 'Malang', area: 'Lowokwaru, Kota Malang', needs: ['academic', 'adhd'], frequency: '2x Seminggu', timeOfDay: 'Sore hari', days: 'Rabu & Jumat', hours: '15:00 – 16:30 WIB (90 menit)', system: 'Kunjungan langsung ke rumah (Home visit)', goal: 'Mengejar ketertinggalan membaca dan berhitung', note: 'Sasa semangat belajar tapi cepat lelah.', parent: 'Ayu Lestari', parentRating: 4.7, parentReviews: 5, budget: 135000, distanceKm: 4 },
+  { id: 'c-gilang', initials: 'GLG', age: 6, gender: 'male', city: 'Batu', area: 'Bumiaji, Batu', needs: ['speech', 'sensory'], frequency: '2x Seminggu', timeOfDay: 'Pagi hari', days: 'Senin & Kamis', hours: '09:00 – 10:30 WIB (90 menit)', system: 'Pendampingan di TK', goal: 'Bisa mengikuti instruksi sederhana di kelas', note: 'Gilang suka musik, bisa jadi media belajar.', parent: 'Rina Oktaviani', parentRating: 4.9, parentReviews: 4, budget: 130000, distanceKm: 20 },
 ];
+
+// salinan anak contoh untuk akun demo teacher (seekingChildren dikosongkan saat login)
+export const demoSeekingChildren: SeekingChild[] = seekingChildren.map((c) => ({ ...c }));
 
 export const CHILD_MATCH_COUNT = 5;
 export const CHILD_MAX_SKIPS = 5;
 
+// skor kecocokan dari server: serverChildMatch[childId] = 0–99
+export const serverChildMatch: Record<string, number> = {};
+
 export function childMatchScore(child: SeekingChild) {
+  if (serverChildMatch[child.id] !== undefined) return serverChildMatch[child.id];
   const skill = child.needs.reduce((sum, k) => sum + teacherProfile.skills[k], 0) / child.needs.length;
   const location = child.city === teacherProfile.city ? 100 : child.distanceKm < 30 ? 75 : 45;
   const rating = (child.parentRating / 5) * 100;

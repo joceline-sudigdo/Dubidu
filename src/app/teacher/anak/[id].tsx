@@ -7,11 +7,11 @@ import { StyleSheet, View } from 'react-native';
 
 import { bearSource } from '@/components/parent/bear-avatar';
 import { ClayCard } from '@/components/parent/clay-card';
-import { EmptyState } from '@/components/parent/empty-state';
+import { EmptyFill, EmptyState } from '@/components/parent/empty-state';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
-import type { Tone } from '@/components/parent/tones';
+import { TagRow } from '@/components/parent/tag-row';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
@@ -22,8 +22,6 @@ import { connectChild, useChildMatching } from '@/lib/child-matching-store';
 import { showAlert } from '@/lib/dialog';
 
 type FeatherName = ComponentProps<typeof Feather>['name'];
-const TAG_TONES: Tone[] = ['red', 'blue', 'green'];
-
 // profil anak yang dilihat teacher: murid sendiri atau anak yang sedang mencari pendamping
 export default function ProfilAnakScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -33,14 +31,18 @@ export default function ProfilAnakScreen() {
 
   if (!student && !seeking) {
     return (
-      <Screen header={<ScreenHeader title="Profil Anak" />}>
-        <EmptyState title="Profil tidak ditemukan" />
+      <Screen header={<ScreenHeader title="Profil Anak" />} fill>
+        <EmptyFill>
+          <EmptyState title="Profil tidak ditemukan" />
+        </EmptyFill>
       </Screen>
     );
   }
 
   const gender = (student ?? seeking)!.gender;
-  const title = student ? `${student.name} · ${student.age} tahun` : `${seeking!.initials} · ${seeking!.age} tahun`;
+  // umur / kelas yang belum diisi (0 atau "-") tidak ditampilkan
+  const age = (student ?? seeking)!.age;
+  const title = `${student ? student.name : seeking!.initials}${age > 0 ? ` · ${age} tahun` : ''}`;
 
   return (
     <Screen
@@ -52,7 +54,7 @@ export default function ProfilAnakScreen() {
             <View style={styles.row}>
               <PrimaryButton
                 title="Chat Orang Tua"
-                leadingIcon="message-circle"
+                leadingIcon="chat"
                 style={styles.flex}
                 onPress={() => router.push({ pathname: '/chat/[id]', params: { id: student.chatId } })}
               />
@@ -94,22 +96,16 @@ export default function ProfilAnakScreen() {
         <View style={styles.body}>
           <View style={styles.nameRow}>
             <AppText style={styles.name}>{title}</AppText>
-            <Pill label={student ? 'Murid Aktif' : 'Mencari Pendamping'} tone={student ? 'green' : 'blue'} solid />
+            <Pill inRow label={student ? 'Murid Aktif' : 'Mencari Pendamping'} tone={student ? 'green' : 'blue'} solid />
           </View>
           <View style={styles.inline}>
             <Feather name="user" size={16} color={Colors.primary} />
             <AppText variant="body" color={Colors.text}>
               {gender === 'female' ? 'Perempuan' : 'Laki-laki'}
-              {student ? ` · Kelas ${student.grade}` : ` · ${seeking!.area}`}
+              {student ? (student.grade && student.grade !== '-' ? ` · Kelas ${student.grade}` : '') : ` · ${seeking!.area}`}
             </AppText>
           </View>
-          <View style={styles.tags}>
-            {student
-              ? student.tags.map((t) => <Pill key={t.label} label={t.label} tone={t.tone} size="md" />)
-              : needLabels(seeking!.needs).map((l, i) => (
-                  <Pill key={l} label={l} tone={TAG_TONES[i % TAG_TONES.length]} size="md" />
-                ))}
-          </View>
+          <TagRow tags={student ? student.tags : needLabels(seeking!.needs)} max={3} />
         </View>
       </ClayCard>
 

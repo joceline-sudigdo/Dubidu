@@ -23,6 +23,13 @@ function parse(value: string) {
   return m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])) : null;
 }
 
+/** "21/05/2016" → "2016-05-21" (format yang diterima backend); kosong/tidak valid → undefined */
+export function toIsoDate(value?: string) {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value ?? '');
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return /^\d{4}-\d{2}-\d{2}$/.test(value ?? '') ? value : undefined;
+}
+
 export function DateField({ label, placeholder = 'Pilih tanggal', value, onChange }: Props) {
   const [iosOpen, setIosOpen] = useState(false);
   const [draft, setDraft] = useState(() => parse(value) ?? new Date(2018, 0, 1));

@@ -9,6 +9,8 @@ import { ClayCard } from '@/components/parent/clay-card';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { SectionHeader } from '@/components/parent/screen-header';
+import { PointsCard } from '@/components/shared/points-card';
+import { SkillEditor } from '@/components/teacher/skill-editor';
 import { Stars } from '@/components/parent/stars';
 import type { Tone } from '@/components/parent/tones';
 import { AppText } from '@/components/ui/app-text';
@@ -21,12 +23,14 @@ import { changePhoto, updateTeacher, useProfile } from '@/lib/profile-store';
 
 const MENU: {
   label: string;
-  icon: ComponentProps<typeof Feather>['name'];
-  href?: '/pengaturan' | '/bantuan' | '/plus';
+  icon: ComponentProps<typeof Feather>['name'] | 'crown';
+  href?: '/pengaturan' | '/bantuan' | '/plus' | '/metode-pembayaran' | '/riwayat-transaksi' | '/tersimpan';
 }[] = [
-  { label: 'Dubidu Plus', icon: 'star', href: '/plus' },
+  { label: 'Dubidu Plus', icon: 'crown', href: '/plus' },
+  { label: 'Postingan Tersimpan', icon: 'bookmark', href: '/tersimpan' },
   { label: 'Pengaturan Akun', icon: 'settings', href: '/pengaturan' },
-  { label: 'Rekening & Pembayaran', icon: 'credit-card' },
+  { label: 'Rekening Pencairan', icon: 'credit-card', href: '/metode-pembayaran' },
+  { label: 'Riwayat Transaksi', icon: 'file-text', href: '/riwayat-transaksi' },
   { label: 'Pusat Bantuan', icon: 'help-circle', href: '/bantuan' },
 ];
 
@@ -93,7 +97,7 @@ export default function TeacherProfilScreen() {
           </View>
         </ClayCard>
         <View style={styles.avatarWrap}>
-          <Avatar name={p.name} size={100} ring="#FFFFFF" />
+          <Avatar name={p.name} size={100} ring="#FFFFFF" viewable />
           <Pressable accessibilityLabel="Ganti foto" onPress={() => changePhoto(p.name)} style={styles.camera}>
             <Feather name="camera" size={14} color="#FFFFFF" />
           </Pressable>
@@ -102,6 +106,8 @@ export default function TeacherProfilScreen() {
           </View>
         </View>
       </View>
+
+      <PointsCard />
 
       <View style={styles.stats}>
         <Stat value={String(p.sessionsDone)} label="Sesi Selesai" big />
@@ -145,6 +151,9 @@ export default function TeacherProfilScreen() {
           return <Pill key={label} label={label} tone={tone} solid={tone !== 'gray'} size="md" />;
         })}
       </View>
+
+      <SectionHeader title="Level Keahlian" />
+      <SkillEditor />
 
       <SectionHeader title="Harga & Ketersediaan" />
       <ClayCard style={styles.priceCard}>
@@ -192,7 +201,11 @@ export default function TeacherProfilScreen() {
             key={m.label}
             onPress={() => (m.href ? router.push(m.href) : comingSoon(m.label))}
             style={[styles.menuRow, i < MENU.length - 1 && styles.menuBorder]}>
-            <Feather name={m.icon} size={20} color={Colors.primary} />
+            {m.icon === 'crown' ? (
+              <MaterialCommunityIcons name="crown" size={20} color={Colors.primary} />
+            ) : (
+              <Feather name={m.icon} size={20} color={Colors.primary} />
+            )}
             <AppText style={styles.menuLabel}>{m.label}</AppText>
             <Feather name="chevron-right" size={20} color={Colors.textSecondary} />
           </Pressable>

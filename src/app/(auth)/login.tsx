@@ -8,31 +8,38 @@ import { FormScreen } from '@/components/ui/form-screen';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { TextField } from '@/components/ui/text-field';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
-import { login } from '@/lib/auth';
-import { setSession } from '@/lib/session';
-import { showAlert } from '@/lib/dialog';
+import { errorMessage } from '@/lib/api';
+import { demoAccounts, homeRoute, login, type UserRole } from '@/lib/auth';
+import { showActionSheet } from '@/lib/dialog';
+
+// peran ditampilkan di daftar akun demo supaya juri tahu akun mana yang dicoba
+const ROLE_LABEL: Record<UserRole, string> = { parent: 'Orang Tua', teacher: 'Shadow Teacher', psychologist: 'Psikolog' };
+const ROLE_ICON = { parent: 'users', teacher: 'book-open', psychologist: 'activity' } as const;
 
 // semua role login di sini, psikolog nggak bisa daftar sendiri
 export default function LoginScreen() {
   const [contact, setContact] = useState('');
   const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const [error, setError] = useState('');
 
-  const canSubmit = contact.trim().length > 0 && password.length > 0;
+  const canSubmit = contact.trim().length > 0 && password.length > 0 && !busy;
 
-  const submit = () => {
-    const account = login(contact, password);
-    if (!account) {
-      setError('Email/nomor HP atau kata sandi salah');
-      return;
-    }
+  const enter = async (loginContact: string, loginPassword: string) => {
+    setBusy(true);
     setError('');
-    setSession({ role: account.role, name: account.name });
-    if (account.role === 'parent') router.replace('/beranda');
-    else if (account.role === 'teacher') router.replace('/teacher/beranda');
-    else router.replace('/psikolog/beranda');
+    try {
+      const session = await login(loginContact, loginPassword);
+      router.replace(homeRoute(session.role));
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
   };
+
+  const submit = () => enter(contact, password);
 
   return (
     <FormScreen
@@ -66,7 +73,7 @@ export default function LoginScreen() {
         <Pressable
           style={styles.forgot}
           hitSlop={8}
-          onPress={() => showAlert('Lupa kata sandi', 'Fitur ini akan segera tersedia.')}>
+          onPress={() => router.push('/lupa-sandi')}>
           <AppText variant="link" color={Colors.red} style={styles.forgotText}>
             Lupa kata sandi?
           </AppText>
@@ -74,7 +81,7 @@ export default function LoginScreen() {
       </View>
 
       <PrimaryButton
-        title="Login"
+        title={busy ? 'Masuk…' : 'Login'}
         disabled={!canSubmit}
         onPress={submit}
       />
@@ -89,10 +96,20 @@ export default function LoginScreen() {
 
       <Pressable
         accessibilityRole="button"
-        onPress={() => showAlert('Masuk dengan Google', 'Fitur ini akan segera tersedia.')}
+        onPress={() =>
+          showActionSheet({
+            title: 'Coba dengan akun demo',
+            options: demoAccounts().map((a) => ({
+              label: a.name.split(',')[0],
+              sublabel: `${ROLE_LABEL[a.role]} · ${a.email}`,
+              icon: ROLE_ICON[a.role],
+              onPress: () => enter(a.email, a.password),
+            })),
+          })
+        }
         style={({ pressed }) => [styles.google, Shadow.soft, pressed && { opacity: 0.85 }]}>
-        <AntDesign name="google" size={22} color="#4285F4" />
-        <AppText style={styles.googleText}>Masuk dengan Google</AppText>
+        <AntDesign name="user" size={22} color={Colors.primary} />
+        <AppText style={styles.googleText}>Coba dengan Akun Demo</AppText>
       </Pressable>
 
       <View style={styles.footer}>

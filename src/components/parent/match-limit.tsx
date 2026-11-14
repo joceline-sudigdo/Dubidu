@@ -1,4 +1,5 @@
 import Feather from '@expo/vector-icons/Feather';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -22,8 +23,11 @@ export function MatchLimit({
   onShowLast,
   noun = 'teacher',
   homeHref = '/beranda',
+  onResetDemo,
 }: {
   onShowLast: () => void;
+  /** khusus akun demo: kuota lewati diisi ulang */
+  onResetDemo?: () => void;
   noun?: 'teacher' | 'anak';
   homeHref?: '/beranda' | '/teacher/beranda';
 }) {
@@ -53,14 +57,14 @@ export function MatchLimit({
 
       <View style={[styles.plus, Shadow.clay]}>
         <View style={styles.plusBadge}>
-          <Feather name="award" size={16} color={Colors.primary} />
+          <MaterialCommunityIcons name="crown" size={16} color={Colors.primary} />
           <AppText style={styles.plusBadgeText}>UPGRADE KE PLUS</AppText>
         </View>
         <AppText variant="body" color={Colors.primaryDark} style={styles.center}>
-          Swipe tanpa batas, kapan saja & hubungi lebih dari 1 {noun}
+          Skip tanpa batas, kapan saja & hubungi lebih dari 1 {noun}
         </AppText>
         <PrimaryButton
-          title="Swipe Lebih Banyak"
+          title="Skip Lebih Banyak"
           onPress={() => router.push('/plus')}
           style={styles.stretch}
         />
@@ -71,6 +75,12 @@ export function MatchLimit({
           Lihat {MAX_SKIPS} {noun} terakhir
         </AppText>
       </Pressable>
+      {onResetDemo ? (
+        <Pressable onPress={onResetDemo} hitSlop={8} style={styles.reset}>
+          <Feather name="rotate-ccw" size={16} color={Colors.primary} />
+          <AppText variant="link">Ulang demo skip</AppText>
+        </Pressable>
+      ) : null}
       <Pressable onPress={() => router.replace(homeHref)} hitSlop={8}>
         <AppText style={styles.home}>Kembali ke Beranda</AppText>
       </Pressable>
@@ -79,6 +89,11 @@ export function MatchLimit({
 }
 
 const styles = StyleSheet.create({
+  reset: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   wrap: {
     alignItems: 'center',
     gap: 12,

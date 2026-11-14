@@ -14,13 +14,16 @@ import { chatRouter, quickQuestionsRouter } from "./routes/chat.js";
 import { checkinsRouter } from "./routes/checkins.js";
 import { childrenRouter } from "./routes/children.js";
 import { communityRouter } from "./routes/community.js";
+import { contentRouter } from "./routes/content.js";
 import { doobieRouter } from "./routes/doobie.js";
 import { engagementsRouter, scheduleRouter, sessionsRouter } from "./routes/engagements.js";
 import { homeRouter } from "./routes/home.js";
 import { matchingRouter } from "./routes/matching.js";
 import { metaRouter } from "./routes/meta.js";
+import { contentReportsRouter } from "./routes/moderation.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { expireStalePayments, paymentsRouter, paymentWebhookRouter, subscriptionRouter } from "./routes/payments.js";
+import { payoutsRouter } from "./routes/payouts.js";
 import { consultationsRouter, psychologistsRouter } from "./routes/psychologists.js";
 import { reportsRouter } from "./routes/reports.js";
 import { reviewsRouter, teachersRouter } from "./routes/teachers.js";
@@ -55,15 +58,51 @@ export function createApp() {
     res.json({ ok: true, time: new Date().toISOString() });
   });
 
-  // batasi percobaan login / reset password (anti tebak password)
-  const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: "draft-8", legacyHeaders: false });
+  const limited = (message: string) => ({ error: message });
+  // anti tebak kata sandi — hanya percobaan yang GAGAL yang dihitung, jadi login normal tidak pernah terblokir
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 20,
+    skipSuccessfulRequests: true,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: limited("Terlalu banyak percobaan. Coba lagi 15 menit lagi."),
+  });
+  // anti pendaftaran massal & spam kode reset
+  const signupLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: 30,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: limited("Terlalu banyak permintaan dari jaringan ini. Coba lagi nanti."),
+  });
+  // cek email/HP saat daftar: cukup longgar untuk pengguna, tapi membatasi pengecekan massal
+  const checkLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: 60,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: limited("Terlalu banyak permintaan dari jaringan ini. Coba lagi nanti."),
+  });
+  // batas umum per alamat IP (chat mengecek pesan baru tiap 4 detik = ±75 request / 5 menit per layar)
+  const apiLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000,
+    limit: 1500,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: limited("Terlalu banyak permintaan. Coba lagi sebentar lagi."),
+  });
 
   const api = express.Router();
-  api.use(["/auth/login", "/auth/forgot-password", "/auth/reset-password"], authLimiter);
+  api.use(apiLimiter);
+  api.use(["/auth/login", "/auth/reset-password"], authLimiter);
+  api.use(["/auth/register", "/auth/forgot-password"], signupLimiter);
+  api.use("/auth/check-contact", checkLimiter);
   api.use("/auth", authRouter);
   // webhook Midtrans & halaman finish TANPA login → harus dipasang sebelum router yang memakai requireAuth global
   api.use("/payments", paymentWebhookRouter);
   api.use("/", metaRouter); // /meta/needs, /meta/app, /uploads
+  api.use("/", contentRouter); // /content/:key (tanpa login), /rewards
   api.use("/children", childrenRouter);
   api.use("/home", homeRouter);
   api.use("/matching", matchingRouter);
@@ -84,6 +123,8 @@ export function createApp() {
   api.use("/doobie", doobieRouter);
   api.use("/teachers", teachersRouter);
   api.use("/reviews", reviewsRouter);
+  api.use("/payouts", payoutsRouter);
+  api.use("/content-reports", contentReportsRouter);
   api.use("/admin", adminRouter);
   app.use("/api", api);
 

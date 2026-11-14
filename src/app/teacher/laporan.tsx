@@ -17,6 +17,7 @@ import { UploadBox } from '@/components/ui/upload-box';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { finalReportDraft, students, weeklyReportDraft } from '@/data/teacher';
 import { showAlert } from '@/lib/dialog';
+import { downloadPdf } from '@/lib/pdf';
 
 type FeatherName = ComponentProps<typeof Feather>['name'];
 
@@ -143,7 +144,7 @@ function FinalForm({ name }: { name: string }) {
       <ClayCard style={styles.gap12}>
         <View style={styles.spaceBetween}>
           <AppText style={styles.cardTitle}>Perbandingan Sesi Awal vs Akhir</AppText>
-          <Pill label={`${d.comparisons.length} Aspek`} tone="gray" />
+          <Pill inRow label={`${d.comparisons.length} Aspek`} tone="gray" />
         </View>
         {d.comparisons.map((c) => (
           <View key={c.label} style={styles.compare}>
@@ -154,7 +155,7 @@ function FinalForm({ name }: { name: string }) {
                 </View>
                 <AppText style={styles.compareLabel}>{c.label}</AppText>
               </View>
-              <Pill label={`Meningkat (${c.change})`} tone="green" solid />
+              <Pill inRow label={`Meningkat (${c.change})`} tone="green" solid />
             </View>
             <View style={styles.spaceBetween}>
               <View style={styles.inline}>
@@ -212,7 +213,17 @@ function FinalForm({ name }: { name: string }) {
         onPress={() => done('Laporan akhir dibuat', `Laporan akhir pendampingan ${name} sudah dikirim ke orang tua.`)}
       />
       <Pressable
-        onPress={() => showAlert('Unduh PDF', 'Fitur ini akan segera tersedia.')}
+        onPress={() =>
+          downloadPdf(`Laporan Akhir Pendampingan ${name}`, d.highlight, [
+            { title: 'Ringkasan', paragraphs: [summary] },
+            {
+              title: 'Perbandingan Sesi Awal vs Akhir',
+              rows: d.comparisons.map((c) => [c.label, `${c.first} → ${c.last} (${c.change})`] as [string, string]),
+            },
+            { title: 'Catatan Penutup', paragraphs: [closing] },
+            { title: 'Rekomendasi Lanjutan', bullets: recs, paragraphs: [recNote] },
+          ])
+        }
         style={[styles.pdf, Shadow.soft]}>
         <Feather name="file-text" size={18} color={Colors.primary} />
         <AppText style={styles.pdfText}>Unduh PDF</AppText>
@@ -281,7 +292,7 @@ function ChipEditor({
           placeholderTextColor={Colors.placeholder}
           style={styles.addInput}
         />
-        <Pill label="+ Tambah" tone={tone} solid size="md" onPress={add} />
+        <Pill inRow label="+ Tambah" tone={tone} solid size="md" onPress={add} />
       </View>
       <AppText variant="caption" color={Colors.text} style={styles.bold}>
         {fieldLabel}

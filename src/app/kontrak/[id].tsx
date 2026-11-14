@@ -1,39 +1,57 @@
 import Feather from '@expo/vector-icons/Feather';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
 import { BearAvatar } from '@/components/parent/bear-avatar';
 import { ClayCard } from '@/components/parent/clay-card';
-import { EmptyState } from '@/components/parent/empty-state';
+import { EmptyFill, EmptyState } from '@/components/parent/empty-state';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { ScreenHeader } from '@/components/parent/screen-header';
+import { TagRow } from '@/components/parent/tag-row';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { findContract, nextSessionDates, termins } from '@/data/contracts';
 import { DAYS, formatRupiah, MONTHS } from '@/data/parent';
+import { loadContract } from '@/lib/contracts-sync';
 import { showAlert } from '@/lib/dialog';
 import { platformFeeRate, usePlus } from '@/lib/membership-store';
 import { getSession } from '@/lib/session';
 
 export default function DetailKontrakScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const [, setLoaded] = useState(0);
+  const [missing, setMissing] = useState(false);
   const contract = findContract(id);
   const isTeacher = getSession().role === 'teacher';
   const fee = platformFeeRate(usePlus());
 
+  // dibuka dari notifikasi sebelum daftar kontrak termuat → ambil langsung dari server
+  useEffect(() => {
+    if (id && !findContract(id)) {
+      loadContract(id)
+        .then(() => setLoaded((n) => n + 1))
+        .catch(() => setMissing(true));
+    }
+  }, [id]);
+
   if (!contract) {
     return (
-      <Screen header={<ScreenHeader title="Detail Kontrak" />}>
-        <EmptyState title="Kontrak tidak ditemukan" />
+      <Screen header={<ScreenHeader title="Detail Kontrak" />} fill>
+        <EmptyFill>
+          {missing ? <EmptyState title="Kontrak tidak ditemukan" /> : <ActivityIndicator color={Colors.primary} />}
+        </EmptyFill>
       </Screen>
     );
   }
 
   const c = contract;
-  const progress = c.done / c.total;
+  const progress = c.total > 0 ? Math.min(1, c.done / c.total) : 0;
+  // umur anak belum tentu ada di data kontrak server: jangan tampilkan "0 tahun"
+  const age = c.childAge > 0 ? ` · ${c.childAge} tahun` : '';
   const parts = termins(c);
   const chatId = isTeacher ? c.parentChatId : c.teacherChatId;
 
@@ -61,19 +79,15 @@ export default function DetailKontrakScreen() {
           )}
           <View style={styles.flex}>
             <AppText style={styles.name}>
-              {isTeacher ? `${c.childName} · ${c.childAge} tahun` : c.teacherName}
+              {isTeacher ? `${c.childName}${age}` : c.teacherName}
             </AppText>
             <AppText variant="body" color={Colors.textSecondary}>
-              {isTeacher ? `Orang tua: ${c.parentName}` : `Mendampingi ${c.childName} · ${c.childAge} tahun`}
+              {isTeacher ? `Orang tua: ${c.parentName}` : `Mendampingi ${c.childName}${age}`}
             </AppText>
           </View>
-          <Pill label="Aktif" tone="green" solid size="md" />
+          <Pill inRow label="Aktif" tone="green" solid size="md" />
         </View>
-        <View style={styles.tags}>
-          {c.tags.map((t) => (
-            <Pill key={t.label} label={t.label} tone={t.tone} solid size="md" />
-          ))}
-        </View>
+        <TagRow tags={c.tags} solid max={3} />
         <View style={styles.spaceBetween}>
           <AppText variant="body">
             <AppText style={styles.bold}>
@@ -148,7 +162,7 @@ export default function DetailKontrakScreen() {
 
       <PrimaryButton
         title={isTeacher ? 'Chat Orang Tua' : 'Chat Teacher'}
-        leadingIcon="message-circle"
+        leadingIcon="chat"
         onPress={() => router.push({ pathname: '/chat/[id]', params: { id: chatId } })}
       />
       <Pressable

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "271010130985",
+    "project_id": "dubidu-798a0",
+    "storage_bucket": "dubidu-798a0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:271010130985:android:da0f653d3a8f090a6b8038",
+        "android_client_info": {
+          "package_name": "id.dubidu.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBN1uw1MhSfRnZG51jBklJ4SWtQOB4CAI4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

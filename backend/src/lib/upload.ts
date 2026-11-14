@@ -12,7 +12,8 @@ const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/heic", "applica
 
 export const uploadMiddleware = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  // server (Vercel) menolak request di atas ±4,5 MB, jadi batasnya disamakan supaya pesannya jelas
+  limits: { fileSize: 4 * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => {
     if (ALLOWED.includes(file.mimetype)) cb(null, true);
     else cb(new HttpError(400, "Format file harus JPG, PNG, WEBP, HEIC, atau PDF"));

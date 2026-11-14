@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { Image } from 'expo-image';
+import { useEffect, type ComponentRef, type ReactNode, type Ref } from 'react';
 import {
   KeyboardAvoidingView,
   ScrollView,
@@ -7,6 +8,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { Colors, MaxContentWidth } from '@/constants/theme';
@@ -18,6 +20,9 @@ type Props = {
   scroll?: boolean;
   edges?: Edge[];
   contentStyle?: StyleProp<ViewStyle>;
+  scrollRef?: Ref<ComponentRef<typeof ScrollView>>;
+  // true: konten mengisi tinggi layar (untuk halaman kosong yang dipusatkan dengan <EmptyFill>)
+  fill?: boolean;
 };
 
 // kerangka halaman parent: background putih + gelembung biru lembut
@@ -28,6 +33,8 @@ export function Screen({
   scroll = true,
   edges = ['top'],
   contentStyle,
+  scrollRef,
+  fill,
 }: Props) {
   return (
     <View style={styles.root}>
@@ -37,8 +44,9 @@ export function Screen({
           {header && <View style={styles.header}>{header}</View>}
           {scroll ? (
             <ScrollView
+              ref={scrollRef}
               style={styles.flex}
-              contentContainerStyle={[styles.content, contentStyle]}
+              contentContainerStyle={[styles.content, fill && styles.grow, contentStyle]}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}>
               {children}
@@ -53,12 +61,44 @@ export function Screen({
   );
 }
 
+// ornamen kepingan puzzle samar di belakang konten (diblur + transparan biar nggak ganggu)
+const PUZZLE = require('@/assets/images/icons/puzzle_element.png');
+// tiap keping melayang pelan dengan arah & durasi beda biar terasa natural
+const PIECES = [
+  { top: -40, right: -50, size: 190, rotate: 18, opacity: 0.12, dx: 18, dy: 26, duration: 9000 },
+  { top: 400, left: -80, size: 200, rotate: -24, opacity: 0.09, dx: -22, dy: 18, duration: 11000 },
+  { top: 760, right: -60, size: 150, rotate: 40, opacity: 0.08, dx: 16, dy: -22, duration: 13000 },
+];
+
 function Blobs() {
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <View style={[styles.blob, { top: -60, right: -70, width: 220, height: 220 }]} />
-      <View style={[styles.blob, { top: 420, left: -120, width: 240, height: 240, opacity: 0.5 }]} />
+      {PIECES.map((piece, i) => (
+        <FloatingPiece key={i} {...piece} />
+      ))}
     </View>
+  );
+}
+
+function FloatingPiece({ size, rotate, opacity, dx, dy, duration, ...pos }: (typeof PIECES)[number]) {
+  const t = useSharedValue(0);
+
+  useEffect(() => {
+    t.value = withRepeat(withTiming(1, { duration, easing: Easing.inOut(Easing.sin) }), -1, true);
+  }, [t, duration]);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: t.value * dx },
+      { translateY: t.value * dy },
+      { rotate: `${rotate + t.value * 8}deg` },
+    ],
+  }));
+
+  return (
+    <Animated.View style={[styles.piece, pos, { width: size, height: size, opacity }, style]}>
+      <Image source={PUZZLE} blurRadius={14} contentFit="contain" style={styles.fill} />
+    </Animated.View>
   );
 }
 
@@ -86,10 +126,14 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     gap: 16,
   },
-  blob: {
+  grow: {
+    flexGrow: 1,
+  },
+  piece: {
     position: 'absolute',
-    borderRadius: 999,
-    backgroundColor: Colors.blueSoft,
-    opacity: 0.7,
+  },
+  fill: {
+    width: '100%',
+    height: '100%',
   },
 });

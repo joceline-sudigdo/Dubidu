@@ -15,6 +15,7 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { formatRupiah } from '@/data/parent';
 import { plusBenefits, plusCompare, plusPlans, type PlusPlan } from '@/data/plus';
+import { api } from '@/lib/api';
 import { showAlert } from '@/lib/dialog';
 import { cancelPlus, isPlusRole, usePlus } from '@/lib/membership-store';
 import { getSession } from '@/lib/session';
@@ -39,23 +40,31 @@ export default function PlusScreen() {
   const plans = plusPlans[role];
   const chosen = plans.find((p) => p.key === plan)!;
 
-  const subscribe = () =>
-    router.push({
-      pathname: '/checkout',
-      params: { title: `Dubidu Plus ${chosen.title}`, amount: String(chosen.price), plan },
-    });
+  const subscribe = () => router.push({ pathname: '/checkout', params: { plan } });
 
+  const downgrade = teacher
+    ? 'kuota skip kembali 5 anak per hari dan biaya platform kembali 10%.'
+    : 'kuota skip kembali 5 teacher per hari dan diskon psikolog tidak berlaku lagi.';
+
+  // akun demo: Plus langsung berhenti supaya alur langganan bisa dicoba ulang.
+  // Kalau server belum punya endpoint-nya, langganan tetap dihentikan di perangkat ini.
+  const stopNow = async () => {
+    await api('/subscription', { method: 'DELETE' }).catch(() => {});
+    cancelPlus(role);
+    showAlert('Langganan dihentikan', `Akunmu kembali ke paket Gratis: ${downgrade}`);
+  };
+
+  // pembayaran Plus lewat transfer, tidak diperpanjang otomatis: cukup tidak membayar periode berikutnya
   const stop = () =>
-    showAlert(
-      'Berhenti langganan?',
-      teacher
-        ? 'Kuota swipe kembali 5 anak per hari dan biaya platform kembali 10%.'
-        : 'Kuota swipe kembali 5 teacher per hari dan diskon psikolog tidak berlaku lagi.',
-      [
-        { text: 'Tetap Plus', style: 'cancel' },
-        { text: 'Berhenti', style: 'destructive', onPress: () => cancelPlus(role) },
-      ]
-    );
+    getSession().isDemo
+      ? showAlert('Berhenti langganan?', `Ini akun demo, jadi Dubidu Plus langsung berhenti sekarang. Setelah itu ${downgrade}`, [
+          { text: 'Batal', style: 'cancel' },
+          { text: 'Berhenti sekarang', style: 'destructive', onPress: stopNow },
+        ])
+      : showAlert(
+          'Berhenti langganan?',
+          `Dubidu Plus tidak diperpanjang otomatis. Paketmu tetap aktif sampai akhir periode, setelah itu ${downgrade}`
+        );
 
   return (
     <Screen header={<ScreenHeader title="Dubidu Plus" />} edges={['top', 'bottom']}>
@@ -71,7 +80,7 @@ export default function PlusScreen() {
         <AppText style={styles.heroText}>
           {teacher
             ? 'Buka semua fitur untuk shadow teacher yang aktif mencari anak dampingan.'
-            : 'Swipe tanpa batas, chat banyak pendamping, dan kelola semua anak dalam satu akun.'}
+            : 'Skip tanpa batas, chat banyak pendamping, dan kelola semua anak dalam satu akun.'}
         </AppText>
       </LinearGradient>
 
@@ -117,12 +126,15 @@ export default function PlusScreen() {
               accessibilityState={{ selected: on }}
               onPress={() => setPlan(p.key)}
               style={[styles.plan, Shadow.soft, on && styles.planOn]}>
-              {p.badge && (
-                <View style={styles.planBadge}>
-                  <AppText style={styles.planBadgeText}>{p.badge}</AppText>
-                </View>
-              )}
-              {plus === p.key && <AppText style={styles.planActive}>Paket aktif</AppText>}
+              {/* baris atas ikut alur layout supaya badge tidak menabrak judul paket */}
+              <View style={styles.planTop}>
+                {p.badge && (
+                  <View style={styles.planBadge}>
+                    <AppText style={styles.planBadgeText}>{p.badge}</AppText>
+                  </View>
+                )}
+                {plus === p.key && <AppText style={styles.planActive}>Paket aktif</AppText>}
+              </View>
               <AppText style={styles.planTitle}>{p.title}</AppText>
               <AppText style={styles.planPrice}>{formatRupiah(p.price)}</AppText>
               <AppText variant="caption">{p.note}</AppText>
@@ -143,7 +155,7 @@ export default function PlusScreen() {
           </Pressable>
         </>
       ) : (
-        <PrimaryButton title={`Langganan ${formatRupiah(chosen.price)}`} leadingIcon="star" onPress={subscribe} />
+        <PrimaryButton title={`Langganan ${formatRupiah(chosen.price)}`} leadingIcon="crown" onPress={subscribe} />
       )}
       <AppText variant="caption" style={styles.center}>
         Bayar pakai QRIS atau Virtual Account semua bank. Bisa dibatalkan kapan saja.
@@ -286,10 +298,15 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Colors.yellow,
   },
+  planTop: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 22,
+    marginBottom: 6,
+  },
   planBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: Radius.pill,
@@ -301,9 +318,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   planActive: {
-    position: 'absolute',
-    top: 14,
-    right: 14,
     fontFamily: Fonts.bodyBold,
     fontSize: 10,
     color: Colors.green,

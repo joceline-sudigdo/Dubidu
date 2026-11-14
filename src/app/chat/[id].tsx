@@ -3,8 +3,9 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useRef, useState, type ComponentRef } from 'react';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import {
+  ActivityIndicator,
   Keyboard,
   KeyboardAvoidingView,
   Pressable,
@@ -16,18 +17,26 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Pill } from '@/components/parent/pill';
+import { ScheduleComposer, type ScheduleOffer } from '@/components/shared/schedule-composer';
 import { AppText } from '@/components/ui/app-text';
 import { BackButton } from '@/components/ui/back-button';
+import { openImages } from '@/components/ui/image-viewer';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import type { ChatMessage } from '@/data/parent';
 import { contracts } from '@/data/contracts';
 import { consultations } from '@/data/psychologist';
 import { students } from '@/data/teacher';
 import { findTeacher, teacherIdByName } from '@/data/teachers';
-import { addMessage, clearThread, useChatThreads } from '@/lib/chat-store';
+import { addMessage, clearThread, getThread, loadMessages, loadThreads, pollMessages, useChatThreads } from '@/lib/chat-store';
+import { reportContent } from '@/lib/community-store';
 import { showActionSheet, showAlert } from '@/lib/dialog';
 
 const EMOJIS = ['😊', '😄', '🥰', '🙏', '👍', '👏', '🤗', '😅', '😢', '😮', '❤️', '💪', '🎉', '✨', '🌟', '📚', '🧸', '🍎'];
+
+const RESCHEDULE_SLOTS = ['Senin, 08:00 - 11:00', 'Rabu, 13:00 - 16:00', 'Jumat, 08:00 - 11:00', 'Sabtu, 09:00 - 12:00'];
+
+// id sementara pesan yang baru dikirim (diganti id dari server setelah tersimpan)
+const tempId = () => String(Date.now());
 
 function nowTime() {
   const d = new Date();
@@ -36,26 +45,69 @@ function nowTime() {
 
 export default function ChatDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const thread = useChatThreads().find((t) => t.id === id);
+  const [failed, setFailed] = useState(false);
+
+  // muat isi chat dari server, lalu cek pesan baru selama layar terbuka
+  useEffect(() => {
+    if (!id) return;
+    (getThread(id) ? Promise.resolve() : loadThreads())
+      .then(() => loadMessages(id))
+      .catch(() => setFailed(true));
+    return pollMessages(id);
+  }, [id]);
+
+  if (!thread) {
+    return (
+      <SafeAreaView style={styles.loading}>
+        {failed ? <AppText variant="caption">Percakapan tidak ditemukan.</AppText> : <ActivityIndicator color={Colors.primary} />}
+      </SafeAreaView>
+    );
+  }
+  return <ChatRoom id={thread.id} />;
+}
+
+function ChatRoom({ id }: { id: string }) {
   const threads = useChatThreads();
-  const thread = threads.find((t) => t.id === id) ?? threads[0];
+  const thread = threads.find((t) => t.id === id)!;
   const messages = thread.messages;
   const [text, setText] = useState('');
-  const [approved, setApproved] = useState(false);
+  const [approved, setApproved] = useState<string[]>([]);
+  const [composerOpen, setComposerOpen] = useState(false);
+  // hanya shadow teacher yang bisa menawarkan jadwal
+  const isTeacher = thread.owner === 'teacher';
   const [emojiOpen, setEmojiOpen] = useState(false);
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
 
   const send = () => {
     const value = text.trim();
     if (!value) return;
-    addMessage(thread.id, { id: String(Date.now()), from: 'me', type: 'text', text: value, time: nowTime(), read: false });
+    addMessage(thread.id, { id: tempId(), from: 'me', type: 'text', text: value, time: nowTime(), read: false });
     setText('');
+  };
+
+  // klip: teacher bisa pilih kirim gambar atau tawaran jadwal
+  const openAttach = () =>
+    isTeacher
+      ? showActionSheet({
+          title: 'Lampirkan',
+          options: [
+            { label: 'Tawaran jadwal sesi', icon: 'calendar', onPress: () => setComposerOpen(true) },
+            { label: 'Gambar dari galeri', icon: 'image', onPress: attach },
+          ],
+        })
+      : attach();
+
+  const sendOffer = (offer: ScheduleOffer) => {
+    setComposerOpen(false);
+    addMessage(thread.id, { id: tempId(), from: 'me', type: 'schedule', time: nowTime(), ...offer });
   };
 
   const attach = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
     if (result.canceled) return;
     addMessage(thread.id, {
-      id: String(Date.now()),
+      id: tempId(),
       from: 'me',
       type: 'image',
       uri: result.assets[0].uri,
@@ -117,9 +169,15 @@ export default function ChatDetailScreen() {
           icon: 'flag',
           destructive: true,
           onPress: () =>
-            showAlert('Laporkan percakapan?', 'Tim Dubidu akan meninjau percakapan ini.', [
+            showAlert('Laporkan percakapan?', 'Tim Dubidu akan meninjau laporanmu tanpa membuka isi chat.', [
               { text: 'Batal', style: 'cancel' },
-              { text: 'Laporkan', style: 'destructive', onPress: () => showAlert('Laporan terkirim') },
+              {
+                text: 'Laporkan',
+                style: 'destructive',
+                onPress: async () => {
+                  if (await reportContent('CONVERSATION', thread.id, 'Perilaku tidak pantas di chat')) showAlert('Laporan terkirim');
+                },
+              },
             ]),
         },
         {
@@ -185,7 +243,22 @@ export default function ChatDetailScreen() {
 
             {messages.map((m) =>
               m.type === 'schedule' ? (
-                <ScheduleCard key={m.id} message={m} approved={approved} onApprove={() => setApproved(true)} />
+                <ScheduleCard
+                  key={m.id}
+                  message={m}
+                  approved={approved.includes(m.id)}
+                  onApprove={() => setApproved((list) => [...list, m.id])}
+                  onReschedule={(slot) =>
+                    addMessage(thread.id, {
+                      id: tempId(),
+                      from: 'me',
+                      type: 'text',
+                      text: `Kak, apakah jadwal trial bisa dipindah ke ${slot}? 🙏`,
+                      time: nowTime(),
+                      read: false,
+                    })
+                  }
+                />
               ) : m.type === 'image' ? (
                 <ImageBubble key={m.id} message={m} />
               ) : (
@@ -196,7 +269,7 @@ export default function ChatDetailScreen() {
 
           <View style={styles.inputBar}>
             <View style={styles.inputWrap}>
-              <Pressable accessibilityLabel="Lampirkan gambar" hitSlop={6} onPress={attach}>
+              <Pressable accessibilityLabel="Lampirkan" hitSlop={6} onPress={openAttach}>
                 <Feather name="paperclip" size={20} color={Colors.textSecondary} />
               </Pressable>
               <TextInput
@@ -230,6 +303,7 @@ export default function ChatDetailScreen() {
           )}
         </KeyboardAvoidingView>
       </SafeAreaView>
+      <ScheduleComposer visible={composerOpen} onClose={() => setComposerOpen(false)} onSend={sendOffer} />
     </View>
   );
 }
@@ -258,7 +332,9 @@ function Bubble({ message }: { message: Extract<ChatMessage, { type: 'text' }> }
 function ImageBubble({ message }: { message: Extract<ChatMessage, { type: 'image' }> }) {
   return (
     <View style={[styles.bubbleWrap, styles.alignEnd]}>
-      <Image source={{ uri: message.uri }} style={styles.imageBubble} contentFit="cover" />
+      <Pressable accessibilityLabel="Lihat gambar" onPress={() => openImages([message.uri])}>
+        <Image source={{ uri: message.uri }} style={styles.imageBubble} contentFit="cover" />
+      </Pressable>
       <View style={styles.inline}>
         <AppText variant="caption">{message.time}</AppText>
         <MaterialCommunityIcons name="check-all" size={16} color={message.read ? Colors.primary : Colors.textMuted} />
@@ -271,35 +347,47 @@ function ScheduleCard({
   message,
   approved,
   onApprove,
+  onReschedule,
 }: {
   message: Extract<ChatMessage, { type: 'schedule' }>;
   approved: boolean;
   onApprove: () => void;
+  onReschedule: (slot: string) => void;
 }) {
+  const mine = message.from === 'me';
   return (
-    <View style={styles.bubbleWrap}>
+    <View style={[styles.bubbleWrap, styles.scheduleWrap, mine && styles.alignEnd]}>
       <View style={styles.schedule}>
         <View style={styles.scheduleHead}>
           <View style={styles.scheduleIcon}>
             <Feather name="calendar" size={20} color={Colors.yellowDark} />
           </View>
           <View style={styles.flex}>
-            <AppText style={styles.scheduleLabel}>JADWAL UJI COBA (TRIAL)</AppText>
+            <AppText style={styles.scheduleLabel}>{mine ? 'TAWARAN JADWAL' : 'JADWAL UJI COBA'}</AppText>
             <AppText style={styles.scheduleTitle}>{message.title}</AppText>
           </View>
-          <Pill label={approved ? 'Disetujui' : 'Siap Konfirmasi'} tone={approved ? 'green' : 'blue'} />
         </View>
+        <Pill
+          label={approved ? 'Disetujui' : mine ? 'Menunggu persetujuan orang tua' : 'Siap Konfirmasi'}
+          tone={approved ? 'green' : mine ? 'yellow' : 'blue'}
+          icon={approved ? 'check-circle' : 'clock'}
+        />
         <View style={styles.scheduleDivider} />
         <ScheduleRow icon="calendar" text={message.date} />
         <ScheduleRow icon="clock" text={message.hours} />
         <ScheduleRow icon="map-pin" text={message.place} />
-        {!approved && (
+        {!approved && !mine && (
           <View style={styles.scheduleActions}>
             <Pressable onPress={onApprove} style={styles.approve}>
               <AppText style={styles.approveText}>Setujui Sesi Ini</AppText>
             </Pressable>
             <Pressable
-              onPress={() => showAlert('Ubah jadwal', 'Fitur ini akan segera tersedia.')}
+              onPress={() =>
+                showActionSheet({
+                  title: 'Usulkan jadwal lain',
+                  options: RESCHEDULE_SLOTS.map((slot) => ({ label: slot, icon: 'calendar', onPress: () => onReschedule(slot) })),
+                })
+              }
               style={styles.change}>
               <AppText style={styles.changeText}>Ubah</AppText>
             </Pressable>
@@ -321,6 +409,12 @@ function ScheduleRow({ icon, text }: { icon: 'calendar' | 'clock' | 'map-pin'; t
 }
 
 const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.background,
+  },
   root: {
     flex: 1,
     backgroundColor: Colors.surface,
@@ -426,7 +520,11 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: Colors.text,
   },
+  scheduleWrap: {
+    width: '86%',
+  },
   schedule: {
+    alignSelf: 'stretch',
     backgroundColor: '#FFFFFF',
     borderRadius: Radius.lg,
     borderWidth: 2,
@@ -470,6 +568,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 15,
     color: Colors.text,
+    flex: 1,
   },
   scheduleActions: {
     flexDirection: 'row',

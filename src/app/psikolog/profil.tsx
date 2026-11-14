@@ -20,7 +20,8 @@ import { changePhoto, updatePsychologist, useProfile } from '@/lib/profile-store
 
 type FeatherName = ComponentProps<typeof Feather>['name'];
 
-const MENU: { label: string; icon: FeatherName; href?: '/pengaturan' | '/bantuan' | '/psikolog/pembayaran' }[] = [
+const MENU: { label: string; icon: FeatherName; href?: '/pengaturan' | '/bantuan' | '/psikolog/pembayaran' | '/tersimpan' }[] = [
+  { label: 'Postingan Tersimpan', icon: 'bookmark', href: '/tersimpan' },
   { label: 'Pengaturan Akun', icon: 'settings', href: '/pengaturan' },
   { label: 'Rekening & Pembayaran', icon: 'credit-card', href: '/psikolog/pembayaran' },
   { label: 'Pusat Bantuan', icon: 'help-circle', href: '/bantuan' },
@@ -56,7 +57,7 @@ export default function PsikologProfilScreen() {
       }>
       <View style={styles.hero}>
         <View>
-          <Avatar name={p.name} size={110} ring="#FFFFFF" />
+          <Avatar name={p.name} size={110} ring="#FFFFFF" viewable />
           <Pressable accessibilityLabel="Ganti foto" onPress={() => changePhoto(p.name)} style={styles.camera}>
             <Feather name="camera" size={14} color="#FFFFFF" />
           </Pressable>
@@ -65,7 +66,7 @@ export default function PsikologProfilScreen() {
         <AppText variant="body" color={Colors.textSecondary}>
           {p.title}
         </AppText>
-        <Pill label="Psikolog Mitra Dubidu" tone="blue" icon="check-circle" size="md" />
+        <Pill label="Psikolog Mitra Dubidu" tone="blue" icon="check-circle" size="md" style={styles.center} />
       </View>
 
       <View style={styles.stats}>
@@ -226,6 +227,9 @@ const styles = StyleSheet.create({
   hero: {
     alignItems: 'center',
     gap: 6,
+  },
+  center: {
+    alignSelf: 'center',
   },
   camera: {
     position: 'absolute',

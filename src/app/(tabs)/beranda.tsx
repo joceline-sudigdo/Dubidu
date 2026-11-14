@@ -1,28 +1,54 @@
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { Avatar } from '@/components/parent/avatar';
+import { BearAvatar } from '@/components/parent/bear-avatar';
 import { ClayCard } from '@/components/parent/clay-card';
+import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { SectionHeader } from '@/components/parent/screen-header';
 import { CheckinCard } from '@/components/shared/checkin-card';
+import { HeroBanner } from '@/components/shared/hero-banner';
+import { PlusCard } from '@/components/shared/plus-card';
 import { DoobieCard } from '@/components/shared/doobie-card';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
+import { EdgeScroll } from '@/components/parent/edge-scroll';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
+import { useUnreadCount } from '@/lib/notification-store';
 import { bannerPhotos } from '@/data/images';
-import { activeTeachers, children, parentProfile, quickQuestion } from '@/data/parent';
-import { showAlert } from '@/lib/dialog';
+import { activeTeachers, parentProfile, quickQuestion } from '@/data/parent';
+import { startAddChild } from '@/lib/add-child';
+import { api } from '@/lib/api';
+import { NO_SESSION } from '@/lib/sync';
+import { useChildren } from '@/lib/children-store';
+import { useObservations } from '@/lib/observation-store';
 
 export default function BerandaScreen() {
-  const [childId, setChildId] = useState(children[0].id);
+  // titik merah lonceng hanya muncul kalau masih ada notifikasi yang belum dibaca
+  const hasUnread = useUnreadCount() > 0;
+  const children = useChildren();
+  const observations = useObservations();
+  // laporan observasi psikolog yang belum dibaca (paling baru)
+  const latestObs = observations.reports.find((r) => observations.isNew(r.id));
+  const [childId, setChildId] = useState(children[0]?.id ?? '');
   const [answered, setAnswered] = useState<string | null>(null);
+  const [quickDone, setQuickDone] = useState(false);
   const child = children.find((c) => c.id === childId) ?? children[0];
+
+  // tampilkan "jawaban terkirim" sebentar sebelum kartunya diganti check-in
+  const answer = (text: string) => {
+    setAnswered(text);
+    // jawaban dikirim ke teacher yang bertanya (POST /quick-questions/:id/answer)
+    if (quickQuestion.id) {
+      api(`/quick-questions/${quickQuestion.id}/answer`, { body: { answer: text.startsWith('Ya') ? 'YES' : 'NO' } }).catch(() => {});
+    }
+    setTimeout(() => setQuickDone(true), 1200);
+  };
 
   return (
     <Screen>
@@ -31,7 +57,9 @@ export default function BerandaScreen() {
           <AppText style={styles.hello}>
             Halo, <AppText style={[styles.hello, { color: Colors.primary }]}>{parentProfile.name}</AppText>
           </AppText>
-          <AppText variant="caption">Semoga hari ini menyenangkan untuk {child.name}.</AppText>
+          <AppText variant="caption">
+            {child ? `Semoga hari ini menyenangkan untuk ${child.name}.` : 'Semoga harimu menyenangkan.'}
+          </AppText>
         </View>
         <Pressable
           accessibilityRole="button"
@@ -39,14 +67,14 @@ export default function BerandaScreen() {
           onPress={() => router.push('/notifikasi')}
           style={[styles.bell, Shadow.soft]}>
           <Feather name="bell" size={20} color={Colors.primary} />
-          <View style={styles.bellDot} />
+          {hasUnread && <View style={styles.bellDot} />}
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Profil" onPress={() => router.push('/profil')}>
           <Avatar name={parentProfile.fullName} size={40} ring="#FFFFFF" />
         </Pressable>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.childRow}>
+      <EdgeScroll contentContainerStyle={styles.childRow}>
         {children.map((c) => {
           const active = c.id === childId;
           return (
@@ -54,68 +82,78 @@ export default function BerandaScreen() {
               key={c.id}
               onPress={() => setChildId(c.id)}
               style={[styles.childChip, active && styles.childChipActive, active && Shadow.button]}>
-              <Avatar name={c.fullName} size={30} />
+              <BearAvatar gender={c.gender ?? 'female'} size={30} />
               <AppText style={[styles.childName, active && { color: '#FFFFFF' }]}>{c.name}</AppText>
             </Pressable>
           );
         })}
         <Pressable
           accessibilityLabel="Tambah anak"
-          onPress={() => showAlert('Tambah anak', 'Fitur ini akan segera tersedia.')}
+          onPress={startAddChild}
           style={styles.addChild}>
           <Feather name="plus" size={18} color={Colors.textSecondary} />
         </Pressable>
-      </ScrollView>
+      </EdgeScroll>
 
-      <LinearGradient colors={[Colors.primary, Colors.primaryDark]} style={[styles.hero, Shadow.clay]}>
-        {bannerPhotos.parentHome ? (
-          <>
-            <Image source={bannerPhotos.parentHome} style={StyleSheet.absoluteFill} contentFit="cover" />
-            <LinearGradient
-              colors={['rgba(30, 82, 138, 0.1)', 'rgba(30, 82, 138, 0.85)']}
-              style={StyleSheet.absoluteFill}
-            />
-          </>
-        ) : (
-          <View style={styles.heroDecor} />
-        )}
-        <AppText style={styles.heroTitle}>Temukan shadow teacher untuk {child.name}!</AppText>
-        <Pressable
-          onPress={() => router.push('/cari-teacher')}
-          style={[styles.heroButton, Shadow.soft]}>
-          <AppText style={styles.heroButtonText}>Mulai cari</AppText>
-          <Feather name="arrow-right" size={18} color={Colors.text} />
-        </Pressable>
-      </LinearGradient>
+      <HeroBanner
+        title={child ? `Temukan shadow teacher untuk ${child.name}!` : 'Temukan shadow teacher untuk si kecil!'}
+        photo={bannerPhotos.parentHome}
+        onPress={() => router.push('/cari-teacher')}
+      />
 
-      <SectionHeader title="Respon cepat" />
-      <ClayCard>
-        <View style={styles.quickRow}>
-          <Avatar name={quickQuestion.from} size={40} />
-          <View style={styles.flex}>
-            <AppText variant="caption">{quickQuestion.from}, bertanya</AppText>
-            <AppText style={styles.quickText}>{quickQuestion.text}</AppText>
-          </View>
-        </View>
-        {answered ? (
-          <View style={styles.answered}>
-            <Feather name="check-circle" size={16} color={Colors.green} />
-            <AppText variant="caption" color={Colors.green}>
-              Jawaban terkirim: {answered}
+      {/* respon cepat tampil dulu, setelah dijawab memudar lalu diganti check-in */}
+      {quickDone || !quickQuestion.text ? (
+        <Animated.View key="checkin" entering={FadeIn.delay(200).duration(350)}>
+          <CheckinCard />
+        </Animated.View>
+      ) : (
+        <Animated.View key="quick" exiting={FadeOut.duration(250)} style={styles.quickBlock}>
+          <SectionHeader title="Respon cepat" />
+          <ClayCard>
+            <View style={styles.quickRow}>
+              <Avatar name={quickQuestion.from} size={40} />
+              <View style={styles.flex}>
+                <AppText variant="caption">{quickQuestion.from}, bertanya</AppText>
+                <AppText style={styles.quickText}>{quickQuestion.text}</AppText>
+              </View>
+            </View>
+            {answered ? (
+              <View style={styles.answered}>
+                <Feather name="check-circle" size={16} color={Colors.green} />
+                <AppText variant="caption" color={Colors.green}>
+                  Jawaban terkirim: {answered}
+                </AppText>
+              </View>
+            ) : (
+              <View style={styles.quickActions}>
+                <PrimaryButton title="Ya, boleh!" onPress={() => answer('Ya, boleh!')} style={styles.quickBtn} />
+                <Pressable onPress={() => answer('Tidak hari ini')} style={[styles.quickBtn, styles.quickBtnAlt]}>
+                  <AppText style={styles.quickAltText}>Tidak hari ini</AppText>
+                </Pressable>
+              </View>
+            )}
+          </ClayCard>
+          <View style={styles.quickHint}>
+            <Feather name="info" size={13} color={Colors.textSecondary} />
+            <AppText variant="caption" style={styles.flex}>
+              Check-in harian (klaim ikan) muncul setelah respon cepat ini kamu jawab.
             </AppText>
           </View>
-        ) : (
-          <View style={styles.quickActions}>
-            <PrimaryButton title="Ya, boleh!" onPress={() => setAnswered('Ya, boleh!')} style={styles.quickBtn} />
-            <Pressable onPress={() => setAnswered('Tidak hari ini')} style={[styles.quickBtn, styles.quickBtnAlt]}>
-              <AppText style={styles.quickAltText}>Tidak hari ini</AppText>
-            </Pressable>
-          </View>
-        )}
-      </ClayCard>
+        </Animated.View>
+      )}
 
       <SectionHeader title="Teacher saat ini" />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.teacherRow}>
+      {activeTeachers.length === 0 && (
+        <ClayCard onPress={() => router.push('/cari-teacher')} style={styles.noTeacher}>
+          <MaterialCommunityIcons name="account-search-outline" size={24} color={Colors.primary} />
+          <View style={styles.flex}>
+            <AppText style={styles.obsTitle}>Belum ada teacher aktif</AppText>
+            <AppText variant="caption">Cari shadow teacher yang cocok untuk {child?.name ?? 'si kecil'}.</AppText>
+          </View>
+          <Feather name="chevron-right" size={20} color={Colors.primary} />
+        </ClayCard>
+      )}
+      <EdgeScroll contentContainerStyle={styles.teacherRow}>
         {activeTeachers.map((t) => (
           <Pressable
             key={t.id}
@@ -123,20 +161,25 @@ export default function BerandaScreen() {
             style={[styles.teacherCard, Shadow.button]}>
             <View style={styles.teacherTop}>
               <Avatar name={t.name} size={34} ring="#FFFFFF" />
-              <View>
+              <View style={styles.teacherInfo}>
                 <View style={styles.teacherNameRow}>
-                  <AppText style={styles.teacherName}>{t.name}</AppText>
+                  <AppText style={styles.teacherName} numberOfLines={1}>
+                    {t.name}
+                  </AppText>
                   <MaterialCommunityIcons name="check-decagram" size={16} color="#FFFFFF" />
                 </View>
                 <AppText style={styles.teacherNext}>Sesi berikutnya:</AppText>
               </View>
             </View>
             <View style={styles.teacherTime}>
-              <AppText style={styles.teacherTimeText}>{t.next}</AppText>
+              <Feather name="calendar" size={13} color={Colors.primary} />
+              <AppText style={styles.teacherTimeText} numberOfLines={1}>
+                {t.next || NO_SESSION}
+              </AppText>
             </View>
           </Pressable>
         ))}
-      </ScrollView>
+      </EdgeScroll>
 
       <Pressable onPress={() => router.push('/konsultasi')} style={[styles.psy, Shadow.clay]}>
         <View style={styles.psyIcon}>
@@ -149,12 +192,26 @@ export default function BerandaScreen() {
         <Feather name="chevron-right" size={22} color="#FFFFFF" />
       </Pressable>
 
+      {latestObs && (
+        <ClayCard onPress={() => router.push({ pathname: '/observasi/[id]', params: { id: latestObs.id } })} style={styles.obs}>
+          <View style={styles.obsIcon}>
+            <MaterialCommunityIcons name="clipboard-text-outline" size={22} color={Colors.red} />
+          </View>
+          <View style={styles.flex}>
+            <AppText style={styles.obsTitle}>Laporan observasi baru</AppText>
+            <AppText variant="caption" numberOfLines={1}>
+              {latestObs.psychologist.split(',')[0]} · untuk {latestObs.child}
+            </AppText>
+          </View>
+          <Pill label="Baca" tone="red" solid icon="arrow-right" iconRight />
+        </ClayCard>
+      )}
+
       <DoobieCard
         message="Temukan pendamping yang tepat, pantau perkembangan si kecil dan dapatkan dukungan dalam setiap langkah tumbuh kembangnya."
-        topics={['Pantau progress anak', 'Tumbuh Kembang', 'Konsultasi']}
       />
 
-      <CheckinCard childName={child.name} />
+      <PlusCard />
     </Screen>
   );
 }
@@ -224,44 +281,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  hero: {
-    borderRadius: Radius.lg,
-    padding: 22,
-    minHeight: 170,
-    justifyContent: 'flex-end',
-    overflow: 'hidden',
-    gap: 14,
+  quickBlock: {
+    gap: 16,
   },
-  heroDecor: {
-    position: 'absolute',
-    right: -40,
-    top: -40,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  heroTitle: {
-    fontFamily: Fonts.heading,
-    fontSize: 20,
-    lineHeight: 27,
-    color: '#FFFFFF',
-    maxWidth: '75%',
-  },
-  heroButton: {
+  quickHint: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    alignSelf: 'flex-end',
-    backgroundColor: '#FFFFFF',
-    borderRadius: Radius.pill,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  heroButtonText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 15,
-    color: Colors.text,
+    gap: 6,
+    marginTop: -8,
+    paddingHorizontal: 4,
   },
   quickRow: {
     flexDirection: 'row',
@@ -298,22 +326,34 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 12,
   },
+  noTeacher: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   teacherRow: {
+    alignItems: 'stretch',
     gap: 12,
     paddingBottom: 12,
     paddingRight: 4,
   },
   teacherCard: {
-    width: 180,
+    width: 200,
     backgroundColor: Colors.primary,
     borderRadius: Radius.md,
     padding: 14,
     gap: 10,
+    justifyContent: 'space-between',
   },
   teacherTop: {
     flexDirection: 'row',
     gap: 8,
     alignItems: 'center',
+  },
+  // nama boleh terpotong "...", ikon verified tetap terlihat
+  teacherInfo: {
+    flex: 1,
+    minWidth: 0,
   },
   teacherNameRow: {
     flexDirection: 'row',
@@ -321,6 +361,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   teacherName: {
+    flexShrink: 1,
     fontFamily: Fonts.bodyBold,
     fontSize: 16,
     color: '#FFFFFF',
@@ -330,15 +371,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: 'rgba(255,255,255,0.8)',
   },
+  // pill jadwal: teks & ikon biru di atas putih supaya tidak terlihat seperti tombol kosong
   teacherTime: {
+    flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderRadius: Radius.pill,
-    paddingVertical: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
   },
   teacherTimeText: {
+    flexShrink: 1,
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
+    lineHeight: 16,
+    color: Colors.primaryDark,
   },
   psy: {
     flexDirection: 'row',
@@ -347,6 +396,26 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.red,
     borderRadius: Radius.lg,
     padding: 18,
+  },
+  obs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1.5,
+    borderColor: Colors.redSoft,
+  },
+  obsIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.redSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  obsTitle: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 15,
+    color: Colors.text,
   },
   psyIcon: {
     width: 46,

@@ -1,7 +1,8 @@
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, Share, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
 import { ClayCard } from '@/components/parent/clay-card';
@@ -13,40 +14,69 @@ import { Stars } from '@/components/parent/stars';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
-import { children } from '@/data/parent';
 import { findTeacher, formatPrice, matchScore, SKILL_LABELS, topSkills, type Skill } from '@/data/teachers';
 import { getThread } from '@/lib/chat-store';
+import { api } from '@/lib/api';
+import { reportContent } from '@/lib/community-store';
 import { showActionSheet, showAlert } from '@/lib/dialog';
-import { connectTeacher } from '@/lib/matching-store';
+import { connectTeacher, loadTeacher, useMatching } from '@/lib/matching-store';
+import { useChildren } from '@/lib/children-store';
+import { startAddChild } from '@/lib/add-child';
+import { isFavorite, toggleFavorite, useFavorites } from '@/lib/favorites-store';
+import { shareTeacher } from '@/lib/share';
 
-const REVIEWS = [
-  { name: 'Mami Larasati', rating: 5, text: '“Sangat sabar dan komunikatif, anak saya jadi lebih percaya diri.”' },
-  { name: 'Papi Alvin', rating: 5, text: '“Pendampingan terstruktur dan laporan hariannya selalu detail.”' },
+// ulasan contoh hanya untuk teacher contoh (id "t-...") di akun demo; teacher dari server memakai ulasan asli
+const DEMO_REVIEWS = [
+  { name: 'Larasita Hadi', rating: 5, text: 'Sangat sabar dan komunikatif, anak saya jadi lebih percaya diri.' },
+  { name: 'Alvin Pratama', rating: 5, text: 'Pendampingan terstruktur dan laporan hariannya selalu detail.' },
 ];
+
+type Review = { name: string; rating: number; text: string | null };
 
 // profil shadow teacher yang dilihat orang tua
 export default function ProfilTeacherScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  useMatching(); // tampil ulang setelah profil dari server dimuat
+  const favorites = useFavorites();
   const teacher = findTeacher(id);
+  const child = useChildren()[0];
+  const [missing, setMissing] = useState(false);
+  const isDemoTeacher = !!id?.startsWith('t-');
+  const [reviews, setReviews] = useState<Review[] | null>(isDemoTeacher ? DEMO_REVIEWS : null);
+
+  // ulasan asli dari orang tua (GET /teachers/:id); teacher baru = daftar kosong
+  useEffect(() => {
+    if (!id || isDemoTeacher) return;
+    api<{ reviews: { name: string; rating: number; quote: string | null }[] }>(`/teachers/${id}`)
+      .then((d) => setReviews(d.reviews.map((r) => ({ name: r.name, rating: r.rating, text: r.quote }))))
+      .catch(() => setReviews([]));
+  }, [id, isDemoTeacher]);
+
+  useEffect(() => {
+    if (id && !findTeacher(id)) loadTeacher(id).catch(() => setMissing(true));
+  }, [id]);
 
   if (!teacher) {
     return (
       <Screen header={<ScreenHeader title="Profil Teacher" />}>
-        <EmptyState title="Profil tidak ditemukan" />
+        {missing ? <EmptyState title="Profil tidak ditemukan" /> : null}
       </Screen>
     );
   }
 
-  const child = children[0];
   const skills = (Object.keys(teacher.skills) as Skill[]).sort((a, b) => teacher.skills[b] - teacher.skills[a]);
   const chatExists = !!getThread(teacher.id);
+  const favorite = isFavorite(favorites, 'teachers', teacher.id);
+  const toggleFav = () =>
+    showAlert(toggleFavorite('teachers', teacher.id) ? 'Ditambahkan ke favorit' : 'Dihapus dari favorit');
 
   const openMenu = () =>
     showActionSheet({
       title: teacher.name,
       options: [
-        { label: 'Bagikan profil', icon: 'share-2', onPress: () => Share.share({ message: `Profil ${teacher.name} di Dubidu` }) },
-        { label: 'Simpan ke favorit', icon: 'heart', onPress: () => showAlert('Tersimpan di favorit') },
+        { label: 'Bagikan profil', icon: 'share-2', onPress: () => shareTeacher(teacher) },
+        // label mengikuti status: yang sudah difavoritkan tampil sebagai "Hapus dari favorit"
+        { label: favorite ? 'Hapus dari favorit' : 'Simpan ke favorit', icon: 'heart', onPress: toggleFav },
         {
           label: 'Laporkan',
           icon: 'flag',
@@ -54,7 +84,13 @@ export default function ProfilTeacherScreen() {
           onPress: () =>
             showAlert('Laporkan teacher?', 'Tim Dubidu akan meninjau laporanmu.', [
               { text: 'Batal', style: 'cancel' },
-              { text: 'Laporkan', style: 'destructive', onPress: () => showAlert('Laporan terkirim') },
+              {
+                text: 'Laporkan',
+                style: 'destructive',
+                onPress: async () => {
+                  if (await reportContent('USER', teacher.id, 'Profil atau perilaku tidak pantas')) showAlert('Laporan terkirim');
+                },
+              },
             ]),
         },
       ],
@@ -66,9 +102,19 @@ export default function ProfilTeacherScreen() {
         <ScreenHeader
           title="Profil Teacher"
           right={
-            <Pressable accessibilityLabel="Menu lainnya" onPress={openMenu} style={[styles.more, Shadow.soft]}>
-              <Feather name="more-vertical" size={20} color={Colors.text} />
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected: favorite }}
+                accessibilityLabel={favorite ? 'Hapus dari favorit' : 'Simpan ke favorit'}
+                onPress={toggleFav}
+                style={[styles.more, Shadow.soft, favorite && styles.favOn]}>
+                <MaterialCommunityIcons name={favorite ? 'heart' : 'heart-outline'} size={20} color={Colors.red} />
+              </Pressable>
+              <Pressable accessibilityLabel="Menu lainnya" onPress={openMenu} style={[styles.more, Shadow.soft]}>
+                <Feather name="more-vertical" size={20} color={Colors.text} />
+              </Pressable>
+            </View>
           }
         />
       }
@@ -77,11 +123,17 @@ export default function ProfilTeacherScreen() {
         <View style={styles.footer}>
           <PrimaryButton
             title={chatExists ? 'Buka Chat' : 'Connect & Kirim Penawaran'}
-            leadingIcon={chatExists ? 'message-circle' : 'send'}
+            leadingIcon={chatExists ? 'chat' : 'send'}
             onPress={() =>
               chatExists
                 ? router.push({ pathname: '/chat/[id]', params: { id: teacher.id } })
-                : showAlert('Kirim penawaran?', `Pesan penawaran untuk ${child.name} akan dikirim ke ${teacher.name}.`, [
+                : !child
+                  ? // akun tanpa profil anak: arahkan isi profil anak dulu, jangan crash
+                    showAlert('Tambahkan profil anak dulu', 'Penawaran dikirim atas nama profil anak.', [
+                      { text: 'Nanti', style: 'cancel' },
+                      { text: 'Tambah Anak', onPress: startAddChild },
+                    ])
+                  : showAlert('Kirim penawaran?', `Pesan penawaran untuk ${child.name} akan dikirim ke ${teacher.name}.`, [
                     { text: 'Batal', style: 'cancel' },
                     { text: 'Kirim', onPress: () => connectTeacher(teacher, child) },
                   ])
@@ -91,7 +143,7 @@ export default function ProfilTeacherScreen() {
       }>
       <View style={styles.heroWrap}>
         <ClayCard style={styles.hero}>
-          <View style={styles.inline}>
+          <View style={styles.nameRow}>
             <AppText style={styles.name}>{teacher.name}</AppText>
             <MaterialCommunityIcons name="check-decagram" size={20} color={Colors.primary} />
           </View>
@@ -100,20 +152,34 @@ export default function ProfilTeacherScreen() {
           </AppText>
           <View style={styles.inline}>
             <MaterialCommunityIcons name="star" size={18} color={Colors.yellow} />
-            <AppText style={styles.bold}>{teacher.rating}</AppText>
-            <AppText variant="caption">({teacher.reviews} ulasan)</AppText>
+            {teacher.reviews > 0 ? (
+              <>
+                <AppText style={styles.bold}>{teacher.rating}</AppText>
+                <AppText variant="caption">({teacher.reviews} ulasan)</AppText>
+              </>
+            ) : (
+              <AppText variant="caption">Belum ada ulasan</AppText>
+            )}
           </View>
-          <Pill label={`${matchScore(teacher, child)}% cocok untuk ${child.name}`} tone="blue" solid icon="star" />
+          {child && (
+            <Pill
+              label={`${matchScore(teacher, child)}% cocok untuk ${child.name}`}
+              tone="blue"
+              solid
+              icon="star"
+              style={styles.centerPill}
+            />
+          )}
         </ClayCard>
         <View style={styles.avatarWrap}>
-          <Avatar name={teacher.name} size={100} ring="#FFFFFF" />
+          <Avatar name={teacher.name} size={100} ring="#FFFFFF" viewable />
         </View>
       </View>
 
       <View style={styles.stats}>
         <Stat value={`${teacher.experience} thn`} label="Pengalaman" />
         <Stat value={String(teacher.sessions)} label="Sesi Selesai" />
-        <Stat value={`${teacher.responseRate}%`} label="Respons" />
+        <Stat value={`${teacher.responseRate ?? 0}%`} label="Respons" />
       </View>
 
       <SectionHeader title="Tentang" />
@@ -143,14 +209,24 @@ export default function ProfilTeacherScreen() {
       </ClayCard>
 
       <SectionHeader title="Ulasan dari Orang Tua" />
-      {REVIEWS.map((r) => (
-        <ClayCard key={r.name} style={styles.gap10}>
+      {reviews?.length === 0 && (
+        <ClayCard style={styles.noReview}>
+          <MaterialCommunityIcons name="star-outline" size={22} color={Colors.textMuted} />
+          <AppText variant="caption" style={styles.flex}>
+            Belum ada ulasan. Ulasan muncul setelah orang tua menyelesaikan sesi pendampingan bersama teacher ini.
+          </AppText>
+        </ClayCard>
+      )}
+      {(reviews ?? []).map((r, i) => (
+        <ClayCard key={`${r.name}-${i}`} style={styles.gap10}>
           <View style={styles.reviewHead}>
             <Avatar name={r.name} size={40} />
-            <AppText style={[styles.bold, styles.flex]}>{r.name}</AppText>
+            <AppText style={[styles.bold, styles.flex]} numberOfLines={1}>
+              {r.name}
+            </AppText>
             <Stars value={r.rating} />
           </View>
-          <AppText style={styles.reviewText}>{r.text}</AppText>
+          {!!r.text && <AppText style={styles.reviewText}>“{r.text}”</AppText>}
         </ClayCard>
       ))}
     </Screen>
@@ -173,7 +249,9 @@ function InfoRow({ icon, label, value, last }: { icon: 'map-pin' | 'credit-card'
       <AppText variant="body" color={Colors.textSecondary} style={styles.flex}>
         {label}
       </AppText>
-      <AppText style={styles.bold}>{value}</AppText>
+      <AppText style={[styles.bold, styles.infoValue]} numberOfLines={2}>
+        {value}
+      </AppText>
     </View>
   );
 }
@@ -198,6 +276,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.text,
   },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  favOn: {
+    backgroundColor: Colors.redSoft,
+  },
   more: {
     width: 40,
     height: 40,
@@ -205,6 +290,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Pill bawaannya rata kiri (alignSelf flex-start); di kartu hero yang rata tengah ikut ditengahkan
+  centerPill: {
+    alignSelf: 'center',
   },
   heroWrap: {
     paddingTop: 50,
@@ -219,7 +308,16 @@ const styles = StyleSheet.create({
     top: 0,
     alignSelf: 'center',
   },
+  // nama + gelar yang panjang tetap di tengah dan membungkus, ikon verified ikut di ujung
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+  },
   name: {
+    flexShrink: 1,
     fontFamily: Fonts.heading,
     fontSize: 20,
     lineHeight: 28,
@@ -292,9 +390,19 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 14,
   },
+  infoValue: {
+    flexShrink: 1,
+    textAlign: 'right',
+    maxWidth: '60%',
+  },
   border: {
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+  },
+  noReview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   reviewHead: {
     flexDirection: 'row',

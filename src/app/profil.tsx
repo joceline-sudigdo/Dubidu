@@ -1,26 +1,31 @@
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import type { ComponentProps, ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
+import { BearAvatar } from '@/components/parent/bear-avatar';
 import { ClayCard } from '@/components/parent/clay-card';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { ScreenHeader, SectionHeader } from '@/components/parent/screen-header';
+import { PointsCard } from '@/components/shared/points-card';
 import { AppText } from '@/components/ui/app-text';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
-import { activeMatches, children, parentProfile as p } from '@/data/parent';
+import { activeMatches, parentProfile as p } from '@/data/parent';
 import { comingSoon, showActionSheet, showAlert, showPrompt } from '@/lib/dialog';
 import { usePlus } from '@/lib/membership-store';
 import { changePhoto, updateParent, useProfile } from '@/lib/profile-store';
+import { startAddChild } from '@/lib/add-child';
+import { useChildren } from '@/lib/children-store';
 
-const MENU: { label: string; icon: ComponentProps<typeof Feather>['name']; href?: '/pengaturan' | '/bantuan' }[] = [
+const MENU: { label: string; icon: ComponentProps<typeof Feather>['name']; href?: '/pengaturan' | '/bantuan' | '/metode-pembayaran' | '/riwayat-transaksi' | '/tersimpan' | '/observasi' }[] = [
+  { label: 'Laporan Observasi Psikolog', icon: 'clipboard', href: '/observasi' },
+  { label: 'Postingan Tersimpan', icon: 'bookmark', href: '/tersimpan' },
   { label: 'Pengaturan Akun', icon: 'settings', href: '/pengaturan' },
-  { label: 'Metode Pembayaran', icon: 'credit-card' },
-  { label: 'Riwayat Transaksi', icon: 'file-text' },
+  { label: 'Metode Pembayaran', icon: 'credit-card', href: '/metode-pembayaran' },
+  { label: 'Riwayat Transaksi', icon: 'file-text', href: '/riwayat-transaksi' },
   { label: 'Privasi & Keamanan', icon: 'shield', href: '/pengaturan' },
   { label: 'Pusat Bantuan', icon: 'help-circle', href: '/bantuan' },
 ];
@@ -39,6 +44,7 @@ const editField = (title: string, value: string, key: 'email' | 'phone' | 'domic
   });
 
 export default function ProfilScreen() {
+  const children = useChildren();
   const account = useProfile().parent;
   const plus = usePlus();
 
@@ -56,7 +62,7 @@ export default function ProfilScreen() {
           </View>
         </ClayCard>
         <View style={styles.avatarWrap}>
-          <Avatar name={p.fullName} size={96} ring="#FFFFFF" />
+          <Avatar name={p.fullName} size={96} ring="#FFFFFF" viewable />
           <Pressable accessibilityLabel="Ubah foto" onPress={() => changePhoto(p.fullName)} style={styles.editAvatar}>
             <Feather name="edit-2" size={14} color="#FFFFFF" />
           </Pressable>
@@ -67,20 +73,18 @@ export default function ProfilScreen() {
         </View>
       </View>
 
+      <PointsCard />
+
       <View style={styles.stats}>
         <Stat value={String(children.length)} label="Anak Terdaftar" />
         <Stat value={String(p.sessionsDone)} label="Sesi Selesai" />
-        <Stat
-          value={String(p.points)}
-          label="Ikan Terkumpul"
-          icon={<Image source={require('@/assets/images/icons/ikan.png')} style={styles.fish} contentFit="contain" />}
-        />
+        <Stat value={String(activeMatches.length)} label="Teacher Aktif" />
       </View>
 
       <SectionHeader
         title="Anak Saya"
         right={
-          <Pressable onPress={() => soon('Tambah anak')} hitSlop={8} style={styles.inline}>
+          <Pressable onPress={startAddChild} hitSlop={8} style={styles.inline}>
             <Feather name="plus" size={16} color={Colors.primary} />
             <AppText variant="link">Tambah</AppText>
           </Pressable>
@@ -90,11 +94,11 @@ export default function ProfilScreen() {
         const teacher = activeMatches.find((m) => m.child === c.name);
         return (
           <ClayCard key={c.id} onPress={() => router.push('/report-card')} style={styles.child}>
-            <Avatar name={c.fullName} size={52} />
+            <BearAvatar gender={c.gender ?? 'female'} size={52} />
             <View style={styles.flex}>
               <View style={styles.inline}>
                 <AppText style={styles.childName}>{c.fullName}</AppText>
-                <Pill label={c.grade} tone="blue" />
+                <Pill inRow label={c.grade} tone="blue" />
               </View>
               <AppText variant="caption" color={Colors.primary}>
                 {c.condition}
@@ -140,18 +144,18 @@ export default function ProfilScreen() {
       <SectionHeader title="Langganan" />
       <View style={[styles.plan, Shadow.clay]}>
         <View style={styles.planIcon}>
-          <Feather name="star" size={22} color={Colors.yellowDark} />
+          <MaterialCommunityIcons name="crown" size={22} color={Colors.yellowDark} />
         </View>
         <View style={styles.flex}>
           <View style={styles.inline}>
             <AppText style={styles.planName}>{plus ? 'Dubidu Plus' : 'Paket Gratis'}</AppText>
-            {plus && <Pill label={plus === 'tahunan' ? 'Tahunan' : 'Bulanan'} tone="green" solid />}
+            {plus && <Pill inRow label={plus === 'tahunan' ? 'Tahunan' : 'Bulanan'} tone="green" solid />}
           </View>
           <AppText variant="caption" color={Colors.text}>
-            {plus ? 'Swipe tanpa batas & diskon psikolog 20% aktif' : 'Upgrade untuk swipe tanpa batas & diskon psikolog'}
+            {plus ? 'Skip tanpa batas & diskon psikolog 20% aktif' : 'Upgrade untuk skip tanpa batas & diskon psikolog'}
           </AppText>
         </View>
-        <Pill
+        <Pill inRow
           label={plus ? 'Kelola' : 'Upgrade'}
           size="md"
           tone={plus ? 'gray' : 'yellow'}
@@ -301,10 +305,6 @@ const styles = StyleSheet.create({
   statLabel: {
     textAlign: 'center',
     fontSize: 13,
-  },
-  fish: {
-    width: 24,
-    height: 16,
   },
   child: {
     flexDirection: 'row',

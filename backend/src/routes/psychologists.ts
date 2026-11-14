@@ -5,10 +5,12 @@ import { config } from "../config.js";
 import { prisma, type Prisma } from "../db.js";
 import { assertOwnChild, assertSameWorld, isDemoUser } from "../lib/access.js";
 import { me, requireAuth, requireRole } from "../lib/auth.js";
+import { getSettings, promoPercent } from "../lib/content.js";
 import { dayShort, hhmm, isoDate, shortDate, wibDate } from "../lib/dates.js";
 import { forbidden, HttpError, notFound, param, parse } from "../lib/http.js";
 import { createMeetingRoom, joinUrl } from "../lib/meeting.js";
 import { notify } from "../lib/notify.js";
+import { displayName } from "../lib/present.js";
 import { createPayment } from "./payments.js";
 
 export const psychologistsRouter = Router();
@@ -131,6 +133,98 @@ psychologistsRouter.delete("/me/slots/:slotId", requireRole("PSYCHOLOGIST"), asy
 });
 
 // ---------------------------------------------------------------------------
+//  Tinjauan pendaftar shadow teacher (tab Verifikasi psikolog) → rekomendasi untuk admin
+// ---------------------------------------------------------------------------
+
+const DOC_LABEL: Record<string, string> = { KTP: "KTP", IJAZAH: "Ijazah", SERTIFIKAT: "Sertifikat pelatihan", CV: "CV / Portofolio", LAINNYA: "Dokumen lain" };
+
+function registeredAgo(date: Date) {
+  const days = Math.floor((Date.now() - date.getTime()) / 86400000);
+  if (days <= 0) return "Daftar hari ini";
+  if (days === 1) return "Daftar kemarin";
+  if (days < 7) return `Daftar ${days} hari lalu`;
+  return days < 14 ? "Daftar minggu lalu" : `Daftar ${shortDate(date)}`;
+}
+
+/** GET /api/psychologists/me/teacher-applicants — pendaftar teacher yang menunggu verifikasi (bentuk = Applicant di frontend) */
+psychologistsRouter.get("/me/teacher-applicants", requireRole("PSYCHOLOGIST"), async (req, res) => {
+  const userId = me(req).id;
+  const rows = await prisma.teacherProfile.findMany({
+    where: { verificationStatus: { in: ["PENDING", "REVISION"] }, user: { isDemo: await isDemoUser(userId), isActive: true } },
+    include: {
+      user: true,
+      documents: true,
+      specializations: { include: { needOption: true } },
+      assessments: { where: { psychologistId: userId } },
+    },
+    orderBy: [{ submittedAt: "desc" }, { updatedAt: "desc" }],
+  });
+  res.json(
+    rows.map((t) => {
+      const mine = t.assessments[0];
+      const skills = t.specializations.map((s) => s.needOption.label);
+      return {
+        id: t.userId,
+        name: displayName(t.user, t.title),
+        education: t.education ?? "-",
+        experience: `Pengalaman ${t.experienceYears} tahun`,
+        registered: registeredAgo(t.submittedAt ?? t.createdAt),
+        focus: t.headline ?? skills.slice(0, 2).join(" & "),
+        skills,
+        about: t.about ?? "",
+        interview: mine?.interview ?? null,
+        documents: (["KTP", "IJAZAH", "SERTIFIKAT", "CV"] as const).map((type) => {
+          const doc = t.documents.find((d) => d.type === type);
+          return { label: DOC_LABEL[type], uploaded: Boolean(doc), url: doc?.url ?? null };
+        }),
+        result: mine ? { status: mine.recommendation, issues: mine.issues, note: mine.note } : undefined,
+      };
+    }),
+  );
+});
+
+/** PUT /api/psychologists/me/teacher-applicants/:teacherUserId { status?, issues?, note?, interview? } */
+psychologistsRouter.put("/me/teacher-applicants/:teacherUserId", requireRole("PSYCHOLOGIST"), async (req, res) => {
+  const body = parse(
+    z.object({
+      status: z.enum(["verified", "revision", "rejected"]).optional(),
+      issues: z.array(z.string().max(120)).max(20).default([]),
+      note: z.string().trim().max(1000).default(""),
+      interview: z.string().trim().max(80).nullable().optional(), // "Kamis, 8 Okt · 13:00 (online)"
+    }),
+    req.body,
+  );
+  const teacher = await prisma.teacherProfile.findUnique({ where: { userId: param(req, "teacherUserId") }, include: { user: true } });
+  if (!teacher) throw notFound("Pendaftar");
+  await assertSameWorld(me(req), teacher.user.isDemo, "Pendaftar");
+  const key = { teacherId_psychologistId: { teacherId: teacher.id, psychologistId: me(req).id } };
+  const current = await prisma.teacherAssessment.findUnique({ where: key });
+  const data = {
+    recommendation: body.status ?? current?.recommendation ?? "pending",
+    issues: body.status ? body.issues : (current?.issues ?? []),
+    note: body.status ? body.note : (current?.note ?? ""),
+    interview: body.interview === undefined ? (current?.interview ?? null) : body.interview,
+  };
+  const saved = await prisma.teacherAssessment.upsert({
+    where: key,
+    create: { teacherId: teacher.id, psychologistId: me(req).id, ...data },
+    update: data,
+  });
+  if (body.interview && body.interview !== current?.interview) {
+    await notify({
+      userId: teacher.userId,
+      category: "LAINNYA",
+      icon: "account-voice",
+      tone: "blue",
+      title: "Jadwal interview verifikasi",
+      body: `Psikolog DUBIDU menjadwalkan interview: ${body.interview}.`,
+      tag: "Verifikasi",
+    });
+  }
+  res.json({ status: saved.recommendation, issues: saved.issues, note: saved.note, interview: saved.interview });
+});
+
+// ---------------------------------------------------------------------------
 //  Konsultasi
 // ---------------------------------------------------------------------------
 
@@ -151,7 +245,7 @@ function presentConsultation(c: ConsultRow) {
     durationMin: c.durationMin,
     psychologist: { id: c.psychologistId, name: c.psychologist.user.fullName, title: c.psychologist.title, avatarUrl: c.psychologist.user.avatarUrl },
     parent: { id: c.parentId, name: c.parent.fullName },
-    child: c.child && { id: c.child.id, name: c.child.name },
+    child: c.child && { id: c.child.id, name: c.child.name, gender: c.child.gender },
     basePrice: c.basePrice,
     discount: c.discount,
     finalPrice: c.finalPrice,
@@ -172,9 +266,9 @@ async function quote(userId: string, psychologistId: string, promoCode?: string)
   if ((await isDemoUser(userId)) !== p.user.isDemo) throw notFound("Psikolog");
   const plus = await prisma.subscription.findFirst({ where: { userId, active: true, endsAt: { gt: new Date() } } });
   const code = promoCode?.trim().toUpperCase();
-  const promoPercent = code ? config.promoCodes[code] : 0;
-  if (code && promoPercent === undefined) throw new HttpError(400, "Kode promo tidak valid");
-  const percent = Math.min(50, p.discountPercent + (promoPercent ?? 0) + (plus ? 20 : 0));
+  const promo = code ? await promoPercent(code, "CONSULTATION") : 0;
+  if (code && promo === null) throw new HttpError(400, "Kode promo tidak valid atau sudah tidak berlaku");
+  const percent = Math.min(50, p.discountPercent + (promo ?? 0) + (plus ? 20 : 0));
   const discount = Math.round((p.basePrice * percent) / 100);
   return { profile: p, basePrice: p.basePrice, discount, finalPrice: p.basePrice - discount, percent, promoCode: code };
 }
@@ -234,6 +328,9 @@ consultationsRouter.post("/", requireRole("PARENT"), async (req, res) => {
     purpose: "CONSULTATION",
     referenceId: consultation.id,
     amount: consultation.finalPrice,
+    // pendapatan psikolog (setelah biaya platform) → bisa dicairkan setelah lunas
+    payeeUserId: consultation.psychologist.userId,
+    payeeAmount: Math.round(consultation.finalPrice * (1 - (await getSettings()).platformFeePercent / 100)),
   });
   await notify({
     userId,

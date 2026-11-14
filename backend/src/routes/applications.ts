@@ -36,6 +36,7 @@ function present(a: AppRow, viewerRole: string) {
       name: hideChild ? initials(a.child.fullName) : child.name,
       grade: child.grade,
       age: child.age,
+      gender: child.gender,
       condition: child.condition,
       needs: child.needs,
     },

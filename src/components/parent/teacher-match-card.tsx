@@ -2,18 +2,16 @@ import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
+import { ChatIcon } from '@/components/ui/chat-icon';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { formatPrice, SKILL_LABELS, topSkills, type Teacher } from '@/data/teachers';
 
 import { Avatar } from './avatar';
 import { ClayCard } from './clay-card';
-import { Pill } from './pill';
-import type { Tone } from './tones';
-
-const TAG_TONES: Tone[] = ['green', 'blue', 'yellow'];
+import { TagRow } from './tag-row';
 
 type Props = {
   teacher: Teacher;
@@ -21,6 +19,8 @@ type Props = {
   comparing: boolean;
   connected: boolean;
   canSkip: boolean;
+  // true selama penawaran sedang dikirim (tombol jadi "Menghubungkan...")
+  connecting?: boolean;
   onToggleCompare: () => void;
   onSkip: () => void;
   onConnect: () => void;
@@ -32,6 +32,7 @@ export function TeacherMatchCard({
   comparing,
   connected,
   canSkip,
+  connecting,
   onToggleCompare,
   onSkip,
   onConnect,
@@ -81,11 +82,30 @@ export function TeacherMatchCard({
         </View>
 
         <View style={styles.tags}>
-          {skills.slice(0, 2).map((k, i) => (
-            <Pill key={k} label={SKILL_LABELS[k]} tone={TAG_TONES[i]} size="md" />
-          ))}
-          <Pill label={`+${skills.length - 2}`} tone="gray" size="md" />
+          <TagRow tags={skills.map((k) => SKILL_LABELS[k])} />
         </View>
+
+        {teacher.reasons?.length ? (
+          <View style={styles.why}>
+            <AppText style={styles.whyTitle}>Kenapa cocok?</AppText>
+            {teacher.reasons.slice(0, 3).map((r) => (
+              <View key={r} style={styles.whyRow}>
+                <Feather name="check-circle" size={14} color={Colors.green} style={styles.whyIcon} />
+                <AppText variant="caption" color={Colors.text} style={styles.flex}>
+                  {r}
+                </AppText>
+              </View>
+            ))}
+            {teacher.caution ? (
+              <View style={styles.whyRow}>
+                <Feather name="info" size={14} color={Colors.yellowDark} style={styles.whyIcon} />
+                <AppText variant="caption" style={styles.flex}>
+                  {teacher.caution}
+                </AppText>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
         <Pressable
           onPress={() => router.push({ pathname: '/profil-teacher/[id]', params: { id: teacher.id } })}
@@ -95,19 +115,34 @@ export function TeacherMatchCard({
         </Pressable>
 
         <View style={styles.actions}>
+          {/* teacher yang sudah dihubungi tetap bisa dilewati */}
           <Pressable
-            disabled={!canSkip || connected}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !canSkip }}
+            disabled={!canSkip || connecting}
             onPress={onSkip}
-            style={[styles.skip, (!canSkip || connected) && { opacity: 0.45 }]}>
+            style={({ pressed }) => [styles.skip, !canSkip && { opacity: 0.45 }, pressed && styles.pressed]}>
             <Feather name="x" size={18} color={Colors.textSecondary} />
             <AppText style={styles.skipText}>Skip</AppText>
           </Pressable>
           <Pressable
+            accessibilityRole="button"
+            disabled={connecting}
             onPress={onConnect}
-            style={[styles.connect, connected ? styles.connected : Shadow.button]}>
-            <Feather name={connected ? 'message-circle' : 'send'} size={18} color={connected ? Colors.green : '#FFFFFF'} />
+            style={({ pressed }) => [
+              styles.connect,
+              connected ? styles.connected : Shadow.button,
+              (pressed || connecting) && styles.pressed,
+            ]}>
+            {connecting ? (
+              <ActivityIndicator size="small" color={connected ? Colors.green : '#FFFFFF'} />
+            ) : connected ? (
+              <ChatIcon size={18} color={Colors.green} />
+            ) : (
+              <Feather name="send" size={18} color="#FFFFFF" />
+            )}
             <AppText style={[styles.connectText, connected && { color: Colors.green }]}>
-              {connected ? 'Buka Chat' : 'Connect'}
+              {connecting ? 'Menghubungkan...' : connected ? 'Buka Chat' : 'Connect'}
             </AppText>
           </Pressable>
         </View>
@@ -196,8 +231,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
   },
+  // kota panjang + harga turun ke baris baru, bukan keluar kartu
   meta: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: 6,
   },
@@ -211,10 +248,30 @@ const styles = StyleSheet.create({
   bold: {
     fontFamily: Fonts.bodyBold,
   },
-  tags: {
+  flex: {
+    flex: 1,
+  },
+  why: {
+    gap: 6,
+    padding: 12,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surface,
+  },
+  whyTitle: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 13,
+    color: Colors.primaryDark,
+  },
+  whyRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'flex-start',
     gap: 8,
+  },
+  whyIcon: {
+    marginTop: 2,
+  },
+  tags: {
+    alignSelf: 'stretch',
   },
   profileLink: {
     flexDirection: 'row',
@@ -254,6 +311,10 @@ const styles = StyleSheet.create({
   },
   connected: {
     backgroundColor: Colors.greenSoft,
+  },
+  pressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
   },
   connectText: {
     fontFamily: Fonts.bodyBold,

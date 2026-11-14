@@ -10,7 +10,6 @@ export const parentProfile = {
   phone: '0812-3456-7890',
   domicile: 'Malang, Jawa Timur',
   joined: 'Jan 2026',
-  points: 340,
   sessionsDone: 48,
 };
 
@@ -22,6 +21,8 @@ export type Child = {
   condition: string;
   needs: Skill[];
   city: string;
+  // dari server; dipakai gambar avatar anak (child-boy / child-girl)
+  gender?: 'male' | 'female';
 };
 
 export const children: Child[] = [
@@ -62,7 +63,7 @@ export const activeTeachers = [
 
 export type NotificationItem = {
   id: string;
-  group: 'today' | 'yesterday' | 'week';
+  group: 'today' | 'yesterday' | 'week' | 'older';
   category: 'chat' | 'booking' | 'laporan' | 'lainnya';
   icon: string;
   tone: Tone;
@@ -75,9 +76,26 @@ export type NotificationItem = {
   tagTone: Tone;
   action?: string;
   actionPrimary?: boolean;
+  // layar tujuan saat notifikasi dibuka (dari server)
+  link?: string;
 };
 
 export const notifications: NotificationItem[] = [
+  {
+    id: 'n-obs',
+    group: 'today',
+    category: 'laporan',
+    icon: 'stethoscope',
+    tone: 'red',
+    title: 'Laporan Observasi Psikolog',
+    time: 'Baru saja',
+    body: 'Amanda Putri, M.Psi. telah mengirim hasil observasi Elisya beserta 4 rekomendasi untuk di rumah dan sekolah.',
+    unread: true,
+    tag: 'Konsultasi 26 Okt',
+    tagTone: 'red',
+    action: 'Baca Laporan',
+    actionPrimary: true,
+  },
   {
     id: 'n1',
     group: 'today',
@@ -173,7 +191,7 @@ export const notifications: NotificationItem[] = [
     tone: 'red',
     title: 'Dukungan Hangat di Komunitas',
     time: '3 hari lalu',
-    body: 'Bunda Arka dan 4 orang tua pejuang lainnya memberikan pelukan hangat & saran pada cerita sensori Leo.',
+    body: 'Rahma Aulia dan 4 orang tua pejuang lainnya memberikan pelukan hangat & saran pada cerita sensori Leo.',
     unread: false,
     tag: 'Komunitas Sensori Malang',
     tagTone: 'gray',
@@ -259,7 +277,7 @@ export type ChatMessage =
   | { id: string; from: 'me' | 'them'; type: 'image'; uri: string; time: string; read?: boolean }
   | {
       id: string;
-      from: 'them';
+      from: 'me' | 'them';
       type: 'schedule';
       time: string;
       title: string;
@@ -338,6 +356,7 @@ export const chatThreads: ChatThread[] = [
 ];
 
 export const quickQuestion = {
+  id: '', // id pertanyaan di server
   from: 'Larasati Sudigdo',
   text: 'Mam, bolehkan cheryl makan es krim untuk siang ini?',
 };
@@ -379,7 +398,7 @@ export const communityPosts: CommunityPost[] = [
   },
   {
     id: 'p1',
-    author: 'Bunda Arka',
+    author: 'Rahma Aulia',
     role: 'Orang Tua',
     time: 'Diposting 3 menit lalu',
     text: 'Hari pertama Arka mau pakai ear-muff di tempat ramai tanpa rewel! Ternyata sounding visual 3 hari sebelumnya sangat membantu. Untuk Ayah/Bunda yang sedang berjuang, pelan-pelan ya, setiap langkah kecil adalah kemenangan besar..',
@@ -390,7 +409,7 @@ export const communityPosts: CommunityPost[] = [
   },
   {
     id: 'p2',
-    author: 'Mama Dimas',
+    author: 'Wulan Anggita',
     role: 'Orang Tua',
     time: 'Diposting 2 jam lalu',
     text: 'Masyallah, hari ini Dimas menyusun balok huruf sambil mengucapkannya dengan jelas... Air mata haru gak bisa ditahan 🥹',
@@ -401,7 +420,7 @@ export const communityPosts: CommunityPost[] = [
   },
   {
     id: 'p3',
-    author: 'Bunda Kirana',
+    author: 'Ratna Sari',
     role: 'Orang Tua',
     time: 'Diposting 5 jam lalu',
     text: 'Ada yang punya tips supaya anak ADHD bisa fokus mengerjakan PR lebih dari 10 menit? Kirana masih sering beralih ke mainan lain.',

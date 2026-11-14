@@ -26,6 +26,8 @@ export type Contract = {
   location: string;
   rate: number;
   sessionsPerTermin: number;
+  // jadwal sesi berikutnya dari server (kalau ada, dipakai menggantikan perkiraan dari hari sesi)
+  upcoming?: Date[];
 };
 
 export const contracts: Contract[] = [
@@ -35,7 +37,7 @@ export const contracts: Contract[] = [
     childAge: 8,
     gender: 'female',
     childId: 'elisya',
-    parentName: 'Bunda Sarah',
+    parentName: 'Sarah Wijaya',
     teacherName: 'Pras Karunia, S.Pd',
     teacherId: 'pras',
     parentChatId: 'tc-sarah',
@@ -62,7 +64,7 @@ export const contracts: Contract[] = [
     childAge: 7,
     gender: 'male',
     childId: 'kenneth',
-    parentName: 'Bunda Larasati',
+    parentName: 'Laras Setiawati',
     teacherName: 'Pras Karunia, S.Pd',
     teacherId: 'pras',
     parentChatId: 'tc-larasati',
@@ -89,7 +91,7 @@ export const contracts: Contract[] = [
     childAge: 9,
     gender: 'female',
     childId: 'bella',
-    parentName: 'Mama Rini',
+    parentName: 'Rini Hartati',
     teacherName: 'Pras Karunia, S.Pd',
     teacherId: 'pras',
     parentChatId: 'tc-rini',
@@ -117,7 +119,7 @@ contracts.push(
     childAge: 8,
     gender: 'female',
     childId: 'elisya',
-    parentName: 'Bunda Devi',
+    parentName: 'Devi Anggraini',
     teacherName: 'Nielsen Dave, S.Pd',
     teacherId: 'nielsen',
     parentChatId: 'nielsen',
@@ -144,7 +146,7 @@ contracts.push(
     childAge: 8,
     gender: 'female',
     childId: 'cheryl',
-    parentName: 'Bunda Devi',
+    parentName: 'Devi Anggraini',
     teacherName: 'Larasati Sudigdo, S.Psi',
     teacherId: 'larasati',
     parentChatId: 'larasati',
@@ -167,8 +169,9 @@ contracts.push(
   }
 );
 
+// id kontrak, atau id anak (layar teacher membuka kontrak dari daftar murid)
 export function findContract(id: string) {
-  return contracts.find((c) => c.id === id);
+  return contracts.find((c) => c.id === id) ?? contracts.find((c) => c.childId === id);
 }
 
 export const PLATFORM_FEE = 0.1;
@@ -184,6 +187,8 @@ export function termins(c: Contract) {
 
 // 3 jadwal sesi berikutnya mulai hari ini
 export function nextSessionDates(c: Contract, count = 3) {
+  if (c.upcoming) return c.upcoming.slice(0, count);
+  if (c.weekdays.length === 0) return [];
   const dates: Date[] = [];
   const d = new Date();
   d.setHours(0, 0, 0, 0);

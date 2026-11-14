@@ -1,10 +1,8 @@
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
 import { BearAvatar } from '@/components/parent/bear-avatar';
@@ -12,9 +10,13 @@ import { ClayCard } from '@/components/parent/clay-card';
 import { Screen } from '@/components/parent/screen';
 import { SectionHeader } from '@/components/parent/screen-header';
 import { CheckinCard } from '@/components/shared/checkin-card';
+import { HeroBanner } from '@/components/shared/hero-banner';
+import { PlusCard } from '@/components/shared/plus-card';
 import { DoobieCard } from '@/components/shared/doobie-card';
 import { AppText } from '@/components/ui/app-text';
+import { EdgeScroll } from '@/components/parent/edge-scroll';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
+import { useUnreadCount } from '@/lib/notification-store';
 import { bannerPhotos } from '@/data/images';
 import { activeApplications, students, teacherProfile as me, todaySchedule } from '@/data/teacher';
 
@@ -22,9 +24,11 @@ const STATUS_LABEL = { pending: 'Pending', accepted: 'Diterima', rejected: 'Dito
 const STATUS_COLOR = { pending: Colors.textSecondary, accepted: Colors.green, rejected: Colors.red } as const;
 
 export default function TeacherBerandaScreen() {
-  const [studentId, setStudentId] = useState(students[0].id);
-  const student = students.find((s) => s.id === studentId) ?? students[0];
-  const progress = me.target.done / me.target.total;
+  // titik merah lonceng hanya muncul kalau masih ada notifikasi yang belum dibaca
+  const hasUnread = useUnreadCount() > 0;
+  const [studentId, setStudentId] = useState(students[0]?.id ?? '');
+  // target 0 (akun baru) jangan sampai jadi NaN% di progress bar
+  const progress = me.target.total > 0 ? Math.min(1, me.target.done / me.target.total) : 0;
 
   return (
     <Screen>
@@ -34,26 +38,34 @@ export default function TeacherBerandaScreen() {
             <AppText style={styles.hello}>
               Halo, <AppText style={[styles.hello, { color: Colors.primary }]}>{me.shortName}</AppText>
             </AppText>
-            <View style={[styles.verified, Shadow.soft]}>
-              <MaterialCommunityIcons name="check-decagram" size={14} color={Colors.primary} />
-              <AppText style={styles.verifiedText}>Verified</AppText>
-            </View>
+            {me.verified && (
+              <MaterialCommunityIcons
+                accessibilityLabel="Terverifikasi"
+                name="check-decagram"
+                size={24}
+                color={Colors.primary}
+              />
+            )}
           </View>
-          <AppText variant="caption">Siap membantu anak-anak hari ini?</AppText>
+          <AppText variant="caption">
+            {me.verified
+              ? 'Siap membantu anak-anak hari ini?'
+              : 'Profilmu sedang diverifikasi tim Dubidu. Lengkapi profil & dokumen sambil menunggu.'}
+          </AppText>
         </View>
         <Pressable
           accessibilityLabel="Notifikasi"
           onPress={() => router.push('/teacher/notifikasi')}
           style={[styles.bell, Shadow.soft]}>
           <Feather name="bell" size={20} color={Colors.primary} />
-          <View style={styles.bellDot} />
+          {hasUnread && <View style={styles.bellDot} />}
         </Pressable>
         <Pressable accessibilityLabel="Profil" onPress={() => router.push('/teacher/profil')}>
           <Avatar name={me.name} size={40} ring="#FFFFFF" />
         </Pressable>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+      <EdgeScroll contentContainerStyle={styles.chips}>
         {students.map((s) => {
           const active = s.id === studentId;
           return (
@@ -66,29 +78,16 @@ export default function TeacherBerandaScreen() {
             </Pressable>
           );
         })}
-      </ScrollView>
+      </EdgeScroll>
 
-      <LinearGradient colors={[Colors.primary, Colors.primaryDark]} style={[styles.hero, Shadow.clay]}>
-        {bannerPhotos.teacherHome ? (
-          <>
-            <Image source={bannerPhotos.teacherHome} style={StyleSheet.absoluteFill} contentFit="cover" />
-            <LinearGradient
-              colors={['rgba(30, 82, 138, 0.1)', 'rgba(30, 82, 138, 0.85)']}
-              style={StyleSheet.absoluteFill}
-            />
-          </>
-        ) : (
-          <View style={styles.heroDecor} />
-        )}
-        <AppText style={styles.heroTitle}>Yuk, cari anak yang butuh bantuan!</AppText>
-        <View style={styles.heroBottom}>
-          <AppText style={styles.heroSub}>Lihat profil kebutuhan anak dan ajukan diri sekarang.</AppText>
-          <Pressable onPress={() => router.push('/teacher/cari-anak')} style={[styles.heroButton, Shadow.soft]}>
-            <AppText style={styles.heroButtonText}>Mulai cari</AppText>
-            <Feather name="arrow-right" size={18} color={Colors.text} />
-          </Pressable>
-        </View>
-      </LinearGradient>
+      <HeroBanner
+        title="Yuk, cari anak yang butuh bantuan!"
+        subtitle="Lihat profil kebutuhan anak dan ajukan diri sekarang."
+        photo={bannerPhotos.teacherHome}
+        onPress={() => router.push('/teacher/cari-anak')}
+      />
+
+      <CheckinCard />
 
       <SectionHeader title="Jadwal kamu" />
       <ClayCard onPress={() => router.push('/teacher/jadwal')} style={styles.schedule}>
@@ -97,9 +96,13 @@ export default function TeacherBerandaScreen() {
         </View>
         <View style={styles.flex}>
           <AppText style={styles.bold}>Jadwal Hari Ini</AppText>
-          <AppText variant="caption" color={Colors.text}>
-            {todaySchedule.time} • Sesi dengan <AppText style={styles.boldSmall}>{todaySchedule.child}!</AppText>
-          </AppText>
+          {todaySchedule.child ? (
+            <AppText variant="caption" color={Colors.text} numberOfLines={2}>
+              {todaySchedule.time} • Sesi dengan <AppText style={styles.boldSmall}>{todaySchedule.child}!</AppText>
+            </AppText>
+          ) : (
+            <AppText variant="caption">Belum ada sesi hari ini. Waktunya istirahat!</AppText>
+          )}
         </View>
         <View style={styles.inline}>
           <AppText variant="link" style={styles.small}>
@@ -110,14 +113,18 @@ export default function TeacherBerandaScreen() {
       </ClayCard>
 
       <SectionHeader title="Pengajuan Aktif" />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.apps}>
+      <EdgeScroll contentContainerStyle={styles.apps}>
         {activeApplications.map((a) => (
           <Pressable key={a.id} onPress={() => router.push('/teacher/riwayat')} style={[styles.appCard, Shadow.button]}>
-            <View style={styles.inline}>
+            <View style={styles.appTop}>
               <BearAvatar gender={a.gender} size={36} />
-              <View>
-                <AppText style={styles.appName}>{a.initials}</AppText>
-                <AppText style={styles.appInfo}>{a.info}</AppText>
+              <View style={styles.appText}>
+                <AppText style={styles.appName} numberOfLines={1}>
+                  {a.initials}
+                </AppText>
+                <AppText style={styles.appInfo} numberOfLines={2}>
+                  {a.info}
+                </AppText>
               </View>
             </View>
             <View style={styles.appStatus}>
@@ -127,17 +134,19 @@ export default function TeacherBerandaScreen() {
             </View>
           </Pressable>
         ))}
-      </ScrollView>
+      </EdgeScroll>
 
       <View style={styles.stats}>
-        <ClayCard style={styles.stat}>
+        <ClayCard onPress={() => router.push('/pencairan')} style={styles.stat}>
           <View style={styles.inline}>
             <Feather name="credit-card" size={15} color={Colors.primary} />
             <AppText variant="caption" color={Colors.primary}>
               Pendapatan
             </AppText>
           </View>
-          <AppText style={styles.statValue}>{me.earnings.total}</AppText>
+          <AppText style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
+            {me.earnings.total}
+          </AppText>
           <View style={styles.inline}>
             <Feather name="arrow-up" size={14} color={Colors.green} />
             <AppText variant="caption" color={Colors.green}>
@@ -152,7 +161,9 @@ export default function TeacherBerandaScreen() {
               Sesi selesai
             </AppText>
           </View>
-          <AppText style={styles.statValue}>{me.target.done}</AppText>
+          <AppText style={styles.statValue} numberOfLines={1}>
+            {me.target.done}
+          </AppText>
           <View style={styles.targetRow}>
             <AppText variant="caption">Target: {me.target.total} sesi</AppText>
             <AppText variant="caption">{Math.round(progress * 100)}%</AppText>
@@ -165,10 +176,9 @@ export default function TeacherBerandaScreen() {
 
       <DoobieCard
         message="Cek rekomendasi murid baru, kelola laporan harian, atau konsultasi modul belajar bersama Doobie AI."
-        topics={['Laporan harian', 'Jadwal sesi', 'Tips pendampingan']}
       />
 
-      <CheckinCard childName={student.name} />
+      <PlusCard />
     </Screen>
   );
 }
@@ -213,20 +223,6 @@ const styles = StyleSheet.create({
     lineHeight: 36,
     color: Colors.text,
   },
-  verified: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#FFFFFF',
-    borderRadius: Radius.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  verifiedText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 12,
-    color: Colors.text,
-  },
   bell: {
     width: 40,
     height: 40,
@@ -265,55 +261,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.text,
   },
-  hero: {
-    borderRadius: Radius.lg,
-    padding: 22,
-    minHeight: 180,
-    justifyContent: 'flex-end',
-    overflow: 'hidden',
-    gap: 10,
-  },
-  heroDecor: {
-    position: 'absolute',
-    right: -40,
-    top: -40,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  heroTitle: {
-    fontFamily: Fonts.heading,
-    fontSize: 20,
-    lineHeight: 27,
-    color: '#FFFFFF',
-  },
-  heroBottom: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  heroSub: {
-    flex: 1,
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    lineHeight: 18,
-    color: 'rgba(255,255,255,0.9)',
-  },
-  heroButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: Radius.pill,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-  },
-  heroButtonText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 15,
-    color: Colors.text,
-  },
   schedule: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -330,13 +277,25 @@ const styles = StyleSheet.create({
   apps: {
     gap: 12,
     paddingBottom: 12,
+    alignItems: 'stretch',
   },
+  // semua kartu setinggi kartu tertinggi; label status selalu menempel di bawah supaya sejajar
   appCard: {
     width: 170,
     backgroundColor: Colors.primary,
     borderRadius: Radius.md,
     padding: 14,
     gap: 10,
+    justifyContent: 'space-between',
+  },
+  appTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+  },
+  appText: {
+    flex: 1,
+    minWidth: 0,
   },
   appName: {
     fontFamily: Fonts.bodyBold,

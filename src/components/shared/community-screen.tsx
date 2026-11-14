@@ -1,9 +1,19 @@
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeInLeft,
+  FadeInRight,
+  FadeOut,
+  FadeOutLeft,
+  FadeOutRight,
+  LinearTransition,
+  ZoomIn,
+} from 'react-native-reanimated';
 
 import { Avatar } from '@/components/parent/avatar';
 import { Pill } from '@/components/parent/pill';
@@ -16,9 +26,14 @@ import { showAlert } from '@/lib/dialog';
 import { getSession } from '@/lib/session';
 
 import { PostCard } from './post-card';
+import { MAX_POST_PHOTOS, MIN_CAPTION, POST_TOPICS, PostComposerSheet, type PostTopic } from './post-composer-sheet';
 
-const TOPICS = ['ADHD', 'Autism', 'Speech Delay'] as const;
-const MAX_PHOTOS = 5;
+const TOPICS = POST_TOPICS;
+
+// transisi kolom posting <-> pencarian: geser pendek + memudar bersamaan (crossfade),
+// durasi masuk & keluar sama supaya tidak ada momen kosong / berkedip
+const EASE = Easing.bezier(0.22, 1, 0.36, 1);
+const SWAP_MS = 280;
 
 // komunitas dipakai bareng oleh orang tua, shadow teacher, dan psikolog
 export function CommunityScreen() {
@@ -29,6 +44,9 @@ export function CommunityScreen() {
   const [query, setQuery] = useState('');
   const [draft, setDraft] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
+  const [postTopic, setPostTopic] = useState<PostTopic>('ADHD');
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [posting, setPosting] = useState(false);
 
   const q = searchMode ? query.trim().toLowerCase() : '';
   const posts = community.posts
@@ -40,18 +58,35 @@ export function CommunityScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: true,
-      selectionLimit: MAX_PHOTOS - photos.length,
+      selectionLimit: MAX_POST_PHOTOS - photos.length,
       quality: 0.8,
     });
-    if (!result.canceled) setPhotos((list) => [...list, ...result.assets.map((a) => a.uri)].slice(0, MAX_PHOTOS));
+    if (!result.canceled) {
+      setPhotos((list) => [...list, ...result.assets.map((a) => a.uri)].slice(0, MAX_POST_PHOTOS));
+      if (topic) setPostTopic(topic);
+    }
   };
 
-  const publish = () => {
-    const text = draft.trim();
-    if (!text && photos.length === 0) return;
-    addPost(text, photos, topic ?? 'ADHD');
-    setDraft('');
+  // ketuk kolom "Bagikan sesuatu" → langsung buka lembar posting
+  const openComposer = () => {
+    if (topic) setPostTopic(topic);
+    setSheetOpen(true);
+  };
+
+  const discard = () => {
     setPhotos([]);
+    setDraft('');
+  };
+
+  const publish = async () => {
+    const text = draft.trim();
+    if (text.length < MIN_CAPTION || posting) return;
+    setPosting(true);
+    const ok = await addPost(text, photos, postTopic);
+    setPosting(false);
+    if (!ok) return;
+    setSheetOpen(false);
+    discard();
     showAlert('Postingan berhasil dibagikan');
   };
 
@@ -60,9 +95,8 @@ export function CommunityScreen() {
     setQuery('');
   };
 
-  const canPost = !!draft.trim() || photos.length > 0;
-
   return (
+    <View style={styles.root}>
     <Screen>
       <TabHeader
         title="Komunitas"
@@ -71,79 +105,59 @@ export function CommunityScreen() {
             accessibilityLabel={searchMode ? 'Kembali ke posting' : 'Cari postingan'}
             onPress={toggleMode}
             style={[styles.headerButton, Shadow.button]}>
-            {searchMode ? (
-              <MaterialCommunityIcons name="image-plus" size={22} color="#FFFFFF" />
-            ) : (
-              <Feather name="search" size={20} color="#FFFFFF" />
-            )}
+            <Animated.View key={searchMode ? 'post' : 'search'} entering={ZoomIn.duration(240).easing(Easing.out(Easing.back(1.6)))}>
+              {searchMode ? (
+                <MaterialCommunityIcons name="image-plus" size={22} color="#FFFFFF" />
+              ) : (
+                <Feather name="search" size={20} color="#FFFFFF" />
+              )}
+            </Animated.View>
           </Pressable>
         }
       />
 
-      {searchMode ? (
-        <View style={[styles.composer, Shadow.button]}>
-          <View style={styles.searchIcon}>
-            <Feather name="search" size={18} color="#FFFFFF" />
-          </View>
-          <TextInput
-            autoFocus
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Cari postingan atau nama..."
-            placeholderTextColor={Colors.textSecondary}
-            style={styles.input}
-          />
-          {query.length > 0 && (
-            <Pressable accessibilityLabel="Hapus pencarian" onPress={() => setQuery('')} style={styles.composerIcon}>
-              <Feather name="x" size={18} color="#FFFFFF" />
-            </Pressable>
-          )}
-        </View>
-      ) : (
-        <View style={[styles.composer, Shadow.button]}>
-          <Avatar name={me.name} size={40} ring="#FFFFFF" />
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            placeholder="Bagikan sesuatu..."
-            placeholderTextColor={Colors.textSecondary}
-            style={styles.input}
-          />
-          {canPost ? (
-            <Pressable accessibilityLabel="Kirim postingan" onPress={publish} style={styles.composerIcon}>
-              <Feather name="send" size={18} color="#FFFFFF" />
-            </Pressable>
-          ) : (
-            <Pressable accessibilityLabel="Tambah foto" onPress={pickPhotos} style={styles.composerIcon}>
-              <MaterialCommunityIcons name="image-plus" size={20} color="#FFFFFF" />
-            </Pressable>
-          )}
-        </View>
-      )}
-
-      {!searchMode && photos.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.thumbs}>
-          {photos.map((uri, i) => (
-            <View key={uri} style={styles.thumb}>
-              <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
-              <Pressable
-                accessibilityLabel={`Hapus foto ${i + 1}`}
-                onPress={() => setPhotos((list) => list.filter((x) => x !== uri))}
-                style={styles.remove}>
-                <Feather name="x" size={12} color="#FFFFFF" />
-              </Pressable>
+      <View style={styles.composerSlot}>
+        {searchMode ? (
+          <Animated.View
+            key="search"
+            entering={FadeInRight.duration(SWAP_MS).easing(EASE)}
+            exiting={FadeOutRight.duration(SWAP_MS).easing(EASE)}
+            style={[styles.composer, styles.composerLayer, Shadow.button]}>
+            <View style={styles.searchIcon}>
+              <Feather name="search" size={18} color="#FFFFFF" />
             </View>
-          ))}
-          {photos.length < MAX_PHOTOS && (
-            <Pressable accessibilityLabel="Tambah foto lagi" onPress={pickPhotos} style={[styles.thumb, styles.addThumb]}>
-              <Feather name="plus" size={22} color={Colors.primary} />
-              <AppText variant="caption">
-                {photos.length}/{MAX_PHOTOS}
+            <TextInput
+              autoFocus
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Cari postingan atau nama..."
+              placeholderTextColor={Colors.textSecondary}
+              style={styles.input}
+            />
+            {query.length > 0 && (
+              <Pressable accessibilityLabel="Hapus pencarian" onPress={() => setQuery('')} style={styles.composerIcon}>
+                <Feather name="x" size={18} color="#FFFFFF" />
+              </Pressable>
+            )}
+          </Animated.View>
+        ) : (
+          <Animated.View
+            key="post"
+            entering={FadeInLeft.duration(SWAP_MS).easing(EASE)}
+            exiting={FadeOutLeft.duration(SWAP_MS).easing(EASE)}
+            style={[styles.composer, styles.composerLayer, Shadow.button]}>
+            <Avatar name={me.name} size={40} ring="#FFFFFF" />
+            <Pressable accessibilityRole="button" accessibilityLabel="Tulis postingan" onPress={openComposer} style={[styles.input, styles.fakeInput]}>
+              <AppText numberOfLines={1} color={draft ? Colors.text : Colors.textSecondary} style={styles.fakeInputText}>
+                {draft || 'Bagikan sesuatu...'}
               </AppText>
             </Pressable>
-          )}
-        </ScrollView>
-      )}
+            <Pressable accessibilityLabel="Unggah foto" onPress={pickPhotos} style={styles.composerIcon}>
+              <MaterialCommunityIcons name="image-plus" size={20} color="#FFFFFF" />
+            </Pressable>
+          </Animated.View>
+        )}
+      </View>
 
       <View style={styles.topics}>
         {TOPICS.map((t) => (
@@ -159,19 +173,57 @@ export function CommunityScreen() {
         ))}
       </View>
 
+      {/* hasil filter/pencarian berganti dengan memudar & bergeser halus, bukan melompat */}
       {posts.map((post) => (
-        <PostCard key={post.id} post={post} />
+        <Animated.View
+          key={post.id}
+          entering={FadeIn.duration(240)}
+          exiting={FadeOut.duration(160)}
+          layout={LinearTransition.duration(260).easing(EASE)}>
+          <PostCard post={post} />
+        </Animated.View>
       ))}
       {posts.length === 0 && (
-        <AppText variant="caption" style={styles.empty}>
-          {q ? `Tidak ada postingan untuk "${query.trim()}".` : 'Belum ada postingan.'}
-        </AppText>
+        <Animated.View entering={FadeIn.duration(240)}>
+          <AppText variant="caption" style={styles.empty}>
+            {q ? `Tidak ada postingan untuk "${query.trim()}".` : 'Belum ada postingan.'}
+          </AppText>
+        </Animated.View>
       )}
     </Screen>
+
+    {!searchMode && (
+      <PostComposerSheet
+        authorName={me.name}
+        photos={photos}
+        caption={draft}
+        topic={postTopic}
+        open={sheetOpen}
+        posting={posting}
+        onOpenChange={setSheetOpen}
+        onCaptionChange={setDraft}
+        onTopicChange={setPostTopic}
+        onAddPhotos={pickPhotos}
+        onRemovePhoto={(uri) => setPhotos((list) => list.filter((x) => x !== uri))}
+        onDiscard={discard}
+        onSubmit={publish}
+      />
+    )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  fakeInput: {
+    justifyContent: 'center',
+  },
+  fakeInputText: {
+    fontFamily: Fonts.body,
+    fontSize: 15,
+  },
   headerButton: {
     width: 46,
     height: 46,
@@ -179,6 +231,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // kolom posting & pencarian ditumpuk di slot yang sama supaya animasinya tidak menggeser layout
+  composerSlot: {
+    height: 56,
+    borderRadius: Radius.pill,
+  },
+  composerLayer: {
+    ...StyleSheet.absoluteFill,
   },
   composer: {
     flexDirection: 'row',
@@ -210,34 +270,6 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: Colors.primaryDark,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  thumbs: {
-    gap: 10,
-  },
-  thumb: {
-    width: 84,
-    height: 84,
-    borderRadius: Radius.sm,
-    overflow: 'hidden',
-    backgroundColor: Colors.surface,
-  },
-  addThumb: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: Colors.blueMid,
-  },
-  remove: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(34, 50, 74, 0.7)',
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -151,7 +151,16 @@ function Sheet({ dialog }: { dialog: Extract<DialogState, { kind: 'sheet' }> }) 
           <View style={[styles.optionIcon, { backgroundColor: o.destructive ? Colors.redSoft : Colors.primarySoft }]}>
             <Feather name={o.icon} size={18} color={o.destructive ? Colors.red : Colors.primary} />
           </View>
-          <AppText style={[styles.optionLabel, o.destructive && { color: Colors.red }]}>{o.label}</AppText>
+          <View style={styles.flex}>
+            <AppText style={[styles.optionLabel, o.destructive && { color: Colors.red }]} numberOfLines={1}>
+              {o.label}
+            </AppText>
+            {!!o.sublabel && (
+              <AppText variant="caption" numberOfLines={1}>
+                {o.sublabel}
+              </AppText>
+            )}
+          </View>
         </Pressable>
       ))}
       <Pressable onPress={closeDialog} style={[styles.button, styles.cancel, styles.sheetCancel]}>

@@ -4,6 +4,7 @@ import { useRef, useState, type ComponentRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
+import { openImages } from '@/components/ui/image-viewer';
 import { Colors, Fonts, Radius } from '@/constants/theme';
 import type { PhotoSource } from '@/lib/community-store';
 
@@ -41,18 +42,19 @@ export function PhotoCarousel({ photos, height = 220 }: { photos: PhotoSource[];
               const i = Math.round(e.nativeEvent.contentOffset.x / width);
               if (i !== index) setIndex(i);
             }}>
-            {photos.map((photo, i) =>
-              photo ? (
-                <Image
-                  key={i}
-                  source={typeof photo === 'string' ? { uri: photo } : photo}
-                  style={{ width, height }}
-                  contentFit="cover"
-                />
-              ) : (
-                <LinearGradient key={i} colors={PLACEHOLDERS[i % PLACEHOLDERS.length]} style={{ width, height }} />
-              )
-            )}
+            {photos.map((photo, i) => (
+              <Pressable key={i} accessibilityLabel={`Lihat foto ${i + 1}`} onPress={() => openImages(photos, i)}>
+                {photo ? (
+                  <Image
+                    source={typeof photo === 'string' ? { uri: photo } : photo}
+                    style={{ width, height }}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <LinearGradient colors={PLACEHOLDERS[i % PLACEHOLDERS.length]} style={{ width, height }} />
+                )}
+              </Pressable>
+            ))}
           </ScrollView>
         )}
         {photos.length > 1 && (

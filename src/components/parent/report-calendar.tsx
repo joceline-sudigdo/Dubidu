@@ -7,14 +7,9 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
-import {
-  children,
-  formatLongDate,
-  MONTHS,
-  sessionReports,
-  toISODate,
-  type SessionReport,
-} from '@/data/parent';
+import { formatLongDate, MONTHS, toISODate, type SessionReport } from '@/data/parent';
+import { useChildren } from '@/lib/children-store';
+import { useReports } from '@/lib/reports-store';
 
 import { Avatar } from './avatar';
 import { ChildSwitcher } from './child-switcher';
@@ -39,13 +34,24 @@ export function buildMonth(year: number, month: number) {
 }
 
 export function ReportCalendar() {
-  const latest = sessionReports[0].date;
-  const [child, setChild] = useState(children[0]);
+  const children = useChildren();
+  const [childId, setChildId] = useState(children[0]?.id);
+  const child = children.find((c) => c.id === childId) ?? children[0];
+  const { reports: sessionReports } = useReports(child?.id);
+  const latest = sessionReports[0]?.date ?? toISODate(new Date());
   const [cursor, setCursor] = useState(() => {
     const [y, m] = latest.split('-').map(Number);
     return { year: y, month: m - 1 };
   });
   const [selected, setSelected] = useState(latest);
+  // begitu report card anak termuat, buka bulan & tanggal laporan terbaru
+  const [shownFor, setShownFor] = useState<string | undefined>();
+  if (sessionReports.length && shownFor !== child?.id) {
+    const [y, m] = sessionReports[0].date.split('-').map(Number);
+    setShownFor(child?.id);
+    setCursor({ year: y, month: m - 1 });
+    setSelected(sessionReports[0].date);
+  }
 
   const today = toISODate(new Date());
   const days = buildMonth(cursor.year, cursor.month);
@@ -59,7 +65,7 @@ export function ReportCalendar() {
 
   return (
     <>
-      <ChildSwitcher value={child} onChange={setChild} />
+      {child && <ChildSwitcher value={child} onChange={(c) => setChildId(c.id)} />}
 
       <ClayCard style={styles.calendar}>
         <View style={styles.monthRow}>
@@ -117,7 +123,7 @@ export function ReportCalendar() {
       <View style={styles.dateRow}>
         <MaterialCommunityIcons name="calendar-text" size={22} color={Colors.primary} />
         <AppText style={styles.dateTitle}>{formatLongDate(selected)}</AppText>
-        {report && <Pill label={`Sesi #${report.number}`} tone="red" />}
+        {report && <Pill inRow label={`Sesi #${report.number}`} tone="red" />}
       </View>
 
       {report ? (
@@ -137,12 +143,14 @@ function SessionCard({ report }: { report: SessionReport }) {
       <View style={styles.teacherRow}>
         <Avatar name={report.teacher} size={52} ring="#FFFFFF" />
         <View style={styles.flex}>
-          <AppText style={styles.teacher}>{report.teacher}</AppText>
+          <AppText style={styles.teacher} numberOfLines={2}>
+            {report.teacher}
+          </AppText>
           <AppText variant="caption" color={Colors.primary}>
             Shadow Teacher
           </AppText>
         </View>
-        <Pill label={report.time} tone="blue" size="md" />
+        <Pill inRow label={report.time} tone="blue" size="md" />
       </View>
 
       <View style={styles.scores}>
@@ -150,12 +158,16 @@ function SessionCard({ report }: { report: SessionReport }) {
           const t = Tones[s.tone];
           return (
             <View key={s.label} style={[styles.score, { backgroundColor: t.bg, borderColor: t.edge }]}>
-              <AppText style={styles.scoreLabel}>{s.label}</AppText>
+              <AppText style={styles.scoreLabel} numberOfLines={2}>
+                {s.label}
+              </AppText>
               <View style={styles.scoreValueRow}>
                 <MaterialCommunityIcons name="star" size={16} color={t.fg} />
                 <AppText style={[styles.scoreValue, { color: t.fg }]}>{s.value.toFixed(1)}</AppText>
               </View>
-              <AppText style={[styles.scoreStatus, { color: t.fg }]}>{s.status}</AppText>
+              <AppText style={[styles.scoreStatus, { color: t.fg }]} numberOfLines={1}>
+                {s.status}
+              </AppText>
             </View>
           );
         })}
@@ -173,7 +185,7 @@ function SessionCard({ report }: { report: SessionReport }) {
       <Highlight icon="volume-2" tone="red" title="Catatan Sensori" text={report.sensoryNote} />
 
       <PrimaryButton
-        title={`Buka Laporan Lengkap Sesi #${report.number}`}
+        title="Buka Laporan Lengkap"
         icon="arrow-right"
         onPress={() => router.push({ pathname: '/report-card/[id]', params: { id: report.id } })}
       />
@@ -363,13 +375,17 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 16,
   },
+  // grid 3 kolom: aspek penilaian bisa 3–7, jangan dipaksa satu baris
   scores: {
     flexDirection: 'row',
-    gap: 10,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   score: {
-    flex: 1,
+    flexBasis: '30%',
+    flexGrow: 1,
     alignItems: 'center',
+    paddingHorizontal: 6,
     borderRadius: Radius.md,
     borderWidth: 1,
     borderBottomWidth: 3,
@@ -379,6 +395,8 @@ const styles = StyleSheet.create({
   scoreLabel: {
     fontFamily: Fonts.body,
     fontSize: 13,
+    lineHeight: 17,
+    textAlign: 'center',
     color: Colors.text,
   },
   scoreValueRow: {

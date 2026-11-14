@@ -132,7 +132,8 @@ export default function BandingkanAnakScreen() {
           <PrimaryButton
             key={c.id}
             title={matching.connected.includes(c.id) ? 'Buka Chat' : `Ajukan ke ${c.initials}`}
-            icon={matching.connected.includes(c.id) ? 'message-circle' : 'send'}
+            icon={matching.connected.includes(c.id) ? undefined : 'send'}
+            leadingIcon={matching.connected.includes(c.id) ? 'chat' : undefined}
             color={i === 0 ? A_COLOR : Colors.primaryDark}
             onPress={() => connectChild(c)}
             style={styles.flex}

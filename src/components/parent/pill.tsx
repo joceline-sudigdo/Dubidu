@@ -14,6 +14,8 @@ type Props = {
   icon?: ComponentProps<typeof Feather>['name'];
   iconRight?: boolean;
   size?: 'sm' | 'md';
+  // true bila Pill berada di dalam baris (row): ditengahkan vertikal, tidak menempel ke atas
+  inRow?: boolean;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
 };
@@ -25,6 +27,7 @@ export function Pill({
   icon,
   iconRight,
   size = 'sm',
+  inRow,
   onPress,
   style,
 }: Props) {
@@ -39,6 +42,7 @@ export function Pill({
       onPress={onPress}
       style={({ pressed }) => [
         styles.pill,
+        inRow && styles.inRow,
         isMd && styles.md,
         { backgroundColor: solid ? t.solid : t.bg },
         isMd && Shadow.soft,
@@ -64,6 +68,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
+  inRow: {
+    alignSelf: 'center',
+  },
   md: {
     paddingHorizontal: 16,
     paddingVertical: 9,
@@ -71,6 +78,7 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
+    flexShrink: 1,
   },
   labelMd: {
     fontSize: 14,

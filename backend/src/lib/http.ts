@@ -41,7 +41,8 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     if (err.code === "P2025") return res.status(404).json({ error: "Data tidak ditemukan" });
   }
   if (err instanceof Error && err.name === "MulterError") {
-    return res.status(400).json({ error: err.message });
+    const tooLarge = (err as { code?: string }).code === "LIMIT_FILE_SIZE";
+    return res.status(tooLarge ? 413 : 400).json({ error: tooLarge ? "Ukuran file maksimal 4 MB" : err.message });
   }
   console.error(err);
   res.status(500).json({ error: "Terjadi kesalahan di server" });

@@ -2,7 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import type { ComponentProps } from 'react';
+import { useEffect, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { bearSource } from '@/components/parent/bear-avatar';
@@ -10,20 +10,28 @@ import { ClayCard } from '@/components/parent/clay-card';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { ScreenHeader } from '@/components/parent/screen-header';
-import type { Tone } from '@/components/parent/tones';
+import { TagRow } from '@/components/parent/tag-row';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { SecureNote } from '@/components/ui/secure-note';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { childMatchScore, needLabels, seekingChildren } from '@/data/teacher';
-import { connectChild, declineRequest } from '@/lib/child-matching-store';
-
-const TAG_TONES: Tone[] = ['red', 'blue', 'green'];
+import { connectChild, declineRequest, loadChildMatches, useChildMatching } from '@/lib/child-matching-store';
 
 // detail profil anak dari permintaan match / tombol "Lihat profil lengkap"
 export default function PermintaanMatchScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const child = seekingChildren.find((c) => c.id === id) ?? seekingChildren[0];
+  useChildMatching(); // tampil ulang setelah daftar anak dimuat
+  // id bisa berupa id anak (dari Cari Anak) atau id pengajuan (dari notifikasi permintaan)
+  const child = seekingChildren.find((c) => c.id === id || c.requestId === id);
+
+  useEffect(() => {
+    if (!child) loadChildMatches();
+  }, [child]);
+
+  if (!child) {
+    return <Screen header={<ScreenHeader title="Permintaan Match" />}>{null}</Screen>;
+  }
   const match = childMatchScore(child);
 
   return (
@@ -59,7 +67,7 @@ export default function PermintaanMatchScreen() {
             <AppText style={styles.name}>
               {child.initials} · {child.age} tahun
             </AppText>
-            <Pill label="Siswa Baru" tone="blue" solid />
+            <Pill inRow label="Siswa Baru" tone="blue" solid />
           </View>
           <View style={styles.inline}>
             <Feather name="map-pin" size={16} color={Colors.primary} />
@@ -67,11 +75,7 @@ export default function PermintaanMatchScreen() {
               {child.area}
             </AppText>
           </View>
-          <View style={styles.tags}>
-            {needLabels(child.needs).map((l, i) => (
-              <Pill key={l} label={l} tone={TAG_TONES[i % TAG_TONES.length]} size="md" />
-            ))}
-          </View>
+          <TagRow tags={needLabels(child.needs)} max={3} />
           <IconRow icon="target" title="Tujuan Utama" text={child.goal} />
         </View>
       </ClayCard>

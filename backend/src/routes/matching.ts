@@ -12,17 +12,7 @@ import { blendScore, getAiInsightsWithin, type AiInsight } from "../lib/aiMatchi
 import { me, requireAuth, requireRole } from "../lib/auth.js";
 import { todayRangeWib } from "../lib/dates.js";
 import { forbidden, HttpError, notFound, param, parse } from "../lib/http.js";
-import {
-  childSkills,
-  cityLabel,
-  cityOf,
-  distanceKm,
-  matchScore,
-  SKILL_KEY,
-  SKILL_LABEL,
-  skillMap,
-  strongestDifference,
-} from "../lib/matching.js";
+import { childSkills, cityLabel, cityOf, distanceKm, matchReasons, matchScore, SKILL_KEY, SKILL_LABEL, skillMap, strongestDifference } from "../lib/matching.js";
 import { notify } from "../lib/notify.js";
 import { displayName, initials, presentChild } from "../lib/present.js";
 import { sendMessage } from "./chat.js";
@@ -64,21 +54,24 @@ function pairScore(child: ChildRow, teacher: TeacherRow) {
   const distance = distanceKm(child.parent, teacher.user);
   const childCity = cityOf(child.domicile ?? child.parent.domicile);
   const teacherCity = cityOf(teacher.user.domicile);
+  const input = {
+    childSkills: childSkills(child),
+    teacherLevels: teacher.skills,
+    rating: teacher.rating,
+    reviewCount: teacher.reviewCount,
+    sameCity: Boolean(childCity && childCity === teacherCity),
+    distanceKm: distance,
+  };
   return {
     distance,
-    score: matchScore({
-      childSkills: childSkills(child),
-      teacherLevels: teacher.skills,
-      rating: teacher.rating,
-      reviewCount: teacher.reviewCount,
-      sameCity: Boolean(childCity && childCity === teacherCity),
-      distanceKm: distance,
-    }),
+    score: matchScore(input),
+    why: matchReasons({ ...input, childName: child.name, teacherCity: cityLabel(teacher.user.domicile) }),
   };
 }
 
 /** Statistik teacher untuk kartu: jumlah sesi selesai & tingkat respons chat */
-async function teacherStats(teacherUserIds: string[]) {
+/** Sesi selesai & tingkat respons chat per teacher (dipakai juga oleh GET /auth/me) */
+export async function teacherStats(teacherUserIds: string[]) {
   const [sessions, participations] = await Promise.all([
     prisma.session.findMany({
       where: { status: "DONE", engagement: { teacherUserId: { in: teacherUserIds } } },
@@ -116,7 +109,14 @@ async function loadOwnChild(req: Parameters<typeof me>[0], childId: string) {
 
 /** Semua kartu teacher untuk anak ini, urut kecocokan (AI dipakai untuk kandidat teratas). */
 async function rankTeachers(child: ChildRow, opts: { onlyIds?: string[]; waitAi?: number } = {}) {
-  const skipped = await prisma.matchSkip.findMany({ where: { actorId: child.parentId, childId: child.id }, select: { teacherUserId: true } });
+  // teacher yang pernah dilewati ditaruh paling belakang (yang paling lama dilewati muncul lebih dulu),
+  // jadi daftar tidak pernah habis walau jumlah teacher sedikit (mis. akun demo)
+  const skips = await prisma.matchSkip.findMany({
+    where: { actorId: child.parentId, childId: child.id },
+    select: { teacherUserId: true, createdAt: true },
+  });
+  const skippedAt = new Map(skips.map((s) => [s.teacherUserId, s.createdAt.getTime()]));
+  const recycledOrder = (id: string) => skippedAt.get(id) ?? -Infinity;
   const applications = await prisma.application.findMany({ where: { childId: child.id }, select: { teacherUserId: true, status: true } });
   const appByTeacher = new Map(applications.map((a) => [a.teacherUserId, a.status]));
 
@@ -125,14 +125,14 @@ async function rankTeachers(child: ChildRow, opts: { onlyIds?: string[]; waitAi?
       verificationStatus: "VERIFIED",
       // hanya teacher dari "dunia" yang sama (demo ↔ demo, nyata ↔ nyata)
       user: { isActive: true, isDemo: child.parent.isDemo },
-      ...(opts.onlyIds ? { userId: { in: opts.onlyIds } } : { userId: { notIn: skipped.map((s) => s.teacherUserId) } }),
+      ...(opts.onlyIds ? { userId: { in: opts.onlyIds } } : {}),
     },
     include: TEACHER_INCLUDE,
   });
 
   const scored = teachers
     .map((t) => ({ t, ...pairScore(child, t) }))
-    .sort((a, b) => b.score - a.score || b.t.rating - a.t.rating);
+    .sort((a, b) => recycledOrder(a.t.userId) - recycledOrder(b.t.userId) || b.score - a.score || b.t.rating - a.t.rating);
 
   const top = opts.onlyIds ? scored : scored.slice(0, AI_CANDIDATES);
   const { insights, pending } = await getAiInsightsWithin(
@@ -142,7 +142,7 @@ async function rankTeachers(child: ChildRow, opts: { onlyIds?: string[]; waitAi?
   const stats = await teacherStats(top.map((s) => s.t.userId));
 
   const cards = top
-    .map(({ t, score, distance }) => {
+    .map(({ t, score, distance, why }) => {
       const ai = insights.get(`${child.id}:${t.userId}`);
       const st = stats.get(t.userId)!;
       return {
@@ -166,11 +166,14 @@ async function rankTeachers(child: ChildRow, opts: { onlyIds?: string[]; waitAi?
         ruleScore: score,
         matchPercent: Math.min(99, blendScore(score, ai)),
         ai: aiView(ai),
+        // alasan kecocokan yang bisa dijelaskan (dari rumus skor); alasan AI dipakai bila tersedia
+        reasons: ai?.reasons.length ? ai.reasons : why.reasons,
+        caution: ai?.caution ?? why.caution,
         connected: appByTeacher.has(t.userId),
         applicationStatus: appByTeacher.get(t.userId) ?? null,
       };
     })
-    .sort((a, b) => b.matchPercent - a.matchPercent || b.rating - a.rating);
+    .sort((a, b) => recycledOrder(a.id) - recycledOrder(b.id) || b.matchPercent - a.matchPercent || b.rating - a.rating);
 
   return { cards, aiPending: pending };
 }
@@ -209,7 +212,7 @@ matchingRouter.post("/teachers/:teacherId/skip", requireRole("PARENT"), async (r
   await prisma.matchSkip.upsert({
     where: { actorId_childId_teacherUserId: { actorId: me(req).id, childId, teacherUserId: teacher.userId } },
     create: { actorId: me(req).id, childId, teacherUserId: teacher.userId },
-    update: {},
+    update: { createdAt: new Date() }, // dilewati lagi → tetap dihitung sebagai skip hari ini
   });
   res.json(await teacherListResponse(child, me(req).id));
 });

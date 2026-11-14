@@ -22,8 +22,10 @@ export function ClayCard({ children, tone = 'white', onPress, style }: Props) {
   const content = <View style={[styles.card, Shadow.clay, colors, style]}>{children}</View>;
 
   if (!onPress) return content;
+  // ukuran luar (flex/width) dipindah ke pembungkus supaya kartu yang bisa diklik tetap sama lebar
+  const { flex, width, alignSelf } = StyleSheet.flatten(style) ?? {};
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
+    <Pressable onPress={onPress} style={({ pressed }) => [{ flex, width, alignSelf }, pressed && styles.pressed]}>
       {content}
     </Pressable>
   );

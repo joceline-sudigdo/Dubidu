@@ -2,11 +2,12 @@ import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams } from 'expo-router';
-import type { ComponentProps } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState, type ComponentProps } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
+import { BearAvatar } from '@/components/parent/bear-avatar';
 import { ClayCard } from '@/components/parent/clay-card';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
@@ -15,10 +16,58 @@ import { Stars } from '@/components/parent/stars';
 import { Tones } from '@/components/parent/tones';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
+import { openImages } from '@/components/ui/image-viewer';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
-import { reportPhotos } from '@/data/images';
-import { children, formatLongDate, reportDetail as d, sessionReports } from '@/data/parent';
-import { showAlert } from '@/lib/dialog';
+import { EmptyState } from '@/components/parent/empty-state';
+import type { Tone } from '@/components/parent/tones';
+import { formatLongDate, type SessionReport } from '@/data/parent';
+import { api, errorMessage } from '@/lib/api';
+import { useChildren } from '@/lib/children-store';
+import { downloadPdf } from '@/lib/pdf';
+
+// detail report card dari server (GET /reports/:id)
+type ServerReport = SessionReport & {
+  childName: string;
+  verifiedAt: string;
+  teacherNote: string[];
+  improved: string[];
+  attention: string[];
+  homeTip: string | null;
+  aspects: { label: string; value: number; trend: string; delta: string; tone: Tone }[];
+  growthScore: number;
+  growthDelta: string;
+  photos: { url: string; caption: string | null }[];
+};
+
+const ASPECT_ICON: Record<string, string> = {
+  Fokus: 'head-lightbulb-outline',
+  Sosial: 'account-group-outline',
+  Sensori: 'ear-hearing',
+  Komunikasi: 'account-voice',
+  Kemandirian: 'human-child',
+  'Regulasi Emosi': 'emoticon-confused-outline',
+  Akademik: 'book-open-page-variant-outline',
+};
+
+const progressLabel = (score: number) => (score >= 4.5 ? 'Sangat Baik' : score >= 4 ? 'Baik' : score >= 3 ? 'Cukup' : 'Perlu Perhatian');
+
+/** Bentuk data server → bentuk yang dipakai layar ini */
+function toDetail(r: ServerReport) {
+  return {
+    verifiedAt: `Diverifikasi ${new Date(r.verifiedAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} WIB`,
+    weeklyProgress: progressLabel(r.growthScore),
+    weeklyNote: r.achievement ?? '',
+    teacherNote: r.teacherNote,
+    improved: r.improved,
+    improvedNote: r.achievement ?? '',
+    attention: r.attention,
+    homeTip: r.homeTip ?? '-',
+    aspects: r.aspects.map((a) => ({ ...a, icon: ASPECT_ICON[a.label] ?? 'star-circle-outline' })),
+    growthScore: r.growthScore,
+    growthDelta: r.growthDelta || '0%',
+    photos: r.photos.map((ph, i) => ({ url: ph.url, caption: ph.caption ?? `Foto ${i + 1}` })),
+  };
+}
 
 // teks dengan **tebal** jadi warna biru tebal
 function RichParagraph({ text }: { text: string }) {
@@ -39,9 +88,52 @@ function RichParagraph({ text }: { text: string }) {
 
 export default function ReportDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const report = sessionReports.find((r) => r.id === id) ?? sessionReports[0];
-  const child = children[0];
-  const soon = (title: string) => showAlert(title, 'Fitur ini akan segera tersedia.');
+  const children = useChildren();
+  const [report, setReport] = useState<ServerReport | null>(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!id) return;
+    api<ServerReport>(`/reports/${id}`)
+      .then(setReport)
+      .catch((e) => setError(errorMessage(e)));
+  }, [id]);
+
+  if (!report) {
+    return (
+      <Screen header={<ScreenHeader title="Report Card" />} edges={['top', 'bottom']}>
+        {error ? <EmptyState title="Report card tidak ditemukan" subtitle={error} /> : <ActivityIndicator color={Colors.primary} style={styles.loader} />}
+      </Screen>
+    );
+  }
+  const d = toDetail(report);
+  const found = children.find((c) => c.name === report.childName);
+  const child = {
+    name: report.childName,
+    fullName: found?.fullName ?? report.childName,
+    grade: found?.grade ?? '-',
+    gender: found?.gender,
+  };
+
+  const exportPdf = () =>
+    downloadPdf(`Report Card ${child.fullName}`, `Sesi ke-${report.number} · ${formatLongDate(report.date)} · ${report.teacher}`, [
+      {
+        title: 'Ringkasan Sesi',
+        rows: [
+          ['Anak', `${child.fullName} (${child.grade})`],
+          ['Shadow Teacher', report.teacher],
+          ['Waktu', report.time],
+          ['Progres minggu ini', d.weeklyProgress],
+        ],
+      },
+      { title: `Catatan dari ${report.teacher.split(' ')[0]}`, paragraphs: d.teacherNote.map((t) => t.replace(/\*\*/g, '')) },
+      { title: 'Yang Meningkat', bullets: d.improved, paragraphs: [d.improvedNote] },
+      { title: 'Perlu Perhatian', bullets: d.attention, paragraphs: [`Tips di rumah: ${d.homeTip}`] },
+      {
+        title: 'Penilaian Aspek Perkembangan',
+        rows: d.aspects.map((a) => [a.label, `${a.value.toFixed(1)} / 5 · ${a.trend}`] as [string, string]),
+      },
+    ]);
 
   return (
     <Screen
@@ -49,15 +141,15 @@ export default function ReportDetailScreen() {
       edges={['top', 'bottom']}
       footer={
         <View style={styles.footer}>
-          <Pressable onPress={() => soon('Unduh PDF')} style={[styles.secondary, Shadow.soft]}>
+          <Pressable onPress={exportPdf} style={[styles.secondary, Shadow.soft]}>
             <Feather name="download" size={18} color={Colors.primary} />
             <AppText style={styles.secondaryText}>Unduh PDF</AppText>
           </Pressable>
-          <PrimaryButton title="Beri Ulasan" leadingIcon="edit-3" onPress={() => soon('Beri ulasan')} style={styles.flex} />
+          <PrimaryButton title="Beri Ulasan" leadingIcon="edit-3" onPress={() => router.push({ pathname: '/beri-ulasan', params: { teacher: report.teacher } })} style={styles.flex} />
         </View>
       }>
       <View style={styles.metaRow}>
-        <Pill label="Laporan Resmi Terverifikasi" tone="green" icon="check-circle" />
+        <Pill inRow label="Laporan Resmi Terverifikasi" tone="green" icon="check-circle" />
         <View style={styles.metaTime}>
           <Feather name="clock" size={12} color={Colors.textSecondary} />
           <AppText variant="caption">{d.verifiedAt}</AppText>
@@ -66,11 +158,11 @@ export default function ReportDetailScreen() {
 
       <ClayCard style={styles.gap12}>
         <View style={styles.childRow}>
-          <Avatar name={child.fullName} size={60} ring="#FFFFFF" />
+          <BearAvatar gender={child.gender ?? 'female'} size={60} />
           <View style={styles.flex}>
             <View style={styles.inline}>
               <AppText style={styles.childName}>{child.fullName}</AppText>
-              <Pill label={child.grade} tone="blue" />
+              <Pill inRow label={child.grade} tone="blue" />
             </View>
             <View style={styles.inline}>
               <Feather name="calendar" size={13} color={Colors.textSecondary} />
@@ -167,6 +259,7 @@ export default function ReportDetailScreen() {
             </View>
             <View style={styles.trend}>
               <Pill
+                style={styles.centerPill}
                 label={a.trend}
                 tone={a.tone}
                 icon={a.tone === 'green' ? 'trending-up' : a.tone === 'red' ? 'alert-circle' : 'minus'}
@@ -194,7 +287,7 @@ export default function ReportDetailScreen() {
           </View>
           <Sparkline />
         </View>
-        <Pressable onPress={() => soon('Growth timeline')} style={styles.inline}>
+        <Pressable onPress={() => router.push('/growth-timeline')} style={styles.inline}>
           <AppText variant="link" style={{ fontSize: 14 }}>
             Lihat Growth Timeline Lengkap
           </AppText>
@@ -209,21 +302,22 @@ export default function ReportDetailScreen() {
           <AppText variant="caption">{d.photos.length} Foto Terlampir</AppText>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photos}>
-          {d.photos.map((caption, i) => (
+          {d.photos.map(({ url, caption }, i) => (
+            <Pressable
+              key={url}
+              accessibilityLabel={`Lihat foto ${caption}`}
+              onPress={() => openImages(d.photos.map((ph) => ({ source: ph.url, caption: ph.caption })), i)}>
             <LinearGradient
-              key={caption}
               colors={i % 2 ? [Colors.yellowSoft, '#FCE3A6'] : [Colors.blueSoft, Colors.blueMid]}
               style={styles.photo}>
-              {reportPhotos[i] && <Image source={reportPhotos[i]} style={StyleSheet.absoluteFill} contentFit="cover" />}
-              {!reportPhotos[i] && (
-                <MaterialCommunityIcons name="image-outline" size={36} color={Colors.textSecondary} />
-              )}
+              <Image source={{ uri: url }} style={StyleSheet.absoluteFill} contentFit="cover" />
               <View style={styles.photoCaption}>
                 <AppText style={styles.photoText} numberOfLines={2}>
                   {caption}
                 </AppText>
               </View>
             </LinearGradient>
+            </Pressable>
           ))}
         </ScrollView>
       </ClayCard>
@@ -287,6 +381,9 @@ function Sparkline() {
 }
 
 const styles = StyleSheet.create({
+  loader: {
+    marginTop: 48,
+  },
   flex: {
     flex: 1,
   },
@@ -402,6 +499,9 @@ const styles = StyleSheet.create({
   trend: {
     alignItems: 'center',
     gap: 2,
+  },
+  centerPill: {
+    alignSelf: 'center',
   },
   delta: {
     fontFamily: Fonts.body,

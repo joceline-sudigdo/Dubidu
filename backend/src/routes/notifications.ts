@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 
 import { prisma } from "../db.js";
+import { isDemoUser } from "../lib/access.js";
 import { me, requireAuth } from "../lib/auth.js";
 import { hhmm, shortDate, wibDate } from "../lib/dates.js";
 import { param, parse } from "../lib/http.js";
@@ -30,15 +31,21 @@ notificationsRouter.get("/", async (req, res) => {
     ? parse(z.enum(["CHAT", "BOOKING", "LAPORAN", "LAINNYA"]), req.query.category)
     : undefined;
   const limit = Math.min(Number(req.query.limit ?? 50), 100);
-  const [rows, unread] = await Promise.all([
+  const [rows, unread, demo] = await Promise.all([
     prisma.notification.findMany({ where: { userId, category }, orderBy: { createdAt: "desc" }, take: limit }),
     prisma.notification.count({ where: { userId, readAt: null } }),
+    isDemoUser(userId),
   ]);
+  // akun demo: notifikasi contoh dibuat saat seed sehingga lama-lama "kedaluwarsa".
+  // Waktunya digeser supaya notifikasi terbaru selalu ±30 menit lalu (urutan & jaraknya tetap).
+  const newest = rows[0]?.createdAt.getTime();
+  const shift = demo && newest ? Math.max(0, Date.now() - 30 * 60000 - newest) : 0;
+  const shown = (d: Date) => new Date(d.getTime() + shift);
   res.json({
     unread,
     items: rows.map((n) => ({
       id: n.id,
-      ...timing(n.createdAt),
+      ...timing(shown(n.createdAt)),
       category: n.category.toLowerCase(),
       icon: n.icon,
       tone: n.tone,
@@ -48,7 +55,7 @@ notificationsRouter.get("/", async (req, res) => {
       action: n.action,
       link: n.link,
       unread: n.readAt === null,
-      createdAt: n.createdAt,
+      createdAt: shown(n.createdAt),
     })),
   });
 });

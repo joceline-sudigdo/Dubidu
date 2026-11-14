@@ -82,8 +82,11 @@ teachersRouter.post("/me/documents", requireRole("TEACHER"), async (req, res) =>
   const profile = await prisma.teacherProfile.findUnique({ where: { userId: me(req).id } });
   if (!profile) throw notFound("Profil teacher");
   const doc = await prisma.teacherDocument.create({ data: { ...body, teacherId: profile.id } });
-  if (profile.verificationStatus === "UNVERIFIED" || profile.verificationStatus === "REJECTED") {
-    await prisma.teacherProfile.update({ where: { id: profile.id }, data: { verificationStatus: "PENDING" } });
+  // dokumen baru → (kembali) masuk antrian verifikasi admin
+  if (profile.verificationStatus !== "VERIFIED" && profile.verificationStatus !== "PENDING") {
+    await prisma.teacherProfile.update({ where: { id: profile.id }, data: { verificationStatus: "PENDING", submittedAt: new Date() } });
+  } else if (!profile.submittedAt) {
+    await prisma.teacherProfile.update({ where: { id: profile.id }, data: { submittedAt: new Date() } });
   }
   res.status(201).json(doc);
 });
@@ -98,7 +101,7 @@ teachersRouter.get("/:userId", async (req, res) => {
   await assertSameWorld(me(req), user.isDemo, "Shadow teacher");
   const t = user.teacherProfile;
   const [reviews, sessionsDone] = await Promise.all([
-    prisma.review.findMany({ where: { targetUserId: user.id }, include: { author: true }, orderBy: { createdAt: "desc" }, take: 10 }),
+    prisma.review.findMany({ where: { targetUserId: user.id, status: "VISIBLE" }, include: { author: true }, orderBy: { createdAt: "desc" }, take: 10 }),
     prisma.session.count({ where: { status: "DONE", engagement: { teacherUserId: user.id } } }),
   ]);
   res.json({
@@ -153,15 +156,18 @@ reviewsRouter.post("/", async (req, res) => {
     update: { rating: body.rating, comment: body.comment },
   });
 
-  // hitung ulang rata-rata rating di profil
+  await recomputeRating(body.targetUserId);
+  res.status(201).json(review);
+});
+
+/** Hitung ulang rata-rata rating di profil (ulasan yang disembunyikan admin tidak ikut dihitung). */
+export async function recomputeRating(targetUserId: string) {
   const agg = await prisma.review.aggregate({
-    where: { targetUserId: body.targetUserId },
+    where: { targetUserId, status: "VISIBLE" },
     _avg: { rating: true },
     _count: true,
   });
   const stats = { rating: Math.round((agg._avg.rating ?? 0) * 10) / 10, reviewCount: agg._count };
-  await prisma.teacherProfile.updateMany({ where: { userId: body.targetUserId }, data: stats });
-  await prisma.psychologistProfile.updateMany({ where: { userId: body.targetUserId }, data: stats });
-
-  res.status(201).json(review);
-});
+  await prisma.teacherProfile.updateMany({ where: { userId: targetUserId }, data: stats });
+  await prisma.psychologistProfile.updateMany({ where: { userId: targetUserId }, data: stats });
+}

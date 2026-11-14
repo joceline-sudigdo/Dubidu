@@ -8,6 +8,7 @@ import type { Gender } from './teacher';
 // ===== akun psikolog yang login =====
 
 export const psychologistProfile = {
+  profileId: '', // id PsychologistProfile di server (untuk jadwal)
   name: 'Amanda Putri, M.Psi.',
   shortName: 'Amanda',
   title: 'M.Psi., Psikolog',
@@ -64,7 +65,7 @@ export const consultations: Consultation[] = [
     child: 'Elisa',
     gender: 'female',
     age: 8,
-    parent: 'Mami Devi',
+    parent: 'Devi Anggraini',
     needs: ['Speech Delay', 'Sulit Fokus'],
     complaint:
       'Elisa sudah 8 sesi didampingi shadow teacher. Kami ingin tahu apakah perkembangannya sesuai, dan latihan apa yang bisa dilakukan di rumah.',
@@ -80,7 +81,7 @@ export const consultations: Consultation[] = [
     child: 'Keenan',
     gender: 'male',
     age: 7,
-    parent: 'Mami Larasati',
+    parent: 'Larasita Hadi',
     needs: ['ADHD', 'Sulit Fokus'],
     complaint:
       'Keenan sudah 5 sesi didampingi shadow teacher. Kami ingin tahu apakah perkembangannya sesuai, dan latihan apa yang bisa dilakukan di rumah.',
@@ -96,7 +97,7 @@ export const consultations: Consultation[] = [
     child: 'Bella',
     gender: 'female',
     age: 6,
-    parent: 'Mama Rini',
+    parent: 'Rini Hartati',
     needs: ['Membaca', 'Motorik Halus'],
     complaint: 'Bella masih kesulitan memegang pensil dan cepat lelah saat belajar membaca. Apakah perlu terapi okupasi?',
     day: 'Besok',
@@ -110,7 +111,7 @@ export const consultations: Consultation[] = [
     child: 'Dafa',
     gender: 'male',
     age: 5,
-    parent: 'Mama Fitri',
+    parent: 'Fitri Handayani',
     needs: ['Speech Delay'],
     complaint: 'Dafa sudah bisa sekitar 30 kata tapi belum menyusun kalimat. Kami ingin tahu target yang wajar untuk usianya.',
     day: 'Jumat, 6 Nov',
@@ -123,7 +124,7 @@ export const consultations: Consultation[] = [
     child: 'Joceline',
     gender: 'female',
     age: 9,
-    parent: 'Papi Alvin',
+    parent: 'Alvin Pratama',
     needs: ['Autisme'],
     complaint: 'Joceline sering tantrum saat rutinitas pagi berubah. Bagaimana cara menyiapkannya?',
     day: 'Senin, 26 Okt',
@@ -141,7 +142,7 @@ export const consultations: Consultation[] = [
     child: 'Anya',
     gender: 'female',
     age: 6,
-    parent: 'Bunda Lia',
+    parent: 'Lia Kartika',
     needs: ['Sensorik', 'Sosial'],
     complaint: 'Anya menutup telinga dan menangis di tempat ramai. Apakah ini wajar?',
     day: 'Kamis, 22 Okt',
@@ -192,7 +193,8 @@ export type Applicant = {
   skills: string[];
   about: string;
   interview: string | null;
-  documents: { label: string; uploaded: boolean }[];
+  // url = file yang diunggah pendaftar (foto atau PDF), null untuk data contoh
+  documents: { label: string; uploaded: boolean; url?: string | null }[];
   // pengajuan yang sudah selesai ditinjau sebelumnya
   result?: VerifyResult;
 };
@@ -260,13 +262,13 @@ export const applicants: Applicant[] = [
 export const psychologistChatThreads: ChatThread[] = [
   {
     id: 'pc-devi',
-    name: 'Mami Devi',
+    name: 'Devi Anggraini',
     role: 'Orang Tua',
     verified: true,
     online: true,
     owner: 'psychologist',
     child: 'Elisa',
-    preview: 'Selamat pagi Mami Devi. Terima kasih, sudah saya baca. Nanti kita bahas latihan fokus...',
+    preview: 'Selamat pagi Bu Devi. Terima kasih, sudah saya baca. Nanti kita bahas latihan fokus...',
     time: '08:15',
     unread: 0,
     messages: [
@@ -281,7 +283,7 @@ export const psychologistChatThreads: ChatThread[] = [
         id: 'pd2',
         from: 'me',
         type: 'text',
-        text: 'Selamat pagi Mami Devi. Terima kasih, sudah saya baca. Nanti kita bahas latihan fokus dan stimulasi bicara yang bisa dilanjutkan di rumah.',
+        text: 'Selamat pagi Bu Devi. Terima kasih, sudah saya baca. Nanti kita bahas latihan fokus dan stimulasi bicara yang bisa dilanjutkan di rumah.',
         time: '08:15',
         read: true,
       },
@@ -289,7 +291,7 @@ export const psychologistChatThreads: ChatThread[] = [
   },
   {
     id: 'pc-larasati',
-    name: 'Mami Larasati',
+    name: 'Larasita Hadi',
     role: 'Orang Tua',
     verified: true,
     online: false,
@@ -316,13 +318,13 @@ export const psychologistChatThreads: ChatThread[] = [
     unread: 0,
     done: true,
     messages: [
-      { id: 'pa1', from: 'me', type: 'text', text: 'Kak Ayas, hasil observasi Anya sudah saya kirim ke Bunda Lia ya.', time: '16:40', read: true },
+      { id: 'pa1', from: 'me', type: 'text', text: 'Kak Ayas, hasil observasi Anya sudah saya kirim ke Bu Lia ya.', time: '16:40', read: true },
       { id: 'pa2', from: 'them', type: 'text', text: 'Siap, terima kasih ya atas pendampingannya hari ini.', time: '16:52' },
     ],
   },
   {
     id: 'pc-alvin',
-    name: 'Papi Alvin',
+    name: 'Alvin Pratama',
     role: 'Orang Tua',
     verified: true,
     online: false,
@@ -367,7 +369,7 @@ export const psychologistNotifications: PsychologistNotification[] = [
     category: 'booking',
     icon: 'video-outline',
     tone: 'blue',
-    title: 'Konsultasi 10:00 dengan Mami Devi',
+    title: 'Konsultasi 10:00 dengan Devi Anggraini',
     time: '09:00',
     body: 'Video call untuk Elisa (8 th, speech delay) dimulai 1 jam lagi.',
     action: 'Lihat Konsultasi',
@@ -391,7 +393,7 @@ export const psychologistNotifications: PsychologistNotification[] = [
     category: 'chat',
     icon: 'message-text-outline',
     tone: 'blue',
-    title: 'Pesan baru dari Mami Devi',
+    title: 'Pesan baru dari Devi Anggraini',
     time: '08:10',
     body: 'Selamat pagi Bu Amanda. Saya lampirkan laporan sesi terakhir dari Kak Ayas ya.',
     href: { pathname: '/chat/[id]', params: { id: 'pc-devi' } },
@@ -402,7 +404,7 @@ export const psychologistNotifications: PsychologistNotification[] = [
     category: 'booking',
     icon: 'calendar-check-outline',
     tone: 'green',
-    title: 'Booking baru dari Mami Larasati',
+    title: 'Booking baru dari Larasita Hadi',
     time: '20:15',
     body: 'Konsultasi online lewat panggilan suara untuk Keenan (7 th) hari ini pukul 13:30.',
     action: 'Lihat Detail',
@@ -416,7 +418,7 @@ export const psychologistNotifications: PsychologistNotification[] = [
     tone: 'green',
     title: 'Pembayaran konsultasi diterima',
     time: '28 Sep',
-    body: 'Rp160.000 dari konsultasi dengan Papi Alvin sudah masuk ke saldo.',
+    body: 'Rp160.000 dari konsultasi dengan Alvin Pratama sudah masuk ke saldo.',
     href: '/psikolog/pembayaran',
   },
 ];
@@ -424,7 +426,7 @@ export const psychologistNotifications: PsychologistNotification[] = [
 export const psychologistPayment = {
   amount: 160000,
   time: '11:15, Kemarin',
-  from: 'Papi Alvin',
+  from: 'Alvin Pratama',
   rate: 160000,
   fee: 0,
 };

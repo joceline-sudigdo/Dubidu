@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { KeyboardAvoidingView, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -14,9 +14,25 @@ type Props = {
   step?: { current: number; total: number };
   showBack?: boolean;
   children: ReactNode;
+  // dipanggil sekali saat pengguna sudah menggulir sampai bagian bawah (atau isi muat tanpa digulir)
+  onReachEnd?: () => void;
 };
 
-export function FormScreen({ title, subtitle, step, showBack = true, children }: Props) {
+const END_THRESHOLD = 48;
+
+export function FormScreen({ title, subtitle, step, showBack = true, children, onReachEnd }: Props) {
+  const size = useRef({ view: 0, content: 0 });
+  const reached = useRef(false);
+  const reach = () => {
+    if (reached.current || !onReachEnd) return;
+    reached.current = true;
+    onReachEnd();
+  };
+  // isi lebih pendek dari layar → dianggap sudah terbaca semua
+  const checkFits = () => {
+    if (size.current.view > 0 && size.current.content > 0 && size.current.content <= size.current.view + END_THRESHOLD) reach();
+  };
+
   return (
     <View style={styles.root}>
       <LinearGradient
@@ -37,6 +53,23 @@ export function FormScreen({ title, subtitle, step, showBack = true, children }:
         {/* Android edge-to-edge nggak auto resize, jadi pakai padding di semua platform */}
         <KeyboardAvoidingView style={styles.flex} behavior="padding">
           <ScrollView
+            onLayout={(e) => {
+              size.current.view = e.nativeEvent.layout.height;
+              checkFits();
+            }}
+            onContentSizeChange={(_, h) => {
+              size.current.content = h;
+              checkFits();
+            }}
+            onScroll={
+              onReachEnd
+                ? (e) => {
+                    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+                    if (layoutMeasurement.height + contentOffset.y >= contentSize.height - END_THRESHOLD) reach();
+                  }
+                : undefined
+            }
+            scrollEventThrottle={100}
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"

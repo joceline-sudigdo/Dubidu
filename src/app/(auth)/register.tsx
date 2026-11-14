@@ -9,7 +9,7 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { TextField } from '@/components/ui/text-field';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { useParentRegistration, type Role } from '@/context/parent-registration';
-import { showAlert } from '@/lib/dialog';
+import { contactError, contactTakenError, noErrors, requiredError } from '@/lib/validation';
 
 const MIN_PASSWORD = 8;
 
@@ -21,23 +21,42 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [agreed, setAgreed] = useState(false);
+  // pesan error per kolom, diisi saat menekan Next
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  const [checking, setChecking] = useState(false);
 
   const passwordLongEnough = password.length >= MIN_PASSWORD;
   const mismatch = confirm.length > 0 && confirm !== password;
-  const canSubmit =
-    fullName.trim().length > 0 &&
-    contact.trim().length > 0 &&
-    passwordLongEnough &&
-    confirm === password &&
-    agreed;
 
-  const submit = () => {
-    if (role === 'teacher') {
-      showAlert('Segera hadir', 'Pendaftaran Shadow Teacher akan segera tersedia.');
+  // pesan kolom hilang begitu pengguna memperbaikinya
+  const edit = (key: string, set: (v: string) => void) => (v: string) => {
+    set(v);
+    if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }));
+  };
+
+  const submit = async () => {
+    const next = {
+      fullName: requiredError(fullName, 'Nama lengkap', 2),
+      contact: contactError(contact),
+      password: password.length >= MIN_PASSWORD ? undefined : `Kata sandi minimal ${MIN_PASSWORD} karakter.`,
+      confirm: !confirm ? 'Ulangi kata sandi.' : confirm !== password ? 'Kata sandi tidak sama.' : undefined,
+      // shadow teacher menyetujui S&K di halaman tersendiri pada langkah berikutnya
+      agreed: role === 'teacher' || agreed ? undefined : 'Setujui Syarat & Ketentuan dan Kebijakan Privasi untuk melanjutkan.',
+    };
+    setErrors(next);
+    if (!noErrors(next)) return;
+    // email/HP yang sudah terdaftar langsung diberi tahu di langkah ini
+    setChecking(true);
+    const taken = await contactTakenError(contact);
+    setChecking(false);
+    if (taken) {
+      setErrors({ contact: taken });
       return;
     }
     update('account', { fullName: fullName.trim(), contact: contact.trim(), password });
-    router.push('/parent/identity');
+    // shadow teacher wajib membaca S&K khusus dulu sebelum mengisi data pendaftaran
+    if (role === 'teacher') router.push('/daftar-teacher/syarat');
+    else router.push('/parent/identity');
   };
 
   return (
@@ -63,7 +82,8 @@ export default function RegisterScreen() {
         placeholder="Contoh: John Doe"
         autoComplete="name"
         value={fullName}
-        onChangeText={setFullName}
+        onChangeText={edit('fullName', setFullName)}
+        error={errors.fullName}
       />
       <TextField
         label="Email atau nomor HP"
@@ -73,7 +93,8 @@ export default function RegisterScreen() {
         autoCapitalize="none"
         autoComplete="email"
         value={contact}
-        onChangeText={setContact}
+        onChangeText={edit('contact', setContact)}
+        error={errors.contact}
       />
       <TextField
         label="Kata Sandi"
@@ -82,7 +103,8 @@ export default function RegisterScreen() {
         password
         autoComplete="new-password"
         value={password}
-        onChangeText={setPassword}
+        onChangeText={edit('password', setPassword)}
+        error={errors.password}
       />
       <TextField
         label="Konfirmasi Kata Sandi"
@@ -91,8 +113,8 @@ export default function RegisterScreen() {
         password
         autoComplete="new-password"
         value={confirm}
-        onChangeText={setConfirm}
-        error={mismatch ? 'Kata sandi tidak sama' : undefined}
+        onChangeText={edit('confirm', setConfirm)}
+        error={errors.confirm ?? (mismatch ? 'Kata sandi tidak sama.' : undefined)}
       />
 
       <View style={styles.rule}>
@@ -106,21 +128,47 @@ export default function RegisterScreen() {
         </AppText>
       </View>
 
+      {role === 'teacher' ? (
+        <View style={styles.teacherNote}>
+          <Feather name="file-text" size={18} color={Colors.primary} />
+          <AppText variant="caption" style={styles.termsText}>
+            Di langkah berikutnya kamu akan membaca dan menyetujui Syarat & Ketentuan Shadow Teacher sebelum mengisi data
+            pendaftaran.
+          </AppText>
+        </View>
+      ) : (
       <Pressable
         accessibilityRole="checkbox"
         accessibilityState={{ checked: agreed }}
-        onPress={() => setAgreed((a) => !a)}
+        onPress={() => {
+          setAgreed((a) => !a);
+          setErrors((e) => ({ ...e, agreed: undefined }));
+        }}
         style={styles.terms}>
         <View style={[styles.checkbox, agreed && styles.checkboxOn]}>
           {agreed && <Feather name="check" size={16} color="#FFFFFF" />}
         </View>
         <AppText variant="caption" style={styles.termsText}>
-          Saya menyetujui <AppText style={styles.termsLink}>Syarat & Ketentuan</AppText> dan{' '}
-          <AppText style={styles.termsLink}>Kebijakan Privasi</AppText> Dubidu
+          Saya menyetujui{' '}
+          <AppText style={styles.termsLink} onPress={() => router.push({ pathname: '/legal/[type]', params: { type: 'terms' } })}>
+            Syarat & Ketentuan
+          </AppText>{' '}
+          dan{' '}
+          <AppText style={styles.termsLink} onPress={() => router.push({ pathname: '/legal/[type]', params: { type: 'privacy' } })}>
+            Kebijakan Privasi
+          </AppText>{' '}
+          Dubidu
         </AppText>
       </Pressable>
+      )}
 
-      <PrimaryButton title="Next" disabled={!canSubmit} onPress={submit} />
+      {!!errors.agreed && (
+        <AppText variant="caption" color={Colors.red}>
+          {errors.agreed}
+        </AppText>
+      )}
+
+      <PrimaryButton title={checking ? 'Memeriksa…' : 'Next'} disabled={checking} onPress={submit} />
 
       <View style={styles.footer}>
         <AppText variant="body" color={Colors.textSecondary}>
@@ -167,6 +215,13 @@ function RoleCard({
 }
 
 const styles = StyleSheet.create({
+  teacherNote: {
+    flexDirection: 'row',
+    gap: 10,
+    padding: 14,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.primarySoft,
+  },
   roles: {
     flexDirection: 'row',
     gap: 12,

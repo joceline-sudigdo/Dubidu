@@ -20,28 +20,42 @@ type FeatherName = ComponentProps<typeof Feather>['name'];
 
 export const plusBenefits: Record<PlusRole, { icon: FeatherName; title: string; text: string }[]> = {
   teacher: [
-    { icon: 'repeat', title: 'Swipe tanpa batas', text: 'Lihat semua profil anak tanpa kuota harian' },
+    { icon: 'repeat', title: 'Skip tanpa batas', text: 'Lihat semua profil anak tanpa kuota harian' },
     { icon: 'trending-up', title: 'Profil lebih terlihat', text: 'Muncul lebih atas di pencarian orang tua' },
     { icon: 'percent', title: 'Komisi lebih rendah', text: 'Biaya platform turun dari 10% jadi 5%' },
     { icon: 'award', title: 'Badge Plus', text: 'Tanda pendamping aktif & profesional' },
   ],
   parent: [
-    { icon: 'repeat', title: 'Swipe tanpa batas', text: 'Lihat semua shadow teacher tanpa kuota harian' },
+    { icon: 'repeat', title: 'Skip tanpa batas', text: 'Lihat semua shadow teacher tanpa kuota harian' },
     { icon: 'message-circle', title: 'Chat banyak pendamping', text: 'Diskusi dengan beberapa shadow teacher sekaligus' },
     { icon: 'users', title: 'Tambah lebih dari 1 anak', text: 'Kelola profil & report card untuk semua anak' },
     { icon: 'heart', title: 'Diskon konsultasi 20%', text: 'Hemat saat konsultasi dengan psikolog mitra' },
   ],
 };
 
+// fitur singkat untuk chip di kartu Plus beranda
+export const plusHighlights: Record<PlusRole, { icon: FeatherName; label: string }[]> = {
+  parent: [
+    { icon: 'repeat', label: 'Unlimited skip' },
+    { icon: 'users', label: 'Multi anak' },
+    { icon: 'heart', label: 'Diskon 20%' },
+  ],
+  teacher: [
+    { icon: 'repeat', label: 'Unlimited skip' },
+    { icon: 'trending-up', label: 'Boost profil' },
+    { icon: 'percent', label: 'Komisi 5%' },
+  ],
+};
+
 export const plusCompare: Record<PlusRole, { label: string; free: string | boolean; plus: string | boolean }[]> = {
   teacher: [
-    { label: 'Swipe per hari', free: '5 anak', plus: 'Tanpa batas' },
+    { label: 'Skip per hari', free: '5 anak', plus: 'Tanpa batas' },
     { label: 'Biaya platform', free: '10%', plus: '5%' },
     { label: 'Boost profil', free: false, plus: true },
     { label: 'Badge Plus', free: false, plus: true },
   ],
   parent: [
-    { label: 'Swipe per hari', free: '5 teacher', plus: 'Tanpa batas' },
+    { label: 'Skip per hari', free: '5 teacher', plus: 'Tanpa batas' },
     { label: 'Chat pendamping', free: '1 aktif', plus: 'Tanpa batas' },
     { label: 'Profil anak', free: '1 anak', plus: 'Tanpa batas' },
     { label: 'Diskon psikolog', free: false, plus: '20%' },

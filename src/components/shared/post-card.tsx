@@ -1,24 +1,17 @@
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
-import { Pressable, Share, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
 import { ClayCard } from '@/components/parent/clay-card';
 import { Pill } from '@/components/parent/pill';
 import { AppText } from '@/components/ui/app-text';
+import { ChatIcon } from '@/components/ui/chat-icon';
 import { Colors, Fonts, Radius } from '@/constants/theme';
-import {
-  commentCount,
-  deletePost,
-  formatCount,
-  hidePost,
-  likeCount,
-  toggleLike,
-  useCommunity,
-  type FeedPost,
-} from '@/lib/community-store';
+import { commentCount, deletePost, formatCount, hidePost, likeCount, reportContent, toggleLike, toggleSave, type FeedPost, useCommunity } from '@/lib/community-store';
 import { showActionSheet, showAlert } from '@/lib/dialog';
+import { sharePost } from '@/lib/share';
 
 import { PhotoCarousel } from './photo-carousel';
 
@@ -41,8 +34,15 @@ export function PostCard({ post, detail, onDeleted }: Props) {
     showActionSheet({
       title: 'Postingan',
       options: [
-        { label: 'Simpan postingan', icon: 'bookmark', onPress: () => showAlert('Postingan tersimpan') },
-        { label: 'Bagikan', icon: 'share-2', onPress: () => Share.share({ message: `${post.author}: ${post.text}` }) },
+        {
+          label: community.saved.includes(post.id) ? 'Hapus dari tersimpan' : 'Simpan postingan',
+          icon: 'bookmark',
+          onPress: () =>
+            toggleSave(post.id)
+              ? showAlert('Postingan tersimpan', 'Lihat lagi kapan saja di Profil > Postingan Tersimpan.')
+              : showAlert('Dihapus dari tersimpan'),
+        },
+        { label: 'Bagikan', icon: 'share-2', onPress: () => sharePost(post) },
         ...(post.mine
           ? [
               {
@@ -79,7 +79,13 @@ export function PostCard({ post, detail, onDeleted }: Props) {
                 onPress: () =>
                   showAlert('Laporkan postingan?', 'Tim Dubidu akan meninjau postingan ini.', [
                     { text: 'Batal', style: 'cancel' },
-                    { text: 'Laporkan', style: 'destructive', onPress: () => showAlert('Laporan terkirim') },
+                    {
+                      text: 'Laporkan',
+                      style: 'destructive',
+                      onPress: async () => {
+                        if (await reportContent('POST', post.id, 'Konten tidak pantas')) showAlert('Laporan terkirim');
+                      },
+                    },
                   ]),
               },
             ]),
@@ -89,13 +95,13 @@ export function PostCard({ post, detail, onDeleted }: Props) {
   return (
     <ClayCard onPress={detail ? undefined : openDetail} style={styles.post}>
       <View style={styles.head}>
-        <Avatar name={post.author} size={42} />
+        <Avatar name={post.author} size={42} source={post.avatarUrl ? { uri: post.avatarUrl } : undefined} />
         <View style={styles.flex}>
           <View style={styles.authorRow}>
             <AppText style={styles.author} numberOfLines={1}>
               {post.author}
             </AppText>
-            <Pill label={post.role} tone={roleTone(post.role)} />
+            <Pill inRow label={post.role} tone={roleTone(post.role)} />
           </View>
           <AppText variant="caption">{post.time}</AppText>
         </View>
@@ -127,7 +133,7 @@ export function PostCard({ post, detail, onDeleted }: Props) {
           accessibilityLabel="Komentar"
           onPress={detail ? undefined : openDetail}
           style={[styles.action, { borderColor: Colors.primary }]}>
-          <Feather name="message-circle" size={17} color={Colors.primary} />
+          <ChatIcon size={17} color={Colors.primary} />
           <AppText style={[styles.actionText, { color: Colors.primary }]}>
             {formatCount(commentCount(community, post))} Komentar
           </AppText>

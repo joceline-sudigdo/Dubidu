@@ -37,7 +37,6 @@ export const config = {
 
   // --- Pembayaran ---
   platformFeePercent: Number(process.env.PLATFORM_FEE_PERCENT ?? 10),
-  promoCodes: { DUBIDUSAYANG: 10 } as Record<string, number>, // kode → diskon %
   get midtransServerKey() {
     return env("MIDTRANS_SERVER_KEY");
   },

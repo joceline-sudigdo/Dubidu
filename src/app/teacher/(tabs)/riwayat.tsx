@@ -1,17 +1,20 @@
 import Feather from '@expo/vector-icons/Feather';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
 import { useState, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { BearAvatar } from '@/components/parent/bear-avatar';
 import { ClayCard } from '@/components/parent/clay-card';
+import { EmptyFill, EmptyState } from '@/components/parent/empty-state';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { TabHeader } from '@/components/parent/screen-header';
 import { Segmented } from '@/components/parent/segmented';
 import type { Tone } from '@/components/parent/tones';
+import { TagRow } from '@/components/parent/tag-row';
 import { AppText } from '@/components/ui/app-text';
+import { ChatIcon } from '@/components/ui/chat-icon';
+import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import {
   seekingChildren,
@@ -29,17 +32,32 @@ const STATUS: Record<ApplicationStatus, { label: string; tone: Tone; solid: bool
 
 export default function TeacherRiwayatScreen() {
   const [tab, setTab] = useState<0 | 1>(0);
+  const empty = tab === 0 ? students.length === 0 : teacherApplications.length === 0;
 
   return (
-    <Screen>
+    <Screen fill={empty}>
       <TabHeader title="Riwayat" />
       <Segmented
-        labels={[`Sedang Diasuh (${students.length})`, `Riwayat Pengajuan (${teacherApplications.length})`]}
+        labels={[`Diasuh (${students.length})`, `Pengajuan (${teacherApplications.length})`]}
         value={tab}
         onChange={setTab}
       />
 
-      {tab === 0 ? (
+      {empty ? (
+        <EmptyFill>
+          <ClayCard>
+            <EmptyState
+              title={tab === 0 ? 'Belum ada anak yang diasuh' : 'Belum ada pengajuan'}
+              subtitle={
+                tab === 0
+                  ? 'Anak dampinganmu muncul di sini setelah kontrak disetujui orang tua.'
+                  : 'Ajukan diri ke anak yang membutuhkan pendamping, riwayatnya tampil di sini.'
+              }
+            />
+          </ClayCard>
+          <PrimaryButton title="Cari Anak" leadingIcon="search" onPress={() => router.push('/teacher/cari-anak')} />
+        </EmptyFill>
+      ) : tab === 0 ? (
         students.map((s) => <StudentCard key={s.id} student={s} />)
       ) : (
         <ClayCard style={styles.list}>
@@ -64,9 +82,10 @@ export default function TeacherRiwayatScreen() {
                 <View style={styles.flex}>
                   <View style={styles.appTop}>
                     <AppText style={styles.appName} numberOfLines={1}>
-                      {a.initials} · {a.age} tahun
+                      {a.initials}
+                      {a.age > 0 ? ` · ${a.age} tahun` : ''}
                     </AppText>
-                    <Pill label={status.label} tone={status.tone} solid={status.solid} size="md" />
+                    <Pill inRow label={status.label} tone={status.tone} solid={status.solid} size="md" />
                   </View>
                   <AppText variant="caption">Diajukan {a.date}</AppText>
                   <Pressable onPress={action.onPress} style={[styles.link, styles.appLink]}>
@@ -86,7 +105,7 @@ export default function TeacherRiwayatScreen() {
 }
 
 function StudentCard({ student }: { student: Student }) {
-  const progress = student.done / student.total;
+  const progress = student.total > 0 ? Math.min(1, student.done / student.total) : 0;
   const percent = Math.round(progress * 1000) / 10;
 
   return (
@@ -95,12 +114,11 @@ function StudentCard({ student }: { student: Student }) {
         <BearAvatar gender={student.gender} size={72} online />
         <View style={styles.flex}>
           <AppText style={styles.name}>
-            {student.name} · {student.age} tahun
+            {student.name}
+            {student.age > 0 ? ` · ${student.age} tahun` : ''}
           </AppText>
           <View style={styles.tags}>
-            {student.tags.map((t) => (
-              <Pill key={t.label} label={t.label} tone={t.tone} solid size="md" />
-            ))}
+            <TagRow tags={student.tags} solid stacked />
           </View>
         </View>
       </View>
@@ -131,7 +149,7 @@ function StudentCard({ student }: { student: Student }) {
           accessibilityLabel={`Chat dengan ${student.parent}`}
           onPress={() => router.push({ pathname: '/chat/[id]', params: { id: student.chatId } })}
           style={[styles.chatBtn, Shadow.soft]}>
-          <MaterialCommunityIcons name="message-text" size={22} color={Colors.text} />
+          <ChatIcon size={24} color={Colors.text} />
         </Pressable>
         <Pressable
           onPress={() => router.push({ pathname: '/kontrak/[id]', params: { id: student.id } })}
@@ -185,10 +203,9 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 18,
   },
+  // blok biasa (bukan row + wrap) supaya baris badge selebar kolom kartu, tidak tembus keluar
   tags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    alignSelf: 'stretch',
     marginTop: 8,
   },
   infoBox: {

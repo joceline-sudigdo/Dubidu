@@ -1,15 +1,26 @@
 import Feather from '@expo/vector-icons/Feather';
 import { Image } from 'expo-image';
+import { router } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { ClayCard } from '@/components/parent/clay-card';
 import { Pill } from '@/components/parent/pill';
 import { AppText } from '@/components/ui/app-text';
 import { Colors, Fonts, Radius } from '@/constants/theme';
+import { doobieTopics } from '@/data/doobie';
+import { getSession } from '@/lib/session';
 
-export function DoobieCard({ message, topics }: { message: string; topics: string[] }) {
-  const [topic, setTopic] = useState(topics[0]);
+// pilih topik / ketik / mic di sini, lanjut ngobrol di halaman chat Doobie
+export function DoobieCard({ message }: { message: string }) {
+  const [text, setText] = useState('');
+  const topics = doobieTopics[getSession().role === 'teacher' ? 'teacher' : 'parent'];
+
+  const ask = () => {
+    if (!text.trim()) return;
+    router.push({ pathname: '/doobie', params: { q: text.trim() } });
+    setText('');
+  };
 
   return (
     <ClayCard tone="blue" style={styles.doobie}>
@@ -24,24 +35,30 @@ export function DoobieCard({ message, topics }: { message: string; topics: strin
       </View>
       <View style={styles.askField}>
         <TextInput
+          value={text}
+          onChangeText={setText}
+          onSubmitEditing={ask}
+          returnKeyType="send"
           placeholder="Yuk tanya pada Doobie!"
           placeholderTextColor={Colors.placeholder}
           style={styles.askInput}
         />
-        <View style={styles.mic}>
-          <Feather name="mic" size={16} color="#FFFFFF" />
-        </View>
+        <Pressable
+          accessibilityLabel={text.trim() ? 'Kirim pertanyaan' : 'Kirim voice note'}
+          onPress={() => (text.trim() ? ask() : router.push({ pathname: '/doobie', params: { voice: '1' } }))}
+          style={styles.mic}>
+          <Feather name={text.trim() ? 'send' : 'mic'} size={16} color="#FFFFFF" />
+        </Pressable>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.topicRow}>
         {topics.map((t) => (
           <Pill
-            key={t}
-            label={t}
+            key={t.id}
+            label={t.label}
             size="md"
             tone="blue"
-            solid={t === topic}
-            onPress={() => setTopic(t)}
-            style={t !== topic && styles.topicIdle}
+            onPress={() => router.push({ pathname: '/doobie', params: { topic: t.id } })}
+            style={styles.topicIdle}
           />
         ))}
       </ScrollView>
@@ -98,9 +115,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // ruang bawah untuk bayangan pill topik (ScrollView memotong isi di luar batasnya)
   topicRow: {
     gap: 8,
-    paddingBottom: 4,
+    paddingTop: 2,
+    paddingBottom: 12,
   },
   topicIdle: {
     backgroundColor: '#FFFFFF',
