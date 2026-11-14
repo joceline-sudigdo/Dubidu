@@ -30,7 +30,7 @@ export function requiredError(value: string, label: string, min = 1) {
  */
 export async function contactTakenError(contact: string) {
   try {
-    const res = await api<{ available: boolean; message?: string }>('/auth/check-contact', { body: { contact: contact.trim() } });
+    const res = await api<{ available: boolean; message?: string }>('/auth/check-contact', { body: { contact: contact.trim() }, retry: true });
     return res.available ? undefined : (res.message ?? 'Email / nomor HP sudah terdaftar, silakan login.');
   } catch {
     return undefined;

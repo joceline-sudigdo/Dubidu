@@ -16,7 +16,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Kategori | Jumlah perubahan |
 | --- | --- |
 | Bug fixing | 38 |
-| Deployment & stabilisasi | 6 |
+| Deployment & stabilisasi | 7 |
 | UI/UX polishing | 26 |
 | Performance improvement | 6 |
 | Keamanan dasar | 12 |
@@ -75,6 +75,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Uji otomatis diperluas | 4 skenario baru: QRIS dinamis (CRC, validasi, sisip nominal, baca gambar QR) dan kunci akun demo |
 | Data demo shadow teacher | Akun demo teacher mendapat anak contoh di Cari Anak dan kuota "Lewati" dihitung di perangkat, sehingga alur lewati 5× → halaman Dubidu Plus selalu bisa didemokan; tombol "Ulang demo skip" untuk mengulang (sama seperti akun demo orang tua) (`src/lib/child-matching-store.ts`, `src/data/teacher.ts`) |
 | Akun demo teacher kedua | `ayas@dubidu.id` (Ayas Sudigdo, terverifikasi, level keahlian terisi) ditambahkan ke daftar akun demo dan dibuat otomatis oleh seed bila belum ada di database, supaya juri bisa mencoba dua teacher berbeda. Seed kini ikut berjalan setiap deploy (setelah migrasi), karena sebelumnya akun ini belum ada di database produksi sehingga login gagal (`backend/prisma/seed.ts`, `backend/vercel.json`, `src/data/dummy-accounts.json`) |
+| Tahan gangguan koneksi sesaat | Pesan "Tidak bisa terhubung ke server" kadang muncul saat memuat data, daftar, atau login akun demo. Penyebabnya: login memuat ±10 data sekaligus dan satu permintaan yang putus (sinyal HP, server/database paket gratis yang baru bangun) menggagalkan semuanya, tanpa percobaan ulang dan tanpa batas waktu. Kini: permintaan GET dan login diulang otomatis hingga 2× (jeda 0,7 dan 1,8 detik) saat koneksi putus atau server menjawab 502–504 (GET juga sekali saat 500), batas waktu 25 detik dengan pesan "Server sedang lambat merespons", upload diulang sekali, gagal memuat chat/komunitas tidak lagi menggagalkan login (dimuat ulang saat tab dibuka). Pendaftaran yang ternyata sudah masuk saat koneksi putus langsung dilanjutkan dengan login memakai kata sandi yang sama, bukan ditolak "email sudah terdaftar". Layar login & daftar diam-diam "membangunkan" server (`/api/health`) saat dibuka, sehingga jeda bangun ±3 detik sudah lewat sebelum tombol ditekan. Di server, pool koneksi database diatur untuk serverless supaya koneksi lama yang sudah putus tidak dipakai lagi (`src/lib/api.ts`, `src/lib/auth.ts`, `src/lib/sync.ts`, `src/lib/validation.ts`, `src/app/(auth)/login.tsx`, `src/app/(auth)/register.tsx`, `src/components/shared/chat-list-screen.tsx`, `src/components/shared/community-screen.tsx`, `backend/src/db.ts`) |
 
 ## 3. UI/UX polishing
 

@@ -4,7 +4,7 @@ import { toIsoDate } from '@/components/ui/date-field';
 import type { ParentRegistration } from '@/context/parent-registration';
 import accounts from '@/data/dummy-accounts.json';
 
-import { api, setToken, uploadFile } from './api';
+import { api, ApiError, setToken, uploadFile } from './api';
 import { registerForPush, unregisterPush } from './push';
 import { clearSession, setSession, type Session } from './session';
 import { loadAppData, resetAppData } from './sync';
@@ -77,28 +77,49 @@ async function startSession(token: string, user: BackendUser) {
 export async function login(contact: string, password: string) {
   const { token, user } = await api<{ token: string; user: BackendUser }>('/auth/login', {
     body: { contact: contact.trim(), password },
+    retry: true, // login aman dikirim ulang bila koneksi sempat putus
   });
   return startSession(token, user);
 }
 
+/**
+ * Kirim pendaftaran, aman bila koneksi putus di tengah jalan. Bila server menjawab "sudah terdaftar"
+ * karena percobaan sebelumnya sebenarnya sudah masuk (koneksi putus saat menunggu jawaban, atau
+ * upload dokumen sesudahnya gagal lalu pengguna menekan kirim lagi), akun itu dipakai dengan login
+ * memakai kata sandi yang sama. Hanya pemilik akun yang tahu kata sandinya, jadi email/HP milik
+ * orang lain tetap ditolak seperti biasa.
+ */
+async function sendRegistration<T extends { token: string; user: BackendUser }>(
+  body: { contact: string; password: string } & Record<string, unknown>,
+): Promise<T> {
+  try {
+    return await api<T>('/auth/register', { body, retry: true });
+  } catch (e) {
+    if (!(e instanceof ApiError) || e.status !== 409) throw e;
+    try {
+      return (await api<T>('/auth/login', { body: { contact: body.contact, password: body.password }, retry: true })) as T;
+    } catch {
+      throw e; // memang email/HP orang lain
+    }
+  }
+}
+
 /** Langkah terakhir pendaftaran orang tua (layar child-needs). */
 export async function registerParent(data: ParentRegistration) {
-  const res = await api<{ token: string; user: BackendUser; children: { id: string }[] }>('/auth/register', {
-    body: {
-      role: 'PARENT',
-      fullName: data.account.fullName,
-      contact: data.account.contact,
-      password: data.account.password,
-      domicile: data.identity.domicile || undefined,
-      child: {
-        name: data.child.name.split(' ')[0],
-        fullName: data.child.name,
-        birthDate: toIsoDate(data.child.birthDate),
-        gender: data.child.gender ? data.child.gender.toUpperCase() : undefined,
-        schoolLevel: data.child.schoolLevel ?? undefined,
-        domicile: data.child.domicile || data.identity.domicile || undefined,
-        conditions: data.needs.conditions,
-      },
+  const res = await sendRegistration<{ token: string; user: BackendUser; children?: { id: string }[] }>({
+    role: 'PARENT',
+    fullName: data.account.fullName,
+    contact: data.account.contact,
+    password: data.account.password,
+    domicile: data.identity.domicile || undefined,
+    child: {
+      name: data.child.name.split(' ')[0],
+      fullName: data.child.name,
+      birthDate: toIsoDate(data.child.birthDate),
+      gender: data.child.gender ? data.child.gender.toUpperCase() : undefined,
+      schoolLevel: data.child.schoolLevel ?? undefined,
+      domicile: data.child.domicile || data.identity.domicile || undefined,
+      conditions: data.needs.conditions,
     },
   });
   await setToken(res.token);
@@ -107,10 +128,12 @@ export async function registerParent(data: ParentRegistration) {
     const ktpUrl = await uploadFile(data.identity.ktpUri, 'ktp');
     await api('/auth/me', { method: 'PATCH', body: { ktpUrl } });
   }
-  if (data.needs.medicalRecordUri && res.children[0]) {
+  // jawaban login (pendaftaran yang ternyata sudah masuk) tidak membawa daftar anak → ambil dari server
+  const childId = res.children?.[0]?.id ?? (await api<{ id: string }[]>('/children').catch(() => []))[0]?.id;
+  if (data.needs.medicalRecordUri && childId) {
     // rekam medis selalu dokumen PDF
     const medicalRecordUrl = await uploadFile(data.needs.medicalRecordUri, 'rekam-medis', 'application/pdf');
-    await api(`/children/${res.children[0].id}`, { method: 'PATCH', body: { medicalRecordUrl } });
+    await api(`/children/${childId}`, { method: 'PATCH', body: { medicalRecordUrl } });
   }
   return startSession(res.token, res.user);
 }
@@ -120,14 +143,12 @@ const EXPERIENCE_YEARS: Record<string, number> = { '< 1 tahun': 0, '1-3 tahun': 
 
 /** Langkah terakhir pendaftaran shadow teacher (layar persetujuan). Akun langsung bisa login, menunggu verifikasi. */
 export async function registerTeacher({ account, identity, teacher }: ParentRegistration) {
-  const res = await api<{ token: string; user: BackendUser }>('/auth/register', {
-    body: {
-      role: 'TEACHER',
-      fullName: account.fullName,
-      contact: account.contact,
-      password: account.password,
-      domicile: identity.domicile || undefined,
-    },
+  const res = await sendRegistration<{ token: string; user: BackendUser }>({
+    role: 'TEACHER',
+    fullName: account.fullName,
+    contact: account.contact,
+    password: account.password,
+    domicile: identity.domicile || undefined,
   });
   await setToken(res.token);
   const years = EXPERIENCE_YEARS[teacher.experience ?? ''] ?? 0;

@@ -315,7 +315,7 @@ Rencana validasi: level keahlian diselaraskan dengan rubrik kompetensi yang disu
 - **Pembayaran dikonfirmasi manual.** QRIS dinamis mengisi nominal otomatis, tetapi lunas/tidaknya tetap dicek admin dari mutasi rekening (belum ada callback otomatis dari bank).
 - **Chat belum realtime penuh.** Di hosting serverless, pesan baru diambil tiap ±4 detik (polling), bukan lewat websocket.
 - **Push notification dan video call** hanya berjalan di APK hasil build (bukan Expo Go); push notification iOS belum dikonfigurasi.
-- **Server paket gratis bisa "tertidur".** Sebuah jadwal ping tiap 5 menit menjaga server tetap responsif; bila ping terlambat, permintaan pertama bisa butuh beberapa detik.
+- **Server paket gratis bisa "tertidur".** Sebuah jadwal ping tiap 5 menit menjaga server tetap responsif; bila ping terlambat, permintaan pertama bisa butuh beberapa detik. Aplikasi mengulang otomatis permintaan yang putus sesaat (hingga 2×, batas waktu 25 detik), sehingga pesan "Tidak bisa terhubung ke server" hanya muncul bila internet memang terputus.
 - **Daftar misi Doobie Rewards** di aplikasi masih bawaan (belum diambil dari konten web admin); klaim misi, saldo ikan, dan penukaran hadiah sudah tersimpan di server.
 - **Ketersediaan pendamping.** Hasil matching bergantung pada jumlah shadow teacher dan psikolog terverifikasi di tiap kota; akun sungguhan di kota tanpa pendamping akan melihat daftar kosong.
 - **Level keahlian** belum memakai rubrik klinis baku (lihat rencana validasi di bagian Smart Matching).

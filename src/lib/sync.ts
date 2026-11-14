@@ -609,8 +609,10 @@ export async function loadAppData(role: UserRole) {
   if (!cleared) resetAppData();
   await Promise.all([
     role === 'parent' ? loadParent() : role === 'teacher' ? loadTeacher() : loadPsychologist(),
-    loadThreads(),
-    loadCommunity(),
+    // chat & komunitas dimuat ulang saat halamannya dibuka, jadi gangguan sesaat di sini
+    // tidak boleh menggagalkan login (sebelumnya satu permintaan gagal = seluruh login gagal)
+    loadThreads().catch(() => {}),
+    loadCommunity().catch(() => {}),
     // konten dari web admin; kalau gagal, isi bawaan aplikasi tetap dipakai
     loadPlusPlans().catch(() => {}),
     loadDoobieTopics().catch(() => {}),

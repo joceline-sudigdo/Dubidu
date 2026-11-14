@@ -1,8 +1,8 @@
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
-import { router, type Href } from 'expo-router';
-import { useState } from 'react';
+import { router, useFocusEffect, type Href } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { Avatar } from '@/components/parent/avatar';
@@ -16,7 +16,7 @@ import { SecureNote } from '@/components/ui/secure-note';
 import { EdgeScroll } from '@/components/parent/edge-scroll';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import type { UserRole } from '@/lib/auth';
-import { useChatThreads } from '@/lib/chat-store';
+import { loadThreads, useChatThreads } from '@/lib/chat-store';
 import { getSession } from '@/lib/session';
 
 type Filter = 'all' | 'unread' | 'active' | 'done';
@@ -46,6 +46,12 @@ const SEARCH_PLACEHOLDER: Record<UserRole, string> = {
 export function ChatListScreen() {
   const role = getSession().role;
   const all = useChatThreads().filter((t) => t.owner === role);
+  // muat ulang daftar chat setiap tab dibuka (juga memulihkan bila gagal dimuat saat login)
+  useFocusEffect(
+    useCallback(() => {
+      loadThreads().catch(() => {});
+    }, []),
+  );
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
 

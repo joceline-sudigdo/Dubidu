@@ -1,6 +1,6 @@
 import AntDesign from '@expo/vector-icons/AntDesign';
 import { Link, router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
@@ -8,7 +8,7 @@ import { FormScreen } from '@/components/ui/form-screen';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { TextField } from '@/components/ui/text-field';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
-import { errorMessage } from '@/lib/api';
+import { errorMessage, warmUpServer } from '@/lib/api';
 import { demoAccounts, homeRoute, login, type UserRole } from '@/lib/auth';
 import { showActionSheet } from '@/lib/dialog';
 
@@ -23,6 +23,11 @@ export default function LoginScreen() {
   const [busy, setBusy] = useState(false);
 
   const [error, setError] = useState('');
+
+  // server dibangunkan selagi pengguna mengetik / memilih akun demo
+  useEffect(() => {
+    warmUpServer();
+  }, []);
 
   const canSubmit = contact.trim().length > 0 && password.length > 0 && !busy;
 

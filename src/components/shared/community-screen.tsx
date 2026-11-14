@@ -2,7 +2,8 @@ import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { BlurTargetView, BlurView } from "expo-blur";
 import * as ImagePicker from "expo-image-picker";
-import { useRef, useState, type ComponentRef } from "react";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useRef, useState, type ComponentRef } from "react";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import Animated, {
   Easing,
@@ -34,7 +35,7 @@ import {
   Radius,
   Shadow,
 } from "@/constants/theme";
-import { addPost, useCommunity } from "@/lib/community-store";
+import { addPost, loadCommunity, useCommunity } from "@/lib/community-store";
 import { showAlert } from "@/lib/dialog";
 import { getSession } from "@/lib/session";
 
@@ -58,6 +59,12 @@ const SWAP_MS = 280;
 export function CommunityScreen() {
   const me = getSession();
   const community = useCommunity();
+  // muat ulang postingan setiap tab dibuka (juga memulihkan bila gagal dimuat saat login)
+  useFocusEffect(
+    useCallback(() => {
+      loadCommunity().catch(() => {});
+    }, []),
+  );
   const [topic, setTopic] = useState<(typeof TOPICS)[number] | null>(null);
   const [searchMode, setSearchMode] = useState(false);
   const [query, setQuery] = useState("");

@@ -43,6 +43,15 @@ export class ApiError extends Error {
   }
 }
 
+const OFFLINE_MESSAGE = 'Tidak bisa terhubung ke server. Periksa koneksi internetmu.';
+const TIMEOUT_MESSAGE = 'Server sedang lambat merespons. Coba lagi sebentar lagi.';
+// server & database paket gratis bisa butuh beberapa detik untuk "bangun"; lebih dari ini dianggap gagal
+const TIMEOUT_MS = 25_000;
+// jeda sebelum percobaan ulang saat koneksi putus sesaat (sinyal HP, server baru bangun)
+const RETRY_DELAYS_MS = [700, 1800];
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // dipanggil saat token ditolak server (habis / akun dinonaktifkan) → aplikasi kembali ke login
 let onUnauthorized: (() => void) | null = null;
 export function setUnauthorizedHandler(handler: (() => void) | null) {
@@ -51,21 +60,59 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
-export async function api<T = unknown>(path: string, options: { method?: Method; body?: unknown } = {}): Promise<T> {
-  const token = await getToken();
-  let res: Response;
+type ApiOptions = {
+  method?: Method;
+  body?: unknown;
+  // ulangi otomatis bila koneksi putus. Selalu aktif untuk GET (aman diulang);
+  // untuk POST/PATCH hanya bila diminta (mis. login, yang aman dikirim dua kali)
+  retry?: boolean;
+};
+
+/** Satu kali kirim; koneksi gagal / waktu habis → ApiError status 0 */
+async function send(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    res = await fetch(`${API_URL}/api${path}`, {
-      method: options.method ?? (options.body !== undefined ? 'POST' : 'GET'),
-      headers: {
-        Accept: 'application/json',
-        ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-    });
+    return await fetch(url, { ...init, signal: controller.signal });
   } catch {
-    throw new ApiError(0, 'Tidak bisa terhubung ke server. Periksa koneksi internetmu.');
+    throw new ApiError(0, controller.signal.aborted ? TIMEOUT_MESSAGE : OFFLINE_MESSAGE);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function api<T = unknown>(path: string, options: ApiOptions = {}): Promise<T> {
+  const token = await getToken();
+  const method = options.method ?? (options.body !== undefined ? 'POST' : 'GET');
+  const canRetry = method === 'GET' || options.retry === true;
+  const init: RequestInit = {
+    method,
+    headers: {
+      Accept: 'application/json',
+      ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+  };
+  let res: Response | undefined;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      res = await send(`${API_URL}/api${path}`, init);
+    } catch (e) {
+      // koneksi putus sesaat → coba lagi beberapa kali sebelum menyerah
+      if (!canRetry || attempt >= RETRY_DELAYS_MS.length) throw e;
+      await sleep(RETRY_DELAYS_MS[attempt]!);
+      continue;
+    }
+    // server sedang bangun / gateway Vercel sibuk (502–504) → sama, coba lagi.
+    // GET juga diulang sekali saat 500 (mis. koneksi database lama yang sudah putus setelah server tidur)
+    const wakingUp = res.status >= 502 && res.status <= 504;
+    const staleDb = method === 'GET' && res.status === 500 && attempt === 0;
+    if (canRetry && (wakingUp || staleDb) && attempt < RETRY_DELAYS_MS.length) {
+      await sleep(RETRY_DELAYS_MS[attempt]!);
+      continue;
+    }
+    break;
   }
   const data = res.status === 204 ? null : await res.json().catch(() => null);
   if (!res.ok) {
@@ -77,7 +124,8 @@ export async function api<T = unknown>(path: string, options: { method?: Method;
     const detail = first?.message
       ? translateIssue(first.message, first.field ?? (Array.isArray(first.path) ? first.path.join('.') : ''))
       : undefined;
-    throw new ApiError(res.status, detail ?? toIndonesian(data?.error) ?? 'Terjadi kesalahan. Coba lagi.', data?.details);
+    const fallback = res.status >= 502 && res.status <= 504 ? TIMEOUT_MESSAGE : 'Terjadi kesalahan. Coba lagi.';
+    throw new ApiError(res.status, detail ?? toIndonesian(data?.error) ?? fallback, data?.details);
   }
   return data as T;
 }
@@ -134,7 +182,7 @@ export function translateIssue(message: string, field = ''): string {
 
 // pesan teknis berbahasa Inggris yang sering muncul (jaringan, upload, server)
 const ENGLISH_ERRORS: [RegExp, string][] = [
-  [/network request failed|failed to fetch|network error|load failed/i, 'Tidak bisa terhubung ke server. Periksa koneksi internetmu.'],
+  [/network request failed|failed to fetch|network error|load failed/i, OFFLINE_MESSAGE],
   [/timeout|timed out/i, 'Server terlalu lama merespons. Coba lagi sebentar lagi.'],
   [/file too large|payload too large|request entity too large/i, 'Ukuran file terlalu besar (maks. 4 MB).'],
   [/unexpected field|too many files/i, 'File yang dipilih tidak sesuai. Coba pilih ulang.'],
@@ -153,6 +201,17 @@ export function toIndonesian(message: unknown): string | undefined {
   for (const [pattern, text] of ENGLISH_ERRORS) if (pattern.test(message)) return text;
   if (LOOKS_ENGLISH.test(message)) return 'Terjadi kesalahan. Coba lagi.';
   return message;
+}
+
+/**
+ * "Bangunkan" server & database (paket gratis tertidur saat sepi) diam-diam begitu layar
+ * login/daftar dibuka, supaya saat tombol ditekan server sudah siap (bangun butuh ±3 detik).
+ */
+let lastWarmUp = 0;
+export function warmUpServer() {
+  if (Date.now() - lastWarmUp < 60_000) return;
+  lastWarmUp = Date.now();
+  fetch(`${API_URL}/api/health`).catch(() => {});
 }
 
 /** Pesan error yang aman ditampilkan ke pengguna (selalu bahasa Indonesia) */
@@ -175,7 +234,7 @@ export async function uploadFile(uri: string, folder: string, mimeType = 'image/
   } else {
     form.append('file', { uri, name, type: mimeType } as unknown as Blob);
   }
-  const { status, data } = await new Promise<{ status: number; data: { url?: string; error?: string } | null }>((resolve, reject) => {
+  const sendOnce = () => new Promise<{ status: number; data: { url?: string; error?: string } | null }>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${API_URL}/api/uploads?folder=${encodeURIComponent(folder)}`);
     if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
@@ -189,9 +248,15 @@ export async function uploadFile(uri: string, folder: string, mimeType = 'image/
       }
       resolve({ status: xhr.status, data: parsed });
     };
-    xhr.onerror = () => reject(new ApiError(0, 'Tidak bisa terhubung ke server. Periksa koneksi internetmu.'));
+    xhr.onerror = () => reject(new ApiError(0, OFFLINE_MESSAGE));
     xhr.ontimeout = () => reject(new ApiError(0, 'Upload terlalu lama. Coba foto yang lebih kecil.'));
     xhr.send(form);
+  });
+  // koneksi putus sesaat → ulangi sekali (file yang sama, aman diunggah ulang)
+  const { status, data } = await sendOnce().catch(async (e) => {
+    if (!(e instanceof ApiError) || e.message !== OFFLINE_MESSAGE) throw e;
+    await sleep(RETRY_DELAYS_MS[0]!);
+    return sendOnce();
   });
   if (status < 200 || status >= 300 || !data?.url) {
     throw new ApiError(status, toIndonesian(data?.error) ?? 'Upload gagal, coba file yang lebih kecil (maks. 4 MB).');
