@@ -2,18 +2,18 @@ import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Avatar } from '@/components/parent/avatar';
-import { EmptyState } from '@/components/parent/empty-state';
+import { EmptyFill, EmptyState } from '@/components/parent/empty-state';
 import { Pill } from '@/components/parent/pill';
 import { Screen } from '@/components/parent/screen';
 import { ScreenHeader } from '@/components/parent/screen-header';
 import { PostCard, roleTone } from '@/components/shared/post-card';
 import { AppText } from '@/components/ui/app-text';
 import { Colors, Fonts, Radius } from '@/constants/theme';
-import { addComment, commentCount, deleteComment, formatCount, loadComments, reportContent, type PostComment, useCommunity } from '@/lib/community-store';
+import { addComment, commentCount, deleteComment, formatCount, loadComments, loadCommunity, reportContent, type PostComment, useCommunity } from '@/lib/community-store';
 import { showActionSheet, showAlert } from '@/lib/dialog';
 import { getSession } from '@/lib/session';
 
@@ -24,16 +24,33 @@ export default function PostinganScreen() {
   const [text, setText] = useState('');
   const [newestFirst, setNewestFirst] = useState(false);
 
+  // dibuka dari tautan bagikan sebelum feed termuat → muat feed dulu sebelum menyatakan tidak ditemukan
+  const [checked, setChecked] = useState(false);
+  const found = community.posts.some((p) => p.id === id);
+
   // komentar dimuat dari server saat postingan dibuka
   useEffect(() => {
     if (id) loadComments(id).catch(() => {});
   }, [id]);
 
+  useEffect(() => {
+    if (found || checked) return;
+    loadCommunity()
+      .catch(() => {})
+      .finally(() => setChecked(true));
+  }, [found, checked]);
+
   const post = community.posts.find((p) => p.id === id);
   if (!post) {
     return (
-      <Screen header={<ScreenHeader title="Postingan" />}>
-        <EmptyState title="Postingan tidak ditemukan" subtitle="Mungkin sudah dihapus oleh penulisnya." />
+      <Screen header={<ScreenHeader title="Postingan" />} fill>
+        <EmptyFill>
+          {checked ? (
+            <EmptyState title="Postingan tidak ditemukan" subtitle="Mungkin sudah dihapus oleh penulisnya." />
+          ) : (
+            <ActivityIndicator color={Colors.primary} />
+          )}
+        </EmptyFill>
       </Screen>
     );
   }
@@ -127,7 +144,7 @@ function CommentItem({ comment, postId }: { comment: PostComment; postId: string
 
   return (
     <Animated.View entering={FadeInDown.duration(220)} style={styles.comment}>
-      <Avatar name={comment.author} size={38} />
+      <Avatar name={comment.author} size={38} source={comment.avatarUrl ? { uri: comment.avatarUrl } : undefined} />
       <View style={styles.flex}>
         <View style={styles.commentMeta}>
           <AppText style={styles.commentAuthor} numberOfLines={1}>

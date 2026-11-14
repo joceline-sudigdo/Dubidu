@@ -319,6 +319,8 @@ Rencana validasi: level keahlian diselaraskan dengan rubrik kompetensi yang disu
 - **Pencabutan penugasan oleh lembaga** diatur di Syarat & Ketentuan; dalam MVP laporan dari lembaga disampaikan lewat tim Dubidu (bantuan/admin), belum ada akun khusus lembaga untuk memberi peringatan langsung dari aplikasi.
 - **Kuota "Lewati" akun demo** dihitung di perangkat (bukan server) dan ditambah anak/teacher contoh, supaya alur skip → Dubidu Plus selalu bisa didemokan. Akun sungguhan memakai kuota dari server.
 - **Avatar anak** memakai ilustrasi sesuai gender (bukan foto asli anak) untuk menjaga privasi; foto profil akun demo adalah foto stok.
+- **Favorit** teacher & psikolog disimpan di perangkat per akun (belum tersinkron antar-HP).
+- **Tautan bagikan** (profil teacher & postingan) membuka aplikasi DUBIDU yang sudah terpasang; belum ada halaman web untuk penerima yang belum memasang aplikasi.
 - **Bahasa** aplikasi hanya Bahasa Indonesia; pesan error teknis dari server diterjemahkan di aplikasi.
 
 ---

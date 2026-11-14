@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
+import { FieldError } from '@/components/ui/field-error';
 import { FormScreen } from '@/components/ui/form-screen';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { SecureNote } from '@/components/ui/secure-note';
@@ -10,6 +11,7 @@ import { TextField } from '@/components/ui/text-field';
 import { UploadBox } from '@/components/ui/upload-box';
 import { Colors, Fonts } from '@/constants/theme';
 import { useParentRegistration } from '@/context/parent-registration';
+import { noErrors, requiredError } from '@/lib/validation';
 
 export default function IdentityScreen() {
   const { data, update } = useParentRegistration();
@@ -18,7 +20,18 @@ export default function IdentityScreen() {
   const [ktpUri, setKtpUri] = useState(data.identity.ktpUri);
   const [domicile, setDomicile] = useState(data.identity.domicile);
 
-  const canSubmit = !!ktpUri && domicile.trim().length > 0;
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+
+  const next = () => {
+    const found = {
+      ktp: ktpUri ? undefined : 'Unggah foto KTP atau kartu identitas.',
+      domicile: requiredError(domicile, 'Domisili', 3),
+    };
+    setErrors(found);
+    if (!noErrors(found)) return;
+    update('identity', { ktpUri, domicile: domicile.trim() });
+    router.push(isTeacher ? '/daftar-teacher/pendidikan' : '/parent/child-data');
+  };
 
   return (
     <FormScreen
@@ -33,8 +46,12 @@ export default function IdentityScreen() {
           title="Ketuk untuk unggah foto KTP"
           icon="camera"
           value={ktpUri}
-          onChange={setKtpUri}
+          onChange={(v) => {
+            setKtpUri(v);
+            setErrors((e) => ({ ...e, ktp: undefined }));
+          }}
         />
+        <FieldError message={errors.ktp} />
       </View>
 
       <View style={styles.group}>
@@ -45,18 +62,18 @@ export default function IdentityScreen() {
           icon="map-pin"
           placeholder="Contoh: Malang, Jawa Timur"
           value={domicile}
-          onChangeText={setDomicile}
+          onChangeText={(v) => {
+            setDomicile(v);
+            setErrors((e) => ({ ...e, domicile: undefined }));
+          }}
+          error={errors.domicile}
         />
       </View>
 
       <PrimaryButton
         title="Next"
-        disabled={!canSubmit}
         style={styles.button}
-        onPress={() => {
-          update('identity', { ktpUri, domicile: domicile.trim() });
-          router.push(isTeacher ? '/daftar-teacher/pendidikan' : '/parent/child-data');
-        }}
+        onPress={next}
       />
       <SecureNote />
     </FormScreen>

@@ -114,7 +114,7 @@ type Me = {
   } | null;
   children: ServerChild[];
   plan: { plan: 'MONTHLY' | 'YEARLY' } | null;
-  stats: { sessionsDone: number; points: number; joined: string };
+  stats: { sessionsDone: number; points: number; joined: string; responseRate?: number | null };
 };
 
 type Checkin = { days: { day: string; reward: number; status: string }[]; todayDone: boolean };
@@ -273,8 +273,7 @@ async function loadParent() {
       status: a.status === 'ACCEPTED' ? 'accepted' : a.status === 'PENDING' ? 'pending' : 'rejected',
     }))
   );
-  replace(notifications, notif.items.map(notificationFor));
-  setUnreadNotifications(notif.items.filter((n) => n.unread).map((n) => n.id));
+  applyParentNotifications(notif.items);
   replace(
     psychologists,
     psys.map((p) => ({
@@ -354,6 +353,8 @@ async function loadTeacher() {
     city: (me.user.domicile ?? '-').split(',').pop()?.trim() ?? '-',
     rating: t?.rating ?? 0,
     reviewCount: t?.reviewCount ?? 0,
+    // dihitung server dari chat yang dibalas; belum ada chat = 0%
+    responseRate: `${me.stats.responseRate ?? 0}%`,
     sessionsDone: me.stats.sessionsDone,
     joined: monthYear(me.stats.joined),
     about: t?.about ?? '',
@@ -434,24 +435,7 @@ async function loadTeacher() {
     teacherApplications,
     apps.map((a) => ({ id: a.id, initials: a.child.name, age: a.child.age ?? 0, gender: genderOf(a.child.gender), date: a.date, status: status(a.status) }))
   );
-  setUnreadNotifications(notif.items.filter((n) => n.unread).map((n) => n.id));
-  replace(
-    teacherNotifications,
-    notif.items.map(
-      (n): TeacherNotification => ({
-        id: n.id,
-        group: n.group === 'today' ? 'today' : 'yesterday',
-        category: n.category,
-        icon: n.icon ?? 'bell',
-        tone: n.tone ?? 'blue',
-        title: n.title,
-        time: n.time,
-        body: n.body,
-        action: n.action ?? undefined,
-        href: appLink(n.link, 'teacher') as TeacherNotification['href'],
-      })
-    )
-  );
+  applyTeacherNotifications(notif.items);
 }
 
 async function loadPsychologist() {
@@ -513,10 +497,42 @@ async function loadPsychologist() {
       )
   );
   replace(applicants, pending);
-  setUnreadNotifications(notif.items.filter((n) => n.unread).map((n) => n.id));
+  applyPsychologistNotifications(notif.items);
+}
+// ---------------------------------------------------------------------------
+// notifikasi per peran: dipakai saat login dan saat halaman Notifikasi dibuka
+
+function applyParentNotifications(items: ServerNotification[]) {
+  replace(notifications, items.map(notificationFor));
+  setUnreadNotifications(items.filter((n) => n.unread).map((n) => n.id));
+}
+
+function applyTeacherNotifications(items: ServerNotification[]) {
+  setUnreadNotifications(items.filter((n) => n.unread).map((n) => n.id));
+  replace(
+    teacherNotifications,
+    items.map(
+      (n): TeacherNotification => ({
+        id: n.id,
+        group: n.group === 'today' ? 'today' : 'yesterday',
+        category: n.category,
+        icon: n.icon ?? 'bell',
+        tone: n.tone ?? 'blue',
+        title: n.title,
+        time: n.time,
+        body: n.body,
+        action: n.action ?? undefined,
+        href: appLink(n.link, 'teacher') as TeacherNotification['href'],
+      })
+    )
+  );
+}
+
+function applyPsychologistNotifications(items: ServerNotification[]) {
+  setUnreadNotifications(items.filter((n) => n.unread).map((n) => n.id));
   replace(
     psychologistNotifications,
-    notif.items.map(
+    items.map(
       (n): PsychologistNotification => ({
         id: n.id,
         group: n.group === 'week' ? 'earlier' : n.group,
@@ -532,6 +548,15 @@ async function loadPsychologist() {
     )
   );
 }
+
+/** Muat ulang notifikasi terbaru (dipanggil setiap halaman Notifikasi dibuka) */
+export async function refreshNotifications(role: UserRole) {
+  const { items } = await api<{ items: ServerNotification[] }>('/notifications');
+  if (role === 'teacher') applyTeacherNotifications(items);
+  else if (role === 'psychologist') applyPsychologistNotifications(items);
+  else applyParentNotifications(items);
+}
+
 
 // harga paket Plus diatur admin (konten "plans")
 async function loadPlusPlans() {
