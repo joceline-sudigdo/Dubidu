@@ -17,6 +17,7 @@ import { errorMessage } from '@/lib/api';
 import { registerParent } from '@/lib/auth';
 import { addChild } from '@/lib/children-store';
 import { showAlert } from '@/lib/dialog';
+import { returnToAccountStep } from '@/lib/validation';
 
 export default function ChildNeedsScreen() {
   const { data, update, reset } = useParentRegistration();
@@ -61,6 +62,8 @@ export default function ChildNeedsScreen() {
       router.replace('/beranda');
       if (wantConsult) router.push('/konsultasi');
     } catch (e) {
+      // email/HP sudah terdaftar → kembali ke langkah buat akun, pesan tampil di kolomnya
+      if (!adding && returnToAccountStep(e)) return;
       showAlert(adding ? 'Profil anak belum tersimpan' : 'Pendaftaran belum berhasil', errorMessage(e));
     } finally {
       setSaving(false);

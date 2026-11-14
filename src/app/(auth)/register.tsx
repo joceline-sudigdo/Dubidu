@@ -1,6 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
-import { Link, router } from 'expo-router';
-import { useState, type ComponentProps } from 'react';
+import { Link, router, useFocusEffect } from 'expo-router';
+import { useCallback, useState, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
@@ -9,7 +9,7 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { TextField } from '@/components/ui/text-field';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { useParentRegistration, type Role } from '@/context/parent-registration';
-import { contactError, contactTakenError, noErrors, requiredError } from '@/lib/validation';
+import { contactError, contactTakenError, noErrors, requiredError, takeReturnedContactError } from '@/lib/validation';
 
 const MIN_PASSWORD = 8;
 
@@ -24,6 +24,14 @@ export default function RegisterScreen() {
   // pesan error per kolom, diisi saat menekan Next
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [checking, setChecking] = useState(false);
+
+  // dikembalikan dari langkah terakhir karena email/HP ternyata sudah terdaftar
+  useFocusEffect(
+    useCallback(() => {
+      const taken = takeReturnedContactError();
+      if (taken) setErrors({ contact: taken });
+    }, []),
+  );
 
   const passwordLongEnough = password.length >= MIN_PASSWORD;
   const mismatch = confirm.length > 0 && confirm !== password;

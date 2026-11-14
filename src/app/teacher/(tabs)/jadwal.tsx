@@ -15,7 +15,7 @@ import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { formatLongDate, MONTHS, toISODate } from '@/data/parent';
-import { students, teacherSessions, type TeacherSession } from '@/data/teacher';
+import { students, useTeacherSessions, type TeacherSession } from '@/data/teacher';
 
 export default function TeacherJadwalScreen() {
   // teacher baru belum punya anak dampingan: tampilkan ajakan cari anak, jangan crash
@@ -40,7 +40,9 @@ export default function TeacherJadwalScreen() {
 
 function StudentSchedule() {
   const [student, setStudent] = useState(students[0]);
-  const sessions = teacherSessions
+  // reaktif: setelah laporan terkirim, sesi langsung berubah jadi "Laporan observasi sudah dikirim"
+  const allSessions = useTeacherSessions();
+  const sessions = allSessions
     .filter((s) => s.student === student.id)
     .sort((a, b) => a.date.localeCompare(b.date));
   // default pilih sesi pertama yang laporannya belum dibuat
@@ -58,7 +60,7 @@ function StudentSchedule() {
 
   const changeStudent = (s: (typeof students)[number]) => {
     setStudent(s);
-    const list = teacherSessions.filter((x) => x.student === s.id).sort((a, b) => a.date.localeCompare(b.date));
+    const list = allSessions.filter((x) => x.student === s.id).sort((a, b) => a.date.localeCompare(b.date));
     const next = (list.find((x) => !x.reportDone) ?? list[list.length - 1])?.date;
     if (next) {
       setSelected(next);

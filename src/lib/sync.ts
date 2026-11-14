@@ -34,6 +34,7 @@ import {
   serverChildMatch,
   students,
   teacherApplications,
+  emitTeacherSessions,
   teacherSessions,
   teacherChatThreads,
   teacherNotifications,
@@ -397,6 +398,7 @@ async function loadTeacher() {
         attention: x.needsAttention,
       }))
   );
+  emitTeacherSessions();
   replace(
     students,
     engagements
@@ -645,6 +647,7 @@ export function resetAppData() {
   ] as unknown[][]) {
     list.length = 0;
   }
+  emitTeacherSessions();
   for (const map of [serverMatch, serverChildMatch] as Record<string, unknown>[]) {
     for (const key of Object.keys(map)) delete map[key];
   }

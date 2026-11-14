@@ -15,7 +15,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 
 | Kategori | Jumlah perubahan |
 | --- | --- |
-| Bug fixing | 34 |
+| Bug fixing | 36 |
 | Deployment & stabilisasi | 6 |
 | UI/UX polishing | 25 |
 | Performance improvement | 6 |
@@ -60,6 +60,8 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Ajukan perpanjangan kontrak & edit profil psikolog tidak terkirim | Perpanjangan kontrak hanya menampilkan pesan; "Tentang saya" & keahlian psikolog hanya tersimpan di HP | Permintaan perpanjangan dikirim ke pihak lain sebagai notifikasi; profil psikolog tersimpan di server | `POST /engagements/:id/extension-request`, `PATCH /psychologists/me`, `src/app/kontrak/[id].tsx` |
 | Psikolog tidak bisa melihat dokumen pendaftar | Mengetuk dokumen di halaman Tinjau hanya membuka penampil kosong | Dokumen dibuka dari file aslinya: PDF di penampil dokumen, foto (KTP) di penampil gambar | `src/app/psikolog/tinjau/[id].tsx`, `src/data/psychologist.ts` |
 | Batas ukuran upload tidak sama dengan server | Aplikasi menulis maks. 5 MB, server menolak di atas 4 MB, sehingga file 4–5 MB gagal tanpa alasan jelas | Aplikasi memakai batas 4 MB yang sama dengan server | `src/components/ui/upload-box.tsx` |
+| Laporan sesi masih bisa ditulis ulang | Setelah teacher mengirim laporan harian, kartu sesi di tab Jadwal tetap menampilkan "Tulis Laporan Sekarang" | Jadwal langsung berubah menjadi "Laporan observasi sudah dikirim" dengan tombol Lihat Laporan | `src/data/teacher.ts`, `src/app/teacher/(tabs)/jadwal.tsx`, `src/lib/sync.ts` |
+| Error email/HP terpakai muncul di langkah terakhir | Bila email/HP ternyata sudah terdaftar saat pendaftaran dikirim, pesan muncul di langkah Kebutuhan Anak / Persetujuan sehingga pengguna harus mundur jauh | Pengguna dibawa kembali ke langkah "Buat akun baru" dan pesannya tampil di kolom Email / No. HP | `src/lib/validation.ts`, `src/app/(auth)/register.tsx`, `src/app/(auth)/parent/child-needs.tsx`, `src/app/(auth)/daftar-teacher/persetujuan.tsx` |
 
 ## 2. Deployment & stabilisasi
 
@@ -97,9 +99,9 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Konsultasi psikolog saat pendaftaran | Orang tua yang belum tahu kondisi anak bisa memilih "Konsultasi ke Psikolog"; kondisi anak boleh dikosongkan dan setelah akun dibuat langsung diarahkan ke halaman pilih psikolog (`src/app/(auth)/parent/child-needs.tsx`) |
 | Halaman Notifikasi lebih ringkas | Kartu "Ruang Kabar" dan "Penyimpanan Aman" dihapus, daftar notifikasi langsung ditampilkan (`src/app/notifikasi.tsx`) |
 | Bagikan dengan tautan aplikasi | Bagikan profil teacher & postingan komunitas kini berisi kalimat pembuka yang hangat dan tautan yang langsung membuka halaman tersebut di aplikasi DUBIDU; postingan dari tautan dimuat otomatis (`src/lib/share.ts`, `src/app/postingan/[id].tsx`) |
-| Label & tombol sejajar | Label kecil (peran, status, jadwal, "% cocok") kini sejajar dengan teks di sebelahnya di 40 tempat pada semua peran, sebelumnya menempel ke atas atau rata kiri di kartu yang rata tengah; label tombol utama tetap satu baris dan mengecil otomatis sehingga tidak ada celah besar sebelum ikon (`src/components/parent/pill.tsx`, `src/components/ui/primary-button.tsx`) |
+| Label & tombol sejajar | Label kecil (peran, status, jadwal, "% cocok") kini sejajar dengan teks di sebelahnya di 40 tempat pada semua peran, sebelumnya menempel ke atas atau rata kiri di kartu yang rata tengah; label tombol utama tetap satu baris dengan ukuran font tetap (label panjang sedikit lebih kecil) sehingga ikon menempel dekat tulisan, misalnya "Selesai & Pilih Psikolog" (`src/components/parent/pill.tsx`, `src/components/ui/primary-button.tsx`) |
 | Dokumen diunggah sebagai PDF | Ijazah, sertifikat, dan CV saat pendaftaran teacher, serta rekam medis anak saat pendaftaran orang tua, kini memakai pemilih dokumen (PDF), bukan galeri foto; dokumen tampil sebagai kartu nama file yang bisa dibuka. KTP tetap foto (`src/components/ui/upload-box.tsx`, `src/app/(auth)/daftar-teacher/pendidikan.tsx`, `pengalaman.tsx`, `src/app/(auth)/parent/child-needs.tsx`, `src/lib/auth.ts`) |
-| Pill & kartu di baris geser tidak terpotong | Filter (Semua/Masuk/Keluar), chip anak, kartu Pengajuan Aktif, dan topik Doobie sebelumnya terpotong bagian bawah/bayangannya oleh ScrollView; kini diberi ruang tanpa mengubah jarak antarelemen (`src/components/parent/edge-scroll.tsx`, `src/components/shared/doobie-card.tsx`) |
+| Pill & kartu di baris geser tidak terpotong | Filter (Semua/Masuk/Keluar), chip anak, kartu Pengajuan Aktif, dan topik Doobie sebelumnya terpotong bagian bawah/bayangannya oleh ScrollView; kini diberi ruang tanpa mengubah jarak antarelemen. Badge kebutuhan/keahlian (mis. "ADHD & Fokus", "Sensori") di kartu teacher, kartu anak, kontrak, dan detail anak juga tidak lagi terpotong bagian bawahnya (`src/components/parent/edge-scroll.tsx`, `src/components/shared/doobie-card.tsx`, `src/components/parent/tag-row.tsx`) |
 | Bar Komunitas menempel & ketuk ulang tab | Saat digulir, kolom posting/pencarian menempel di atas dengan latar belakang ter-blur bening (tanpa lapisan putih) dari tepi atas layar sampai bawah bar, juga di Android lewat `BlurTargetView` (judul, tombol cari, dan filter topik ikut tergulir); jarak bar ke filter topik dilonggarkan. Di semua peran, mengetuk lagi ikon tab yang sedang aktif mengembalikan halaman ke atas (`src/components/shared/community-screen.tsx`, `src/components/parent/screen.tsx`, `src/components/navigation/role-tab-bar.tsx`) |
 
 ## 4. Performance improvement

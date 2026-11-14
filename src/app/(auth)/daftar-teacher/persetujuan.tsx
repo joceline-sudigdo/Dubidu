@@ -13,6 +13,7 @@ import { useParentRegistration } from '@/context/parent-registration';
 import { errorMessage } from '@/lib/api';
 import { registerTeacher } from '@/lib/auth';
 import { showAlert } from '@/lib/dialog';
+import { returnToAccountStep } from '@/lib/validation';
 
 const AGREEMENTS = [
   {
@@ -50,6 +51,8 @@ export default function PersetujuanScreen() {
       await registerTeacher(data);
       setSent(true);
     } catch (e) {
+      // email/HP sudah terdaftar → kembali ke langkah buat akun, pesan tampil di kolomnya
+      if (returnToAccountStep(e)) return;
       showAlert('Pendaftaran belum terkirim', errorMessage(e));
     } finally {
       setSending(false);

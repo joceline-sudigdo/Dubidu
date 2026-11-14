@@ -35,12 +35,13 @@ export function TagRow({ tags, solid, max = 2, stacked }: { tags: Tag[]; solid?:
 }
 
 const styles = StyleSheet.create({
-  // tidak boleh lebih lebar dari wadahnya (wadah di kartu sering row + wrap)
+  // tidak boleh lebih lebar dari wadahnya (wadah di kartu sering row + wrap).
+  // Tanpa overflow hidden: badge sudah mengecil sendiri (flexShrink), dan overflow hidden
+  // justru memotong bayangan/tepi bawah badge
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    overflow: 'hidden',
     maxWidth: '100%',
     flexShrink: 1,
   },

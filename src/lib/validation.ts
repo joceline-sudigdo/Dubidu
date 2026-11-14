@@ -1,4 +1,6 @@
-import { api } from './api';
+import { router } from 'expo-router';
+
+import { api, ApiError } from './api';
 
 // validasi form pendaftaran per langkah: pesan muncul saat menekan Next, bukan di langkah terakhir
 
@@ -33,6 +35,26 @@ export async function contactTakenError(contact: string) {
   } catch {
     return undefined;
   }
+}
+
+// Email/HP ternyata sudah terdaftar saat pendaftaran dikirim di langkah terakhir:
+// pesan dititipkan di sini, lalu orang tua/teacher dibawa kembali ke langkah "Buat akun baru"
+// dan pesannya tampil tepat di kolom Email / No. HP (tidak perlu mengulang dari jauh).
+let returnedContactError: string | undefined;
+
+/** Kembali ke langkah buat akun dengan pesan error di kolom email/HP. true bila error-nya memang soal kontak terpakai. */
+export function returnToAccountStep(error: unknown) {
+  if (!(error instanceof ApiError) || error.status !== 409) return false;
+  returnedContactError = error.message;
+  router.dismissTo('/register');
+  return true;
+}
+
+/** Ambil (sekali) pesan error kontak yang dititipkan dari langkah terakhir */
+export function takeReturnedContactError() {
+  const message = returnedContactError;
+  returnedContactError = undefined;
+  return message;
 }
 
 /** true kalau objek error tidak berisi pesan apa pun */

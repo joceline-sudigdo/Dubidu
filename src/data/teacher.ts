@@ -1,5 +1,6 @@
 // data dummy untuk role shadow teacher, nanti diganti data dari backend
 import type { Href } from 'expo-router';
+import { useSyncExternalStore } from 'react';
 
 import type { Tone } from '@/components/parent/tones';
 
@@ -302,10 +303,32 @@ export const teacherSessions: TeacherSession[] = [
   { date: '2026-09-14', student: 'bella', number: 10, time: '14:00 - 16:00', reportDone: false },
 ];
 
+// halaman yang membaca jadwal (tab Jadwal) ikut diperbarui saat datanya berubah
+const sessionListeners = new Set<() => void>();
+let sessionsSnapshot: TeacherSession[] | null = null;
+
+/** Beri tahu halaman bahwa teacherSessions berubah (dipanggil setelah sinkron / laporan terkirim) */
+export function emitTeacherSessions() {
+  sessionsSnapshot = null;
+  sessionListeners.forEach((l) => l());
+}
+
+/** Daftar sesi teacher yang reaktif (render ulang saat ada perubahan) */
+export function useTeacherSessions() {
+  return useSyncExternalStore(
+    (l) => {
+      sessionListeners.add(l);
+      return () => sessionListeners.delete(l);
+    },
+    () => (sessionsSnapshot ??= [...teacherSessions]),
+  );
+}
+
 /** Tandai sesi sudah punya laporan (setelah laporan harian terkirim) */
 export function markSessionReported(sessionId: string, reportId: string) {
   const i = teacherSessions.findIndex((s) => s.id === sessionId);
   if (i >= 0) teacherSessions[i] = { ...teacherSessions[i], reportDone: true, reportId };
+  emitTeacherSessions();
 }
 
 // ===== anak yang sedang mencari shadow teacher =====

@@ -48,9 +48,10 @@ export function PrimaryButton({
         ) : (
           leadingIcon && <Feather name={leadingIcon} size={20} color="#FFFFFF" />
         )}
-        {/* satu baris; label panjang mengecil otomatis (bukan membungkus), karena di Android teks yang
-            membungkus diukur selebar tombol sehingga muncul celah besar sebelum ikon */}
-        <AppText style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+        {/* satu baris selebar isinya. Tidak memakai adjustsFontSizeToFit: di Android kotak teksnya
+            melebar selebar tombol sehingga ikon jadi jauh dari tulisan. Label panjang cukup
+            memakai font sedikit lebih kecil. */}
+        <AppText style={[styles.title, title.length > LONG_LABEL && styles.titleLong]} numberOfLines={1}>
           {title}
         </AppText>
         {icon && <Feather name={icon} size={20} color="#FFFFFF" />}
@@ -58,6 +59,9 @@ export function PrimaryButton({
     </Pressable>
   );
 }
+
+// label lebih panjang dari ini memakai font lebih kecil supaya tetap muat satu baris
+const LONG_LABEL = 24;
 
 const styles = StyleSheet.create({
   button: {
@@ -85,5 +89,9 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 21,
     color: '#FFFFFF',
+  },
+  titleLong: {
+    fontSize: 15,
+    lineHeight: 19,
   },
 });
