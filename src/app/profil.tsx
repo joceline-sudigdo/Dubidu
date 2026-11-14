@@ -16,7 +16,8 @@ import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { activeMatches, parentProfile as p } from '@/data/parent';
 import { comingSoon, showActionSheet, showAlert, showPrompt } from '@/lib/dialog';
 import { usePlus } from '@/lib/membership-store';
-import { changePhoto, updateParent, useProfile } from '@/lib/profile-store';
+import { changeContact, changePhoto, updateDomicile, useProfile } from '@/lib/profile-store';
+import { contactError } from '@/lib/validation';
 import { startAddChild } from '@/lib/add-child';
 import { useChildren } from '@/lib/children-store';
 
@@ -32,14 +33,42 @@ const MENU: { label: string; icon: ComponentProps<typeof Feather>['name']; href?
 
 const soon = (title: string) => comingSoon(title);
 
+// email / HP: isi data baru → konfirmasi kata sandi → disimpan ke server
 const editField = (title: string, value: string, key: 'email' | 'phone' | 'domicile') =>
   showPrompt({
     title,
-    value,
+    value: value === '-' ? '' : value,
     keyboardType: key === 'email' ? 'email-address' : key === 'phone' ? 'phone-pad' : 'default',
+    submitText: key === 'domicile' ? 'Simpan' : 'Lanjut',
     onSubmit: (v) => {
-      updateParent({ [key]: v });
-      showAlert('Perubahan tersimpan');
+      const next = v.trim();
+      if (key === 'domicile') {
+        if (next.length < 3) return showAlert('Domisili belum tersimpan', 'Domisili minimal 3 karakter.');
+        return updateDomicile(next);
+      }
+      const error =
+        key === 'email' && !next.includes('@')
+          ? 'Format email belum benar, contoh: nama@email.com.'
+          : key === 'phone' && next.includes('@')
+            ? 'Nomor HP hanya boleh berisi angka.'
+            : contactError(next);
+      if (error) return showAlert(key === 'email' ? 'Email belum diganti' : 'Nomor HP belum diganti', error);
+      setTimeout(
+        () =>
+          showPrompt({
+            title: 'Konfirmasi kata sandi',
+            message: `Masukkan kata sandi untuk mengganti ${key === 'email' ? 'email' : 'nomor HP'} ke ${next}.`,
+            value: '',
+            placeholder: 'Kata sandi saat ini',
+            secure: true,
+            submitText: 'Simpan',
+            onSubmit: (password) => {
+              if (!password) return showAlert('Kata sandi wajib diisi');
+              changeContact(key, next, password);
+            },
+          }),
+        250
+      );
     },
   });
 

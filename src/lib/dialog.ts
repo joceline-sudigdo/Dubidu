@@ -23,6 +23,8 @@ export type DialogState =
       placeholder?: string;
       multiline?: boolean;
       keyboardType?: KeyboardTypeOptions;
+      // true = kolom kata sandi (teks disamarkan)
+      secure?: boolean;
       submitText?: string;
       onSubmit: (value: string) => void;
     };

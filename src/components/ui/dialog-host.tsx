@@ -115,6 +115,8 @@ function PromptCard({ dialog }: { dialog: Extract<DialogState, { kind: 'prompt' 
         placeholderTextColor={Colors.placeholder}
         multiline={dialog.multiline}
         keyboardType={dialog.keyboardType}
+        secureTextEntry={dialog.secure}
+        autoCapitalize={dialog.secure || dialog.keyboardType === 'email-address' ? 'none' : undefined}
         style={[styles.input, dialog.multiline && styles.inputMulti]}
       />
       <View style={styles.row}>

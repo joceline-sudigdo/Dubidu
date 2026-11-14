@@ -186,6 +186,8 @@ model User {
   payoutAccountName   String?
   // akun contoh (seed demo). Hanya terlihat oleh sesama akun demo; user sungguhan tidak pernah melihatnya.
   isDemo              Boolean   @default(false)
+  // preferensi notifikasi dari halaman Pengaturan: { notifPush, notifChat, notifReport, notifPromo }
+  settings            Json?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -220,6 +222,7 @@ model User {
   contentReports        ContentReport[]           @relation("ReportReporter")
   teacherAssessments    TeacherAssessment[]
   redemptions           Redemption[]
+  favorites             Favorite[]
 
   @@index([role])
   @@index([isDemo, role])
@@ -309,6 +312,7 @@ model PsychologistProfile {
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title           String // "Psikolog Anak & Sensori"
   place           String? // "RSIA Bunda Jakarta"
+  about           String? // "Tentang saya" di profil psikolog
   experienceYears Int      @default(0)
   badge           String? // "Top Rated", "Dubidu Expert"
   tags            String[] // ["Anak & Remaja", "ADHD & Sensori"]
@@ -557,6 +561,8 @@ model ConversationParticipant {
   userId         String
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   lastReadAt     DateTime     @default(now())
+  // chat dibisukan: pesan baru tetap masuk, tapi tanpa push notification
+  mutedAt        DateTime?
 
   @@id([conversationId, userId])
   @@index([userId])
@@ -993,4 +999,24 @@ model AdminAuditLog {
   createdAt   DateTime @default(now())
 
   @@index([createdAt])
+}
+
+// ----------------------------------------------------------------------------
+//  FAVORIT: teacher & psikolog yang disimpan orang tua
+// ----------------------------------------------------------------------------
+
+enum FavoriteKind {
+  TEACHER
+  PSYCHOLOGIST
+}
+
+model Favorite {
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      FavoriteKind
+  // TEACHER = userId teacher, PSYCHOLOGIST = id psikolog seperti di GET /psychologists
+  targetId  String
+  createdAt DateTime     @default(now())
+
+  @@id([userId, kind, targetId])
 }

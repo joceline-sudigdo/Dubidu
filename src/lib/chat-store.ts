@@ -64,6 +64,7 @@ type ServerThread = {
   time: string;
   unread: number;
   done?: boolean;
+  muted?: boolean;
 };
 
 type ServerMessage = {
@@ -90,6 +91,22 @@ function toMessage(m: ServerMessage): ChatMessage {
   return { id: m.id, from: m.from, type: 'text', text: m.text ?? '', time: m.time, read: m.read };
 }
 
+/** Bisukan / aktifkan notifikasi chat (PATCH /conversations/:id/mute). true = berhasil */
+export async function setThreadMuted(threadId: string, muted: boolean) {
+  const before = threads;
+  threads = threads.map((t) => (t.id === threadId ? { ...t, muted } : t));
+  emit();
+  try {
+    await api(`/conversations/${threadId}/mute`, { method: 'PATCH', body: { muted } });
+    return true;
+  } catch (e) {
+    threads = before;
+    emit();
+    showAlert('Pengaturan chat belum tersimpan', errorMessage(e));
+    return false;
+  }
+}
+
 const lastSeen: Record<string, string> = {}; // createdAt pesan terakhir per room (untuk ?after=)
 
 export async function loadThreads() {
@@ -107,6 +124,7 @@ export async function loadThreads() {
     unread: r.unread,
     owner,
     done: r.done,
+    muted: r.muted ?? false,
     messages: threads.find((t) => t.id === r.id)?.messages ?? [],
   }));
   emit();

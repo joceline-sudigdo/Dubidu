@@ -27,7 +27,7 @@ import { contracts } from '@/data/contracts';
 import { consultations } from '@/data/psychologist';
 import { students } from '@/data/teacher';
 import { findTeacher, teacherIdByName } from '@/data/teachers';
-import { addMessage, clearThread, getThread, loadMessages, loadThreads, pollMessages, useChatThreads } from '@/lib/chat-store';
+import { addMessage, clearThread, getThread, loadMessages, loadThreads, pollMessages, setThreadMuted, useChatThreads } from '@/lib/chat-store';
 import { reportContent } from '@/lib/community-store';
 import { showActionSheet, showAlert } from '@/lib/dialog';
 
@@ -116,7 +116,8 @@ function ChatRoom({ id }: { id: string }) {
     });
   };
 
-  const [muted, setMuted] = useState(false);
+  // status bisukan tersimpan di server (pesan tetap masuk, tanpa push notification)
+  const muted = !!thread.muted;
 
   // tujuan "Lihat profil" & kontrak tergantung lawan chat
   const openProfile = () => {
@@ -159,9 +160,13 @@ function ChatRoom({ id }: { id: string }) {
         {
           label: muted ? 'Aktifkan notifikasi' : 'Bisukan notifikasi',
           icon: muted ? 'bell' : 'bell-off',
-          onPress: () => {
-            setMuted((m) => !m);
-            showAlert(muted ? 'Notifikasi diaktifkan' : 'Notifikasi dibisukan');
+          onPress: async () => {
+            if (await setThreadMuted(thread.id, !muted)) {
+              showAlert(
+                muted ? 'Notifikasi diaktifkan' : 'Notifikasi dibisukan',
+                muted ? undefined : 'Pesan baru tetap masuk, hanya tanpa notifikasi di HP.'
+              );
+            }
           },
         },
         {

@@ -40,6 +40,9 @@ Base URL: `https://dubidu-api.vercel.app/api` (lokal: `http://localhost:4000/api
 | GET 🔒 | `/auth/me` | | profil + `children` + `plan` + `stats` |
 | PATCH 🔒 | `/auth/me` | `{ fullName?, nickname?, domicile?, avatarUrl?, ktpUrl?, latitude?, longitude?, pushToken? }` | |
 | POST 🔒 | `/auth/change-password` | `{ oldPassword, newPassword }` | |
+| POST 🔒 | `/auth/change-contact` | `{ contact, password }` | ganti email (berisi `@`) atau nomor HP dari halaman Profil. Wajib kata sandi; 409 bila sudah dipakai akun lain. Balikan `{ user }` |
+| GET 🔒 | `/auth/me/settings` | | preferensi notifikasi `{ notifPush, notifChat, notifReport, notifPromo }` |
+| PATCH 🔒 | `/auth/me/settings` | `{ notifPush?, notifChat?, notifReport?, notifPromo? }` | dipakai server saat mengirim push (notifikasi tetap tersimpan di halaman Notifikasi) |
 | POST | `/auth/forgot-password` | `{ email }` | kirim kode OTP 6 digit ke email (berlaku 15 menit). Selalu 200 |
 | POST | `/auth/reset-password` | `{ email, code, newPassword }` | balikan `{ token, user }` (langsung login) |
 | POST 🔒 | `/auth/devices` | `{ token: "ExponentPushToken[...]", platform: "ios"\|"android" }` | daftarkan HP untuk push notification |
@@ -119,7 +122,8 @@ Bidang keahlian (kunci): `speech`, `communication`, `adhd`, `sensory`, `social`,
 
 | Method | Path | Keterangan |
 |---|---|---|
-| GET 🔒 | `/conversations` | daftar chat + `unread` |
+| GET 🔒 | `/conversations` | daftar chat + `unread` + `muted` |
+| PATCH 🔒 | `/conversations/:id/mute` | `{ muted }` — bisukan chat: pesan tetap masuk & tersimpan, tanpa push notification |
 | GET 🔒 | `/conversations/:id/messages?before=&after=&limit=50` | bentuk `ChatMessage`. `after=<createdAt pesan terakhir>` → hanya pesan baru (dipakai untuk cek berkala tiap 3–5 detik saat layar chat terbuka) |
 | POST 🔒 | `/conversations/:id/messages` | `{ type: "TEXT", text }` / `{ type: "IMAGE", imageUrl }` / `{ type: "SCHEDULE", schedule: { title, date, hours, place } }` |
 | POST 🔒 | `/conversations/:id/read` | tandai dibaca |
@@ -194,6 +198,17 @@ Bidang keahlian (kunci): `speech`, `communication`, `adhd`, `sensory`, `social`,
 | PATCH 🔒 | `/teachers/me` | (teacher) profil terstandar + `specializations: string[]` + **`skills: { speech: 90, adhd: 70, ... }`** (penilaian diri 0–100, wajib sebelum diverifikasi) |
 | POST 🔒 | `/teachers/me/documents` | `{ type: "KTP"\|"IJAZAH"\|"SERTIFIKAT"\|"CV"\|"LAINNYA", url }` |
 | POST 🔒 | `/reviews` | (orang tua) `{ targetUserId, rating 1–5, comment? }` |
+
+## Favorit, misi, kontrak & profil psikolog
+
+| Method | Path | Body | Keterangan |
+|---|---|---|---|
+| GET 🔒 | `/favorites` | | `{ teachers: [userId], psychologists: [id psikolog] }` |
+| PUT 🔒 | `/favorites/:kind/:id` | | tambah favorit, `kind` = `teachers` \| `psychologists` |
+| DELETE 🔒 | `/favorites/:kind/:id` | | hapus dari favorit |
+| POST 🔒 | `/missions/:id/claim` | | klaim Madu dari misi Doobie Rewards, sekali per misi per hari (WIB). `GET /rewards` kini juga mengirim `claimedMissions` |
+| POST 🔒 | `/engagements/:id/extension-request` | `{ sessions, note? }` | ajukan perpanjangan kontrak aktif; pihak lain mendapat notifikasi |
+| PATCH 🔒 | `/psychologists/me` | `{ about?, title?, place?, tags? }` | psikolog mengedit "Tentang saya" & bidang keahlian (harga & badge tetap diatur admin) |
 
 ## Admin (web admin, folder `admin/`)
 

@@ -79,6 +79,7 @@ chatRouter.get("/", async (req, res) => {
         preview: last ? (last.type === "TEXT" ? last.text : last.type === "IMAGE" ? "📷 Foto" : "📅 Jadwal sesi") : "",
         time: last ? chatTime(last.createdAt) : chatTime(c.createdAt),
         unread,
+        muted: Boolean(mine.mutedAt),
       };
     }),
   );
@@ -184,10 +185,26 @@ export async function sendMessage(conversationId: string, senderId: string, body
       tag: "Pesan",
       action: "Balas Pesan",
       link: `/chat/${conversationId}`,
-    });
+    // chat yang dibisukan penerima: notifikasi tetap tersimpan, tanpa push
+    }, { push: !p.mutedAt });
   }
   return message;
 }
+
+/** PATCH /api/conversations/:id/mute { muted } — bisukan / aktifkan lagi notifikasi chat ini */
+chatRouter.patch("/:id/mute", async (req, res) => {
+  const { muted } = parse(z.object({ muted: z.boolean() }), req.body);
+  const conversationId = param(req, "id");
+  const participant = await prisma.conversationParticipant.findUnique({
+    where: { conversationId_userId: { conversationId, userId: me(req).id } },
+  });
+  if (!participant) throw notFound("Percakapan");
+  await prisma.conversationParticipant.update({
+    where: { conversationId_userId: { conversationId, userId: me(req).id } },
+    data: { mutedAt: muted ? new Date() : null },
+  });
+  res.json({ muted });
+});
 
 /** POST /api/conversations/:id/read — tandai sudah dibaca */
 chatRouter.post("/:id/read", async (req, res) => {

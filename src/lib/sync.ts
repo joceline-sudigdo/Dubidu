@@ -103,6 +103,7 @@ type Me = {
   } | null;
   psychologistProfile: {
     id: string;
+    about?: string | null;
     title: string;
     place: string | null;
     experienceYears: number;
@@ -469,7 +470,9 @@ async function loadPsychologist() {
     reviewCount: p?.reviewCount ?? 0,
     experienceYears: p?.experienceYears ?? 0,
     consultationsThisMonth: consults.filter((c) => new Date(c.scheduledAt).getMonth() === new Date().getMonth()).length,
-    specializations: p?.categories.length ? p.categories : (p?.tags ?? []),
+    // bidang keahlian yang diedit psikolog (tags) diutamakan; kosong = kategori bawaan
+    specializations: p?.tags?.length ? p.tags : (p?.categories ?? []),
+    ...(p?.about ? { about: p.about } : {}),
     rate: p?.basePrice ?? 0,
     earningsThisMonth: rupiahShort(balance.totalEarned),
     verificationsDone: pending.filter((a) => a.result).length,

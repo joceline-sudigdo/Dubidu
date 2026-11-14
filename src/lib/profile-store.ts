@@ -59,6 +59,39 @@ export function updateParent(values: Partial<State['parent']>) {
   set({ ...state, parent: { ...state.parent, ...values } });
 }
 
+/** Ganti email / nomor HP akun (POST /auth/change-contact, wajib kata sandi). true = berhasil */
+export async function changeContact(kind: 'email' | 'phone', value: string, password: string) {
+  try {
+    const { user } = await api<{ user: { email: string | null; phone: string | null } }>('/auth/change-contact', {
+      body: { contact: value.trim(), password },
+    });
+    const values = { email: user.email ?? '-', phone: user.phone ?? '-' };
+    Object.assign(parentProfile, values);
+    set({ ...state, parent: { ...state.parent, ...values } });
+    updateSession({ email: user.email, phone: user.phone });
+    showAlert(kind === 'email' ? 'Email berhasil diganti' : 'Nomor HP berhasil diganti', 'Gunakan data baru ini untuk login berikutnya.');
+    return true;
+  } catch (e) {
+    showAlert(kind === 'email' ? 'Email belum diganti' : 'Nomor HP belum diganti', errorMessage(e));
+    return false;
+  }
+}
+
+/** Ganti domisili akun (PATCH /auth/me) */
+export async function updateDomicile(value: string) {
+  const before = state.parent;
+  set({ ...state, parent: { ...state.parent, domicile: value } });
+  try {
+    await api('/auth/me', { method: 'PATCH', body: { domicile: value } });
+    Object.assign(parentProfile, { domicile: value });
+    updateSession({ domicile: value });
+    showAlert('Domisili tersimpan');
+  } catch (e) {
+    set({ ...state, parent: before });
+    showAlert('Domisili belum tersimpan', errorMessage(e));
+  }
+}
+
 /** Ambil ulang nilai awal dari data akun (dipanggil setelah data server dimuat) */
 export function refreshProfile() {
   set({
@@ -93,11 +126,36 @@ export function updateTeacher(values: Partial<State['teacher']>) {
 }
 
 export function updatePsychologist(values: Partial<State['psychologist']>) {
+  const before = state.psychologist;
   set({ ...state, psychologist: { ...state.psychologist, ...values } });
+  // "Tentang saya" & bidang keahlian disimpan ke server (PATCH /psychologists/me)
+  const body = {
+    ...(values.about !== undefined ? { about: values.about } : {}),
+    ...(values.specializations !== undefined ? { tags: values.specializations } : {}),
+  };
+  if (!Object.keys(body).length) return;
+  api('/psychologists/me', { method: 'PATCH', body }).catch((e) => {
+    set({ ...state, psychologist: before });
+    showAlert('Perubahan belum tersimpan', errorMessage(e));
+  });
 }
 
 export function toggleSetting(key: string) {
-  set({ ...state, settings: { ...state.settings, [key]: !state.settings[key] } });
+  const value = !state.settings[key];
+  set({ ...state, settings: { ...state.settings, [key]: value } });
+  // preferensi notifikasi dipakai server saat mengirim push (PATCH /auth/me/settings)
+  if (key.startsWith('notif')) {
+    api('/auth/me/settings', { method: 'PATCH', body: { [key]: value } }).catch((e) => {
+      set({ ...state, settings: { ...state.settings, [key]: !value } });
+      showAlert('Pengaturan belum tersimpan', errorMessage(e));
+    });
+  }
+}
+
+/** Muat preferensi notifikasi dari server (halaman Pengaturan) */
+export async function loadSettings() {
+  const remote = await api<Record<string, boolean>>('/auth/me/settings');
+  set({ ...state, settings: { ...state.settings, ...remote } });
 }
 
 // ganti foto profil dari galeri, langsung dipakai di semua avatar dengan nama yang sama

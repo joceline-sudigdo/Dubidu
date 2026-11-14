@@ -13,7 +13,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 
 | Kategori | Jumlah perubahan |
 | --- | --- |
-| Bug fixing | 29 |
+| Bug fixing | 34 |
 | Deployment & stabilisasi | 6 |
 | UI/UX polishing | 24 |
 | Performance improvement | 6 |
@@ -51,6 +51,11 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | Favorit tidak tersimpan | "Simpan ke favorit" hanya menampilkan pesan; status favorit tidak pernah aktif. Favorit psikolog berisi data contoh | Favorit teacher & psikolog tersimpan per akun; ikon hati di profil teacher dan label menu mengikuti status | `src/lib/favorites-store.ts`, `src/app/profil-teacher/[id].tsx`, `src/app/konsultasi.tsx` |
 | Foto profil tidak muncul di Komunitas | Foto profil yang diganti hanya tersimpan di HP sendiri (hilang setelah aplikasi ditutup) dan foto penulis dari server diabaikan | Foto diunggah ke server, lalu dipakai di postingan, komentar, kartu matching, dan profil | `src/lib/profile-store.ts`, `src/lib/community-store.ts`, `src/components/parent/avatar.tsx`, `src/data/images.ts` |
 | Notifikasi tidak diperbarui | Daftar notifikasi hanya dimuat sekali saat login, notif baru tidak muncul sampai aplikasi dibuka ulang | Dimuat ulang setiap halaman Notifikasi dibuka, di ketiga peran. Notifikasi lebih dari 7 hari kini tampil di grup "Sebelumnya" (sebelumnya hilang sehingga halaman kosong), dan notifikasi contoh akun demo selalu terlihat baru | `src/lib/sync.ts`, `notifikasi.tsx` ketiga peran, `backend/src/routes/notifications.ts` |
+| Ganti email / HP & domisili tidak tersimpan | Mengubah email, nomor HP, atau domisili di halaman Profil hanya mengubah tampilan di HP | Email/HP diganti lewat server dengan konfirmasi kata sandi dan cek email/HP yang sudah dipakai; domisili tersimpan ke akun | `POST /auth/change-contact`, `src/lib/profile-store.ts`, `src/app/profil.tsx` |
+| Pengaturan notifikasi tidak berpengaruh | Saklar notifikasi di Pengaturan hanya tersimpan di HP; push tetap dikirim | Preferensi tersimpan di server dan dipatuhi saat mengirim push | `GET/PATCH /auth/me/settings`, `backend/src/lib/settings.ts`, `backend/src/lib/notify.ts`, `src/app/pengaturan.tsx` |
+| Bisukan chat tidak berpengaruh | "Bisukan notifikasi" di chat hanya berubah sesaat di layar | Tersimpan di server; pesan tetap masuk tanpa push notification | `PATCH /conversations/:id/mute`, `src/lib/chat-store.ts`, `src/app/chat/[id].tsx` |
+| Klaim misi & favorit hanya di HP | Madu dari misi Doobie Rewards dan daftar favorit hilang saat ganti HP / login ulang; misi bisa diklaim berulang | Klaim misi tercatat di server (sekali per misi per hari) dan favorit tersinkron antar-HP | `POST /missions/:id/claim`, `GET/PUT/DELETE /favorites`, `src/lib/points-store.ts`, `src/lib/favorites-store.ts` |
+| Ajukan perpanjangan kontrak & edit profil psikolog tidak terkirim | Perpanjangan kontrak hanya menampilkan pesan; "Tentang saya" & keahlian psikolog hanya tersimpan di HP | Permintaan perpanjangan dikirim ke pihak lain sebagai notifikasi; profil psikolog tersimpan di server | `POST /engagements/:id/extension-request`, `PATCH /psychologists/me`, `src/app/kontrak/[id].tsx` |
 | Psikolog tidak bisa melihat dokumen pendaftar | Mengetuk dokumen di halaman Tinjau hanya membuka penampil kosong | Dokumen dibuka dari file aslinya: PDF di penampil dokumen, foto (KTP) di penampil gambar | `src/app/psikolog/tinjau/[id].tsx`, `src/data/psychologist.ts` |
 | Batas ukuran upload tidak sama dengan server | Aplikasi menulis maks. 5 MB, server menolak di atas 4 MB, sehingga file 4–5 MB gagal tanpa alasan jelas | Aplikasi memakai batas 4 MB yang sama dengan server | `src/components/ui/upload-box.tsx` |
 
@@ -60,7 +65,7 @@ Bandingkan kode: https://github.com/joceline-sudigdo/Dubidu/compare/submission-2
 | --- | --- |
 | Server tidak lagi "tertidur" | Jadwal GitHub Actions memanggil `/api/health` tiap 5 menit, sehingga permintaan pertama tidak lagi menunggu ±5 detik (`.github/workflows/keep-warm.yml`) |
 | Akun demo tahan dipakai banyak penguji | Akun demo tidak bisa dihapus, diganti, atau direset kata sandinya (lihat Keamanan) |
-| Migrasi database | `performance_indexes` dan `dynamic_qris` diterapkan otomatis saat deploy (`prisma migrate deploy`) |
+| Migrasi database | `performance_indexes`, `dynamic_qris`, dan `account_preferences` (preferensi notifikasi, bisukan chat, favorit, profil psikolog) diterapkan otomatis saat deploy (`prisma migrate deploy`) |
 | Uji otomatis diperluas | 4 skenario baru: QRIS dinamis (CRC, validasi, sisip nominal, baca gambar QR) dan kunci akun demo |
 | Data demo shadow teacher | Akun demo teacher mendapat anak contoh di Cari Anak dan kuota "Lewati" dihitung di perangkat, sehingga alur lewati 5× → halaman Dubidu Plus selalu bisa didemokan; tombol "Ulang demo skip" untuk mengulang (sama seperti akun demo orang tua) (`src/lib/child-matching-store.ts`, `src/data/teacher.ts`) |
 | Akun demo teacher kedua | `ayas@dubidu.id` (Ayas Sudigdo, terverifikasi, level keahlian terisi) ditambahkan ke daftar akun demo dan dibuat otomatis oleh seed bila belum ada di database, supaya juri bisa mencoba dua teacher berbeda (`backend/prisma/seed.ts`, `src/data/dummy-accounts.json`) |

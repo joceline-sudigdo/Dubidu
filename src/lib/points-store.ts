@@ -120,11 +120,34 @@ export async function claimCheckin(mood = 'SENANG') {
   }
 }
 
-export function claimMission(id: string, title: string, amount: number) {
+/** Klaim Madu dari misi lewat server (POST /missions/:id/claim, sekali per misi per hari). true = berhasil */
+export async function claimMission(id: string, title: string, amount: number) {
   const role = currentRole();
-  if (state.claimedMissions[role].includes(id)) return;
-  addPoints(title, amount);
-  set({ ...state, claimedMissions: { ...state.claimedMissions, [role]: [...state.claimedMissions[role], id] } });
+  if (state.claimedMissions[role].includes(id)) return false;
+  try {
+    const res = await api<{ points: number }>(`/missions/${id}/claim`, { body: {} });
+    set({
+      ...state,
+      points: { ...state.points, [role]: res.points },
+      history: { ...state.history, [role]: log(role, title, amount) },
+      claimedMissions: { ...state.claimedMissions, [role]: [...state.claimedMissions[role], id] },
+    });
+    return true;
+  } catch (e) {
+    showAlert('Misi belum bisa diklaim', errorMessage(e));
+    return false;
+  }
+}
+
+/** Misi yang sudah diklaim hari ini (GET /rewards → claimedMissions) */
+export async function loadMissionClaims() {
+  const role = currentRole();
+  const res = await api<{ points: number; claimedMissions?: string[] }>('/rewards');
+  set({
+    ...state,
+    points: { ...state.points, [role]: res.points },
+    claimedMissions: { ...state.claimedMissions, [role]: res.claimedMissions ?? [] },
+  });
 }
 
 // tukar hadiah lewat server (POST /rewards/:id/redeem) → kode voucher

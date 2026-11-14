@@ -1,7 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router } from 'expo-router';
-import { useState, type ComponentProps } from 'react';
+import { useEffect, useState, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { ClayCard } from '@/components/parent/clay-card';
@@ -12,7 +12,7 @@ import { Colors, Fonts } from '@/constants/theme';
 import { api, errorMessage } from '@/lib/api';
 import { logout as signOut } from '@/lib/auth';
 import { showActionSheet, showAlert, showPrompt } from '@/lib/dialog';
-import { toggleSetting, useProfile } from '@/lib/profile-store';
+import { loadSettings, toggleSetting, useProfile } from '@/lib/profile-store';
 import { getSession } from '@/lib/session';
 
 type FeatherName = ComponentProps<typeof Feather>['name'];
@@ -27,6 +27,11 @@ const NOTIFICATIONS = [
 export default function PengaturanScreen() {
   const { settings } = useProfile();
   const [language, setLanguage] = useState('Bahasa Indonesia');
+
+  // preferensi notifikasi tersimpan di server, jadi sama di semua HP
+  useEffect(() => {
+    loadSettings().catch(() => {});
+  }, []);
   const isTeacher = getSession().role === 'teacher';
 
   const logout = () =>

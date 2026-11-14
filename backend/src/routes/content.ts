@@ -5,7 +5,7 @@ import { Router } from "express";
 import { prisma } from "../db.js";
 import { me, requireAuth } from "../lib/auth.js";
 import { getContent, getContentRow, isContentKey, PUBLIC_CONTENT_KEYS } from "../lib/content.js";
-import { shortDate } from "../lib/dates.js";
+import { shortDate, wibDate } from "../lib/dates.js";
 import { HttpError, notFound, param } from "../lib/http.js";
 import { addPoints } from "../lib/points.js";
 
@@ -28,6 +28,18 @@ contentRouter.get("/content/:key", async (req, res) => {
 
 const roleKey = (role: string) => (role === "TEACHER" ? "teacher" : "parent");
 
+/** Awal hari ini (00:00 WIB) sebagai waktu UTC: misi bisa diklaim sekali per hari */
+const startOfTodayWib = () => new Date(wibDate().getTime() - 7 * 3600000);
+
+/** id misi yang sudah diklaim user hari ini */
+async function missionsClaimedToday(userId: string) {
+  const rows = await prisma.pointTransaction.findMany({
+    where: { userId, reason: { startsWith: "mission:" }, createdAt: { gte: startOfTodayWib() } },
+    select: { reason: true },
+  });
+  return rows.map((r) => r.reason.slice("mission:".length));
+}
+
 /** GET /api/rewards — katalog hadiah untuk role-ku + level & saldo Madu */
 contentRouter.get("/rewards", requireAuth, async (req, res) => {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: me(req).id } });
@@ -43,7 +55,22 @@ contentRouter.get("/rewards", requireAuth, async (req, res) => {
     levels,
     rewards: rewards.filter((r) => r.active && r.role === role),
     missions: missions.filter((m) => m.active && m.role === role),
+    // misi yang sudah diklaim hari ini (tombol Klaim dinonaktifkan di aplikasi)
+    claimedMissions: await missionsClaimedToday(user.id),
   });
+});
+
+/** POST /api/missions/:id/claim — klaim Madu dari misi Doobie Rewards (sekali per misi per hari) */
+contentRouter.post("/missions/:id/claim", requireAuth, async (req, res) => {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: me(req).id } });
+  const missions = await getContent("missions");
+  const mission = missions.find((m) => m.id === param(req, "id") && m.active && m.role === roleKey(user.role));
+  if (!mission) throw notFound("Misi");
+  if ((await missionsClaimedToday(user.id)).includes(mission.id)) {
+    throw new HttpError(409, "Misi ini sudah diklaim hari ini. Coba lagi besok ya!");
+  }
+  const { points } = await prisma.$transaction((tx) => addPoints(tx, user.id, mission.reward, `mission:${mission.id}`));
+  res.json({ mission: { id: mission.id, title: mission.title, reward: mission.reward }, points });
 });
 
 /** GET /api/rewards/redemptions — voucher milikku */

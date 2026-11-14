@@ -299,6 +299,8 @@ export type ChatThread = {
   owner: 'parent' | 'teacher' | 'psychologist';
   // percakapan yang pendampingan/konsultasinya sudah selesai
   done?: boolean;
+  // notifikasi chat ini dibisukan (tanpa push)
+  muted?: boolean;
   messages: ChatMessage[];
 };
 

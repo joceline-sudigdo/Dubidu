@@ -3,6 +3,7 @@ import { Expo, type ExpoPushMessage } from "expo-server-sdk";
 import { config } from "../config.js";
 import { prisma, type NotificationCategory } from "../db.js";
 import { emitToUser } from "./realtime.js";
+import { allowsPush, readSettings } from "./settings.js";
 
 type NotifyInput = {
   userId: string;
@@ -30,11 +31,14 @@ function expoClient() {
   return expo;
 }
 
-/** Simpan notifikasi ke database, kirim realtime (Socket.IO), dan push ke semua HP user. */
-export async function notify(input: NotifyInput) {
+/**
+ * Simpan notifikasi ke database, kirim realtime (Socket.IO), dan push ke semua HP user.
+ * `push: false` = hanya tersimpan (mis. chat yang dibisukan). Push juga mengikuti preferensi di Pengaturan.
+ */
+export async function notify(input: NotifyInput, opts: { push?: boolean } = {}) {
   const notification = await prisma.notification.create({ data: input });
   emitToUser(input.userId, "notification:new", notification);
-  void sendPush(input).catch((err) => console.error("Push gagal:", err));
+  if (opts.push !== false) void sendPush(input).catch((err) => console.error("Push gagal:", err));
   return notification;
 }
 
@@ -46,8 +50,12 @@ export async function notifyAdmins(input: Omit<NotifyInput, "userId">) {
 
 /** Kirim push lewat Expo Push Service. Token yang sudah tidak valid otomatis dihapus. */
 export async function sendPush(input: NotifyInput) {
-  const devices = await prisma.deviceToken.findMany({ where: { userId: input.userId } });
+  const [devices, user] = await Promise.all([
+    prisma.deviceToken.findMany({ where: { userId: input.userId } }),
+    prisma.user.findUnique({ where: { id: input.userId }, select: { settings: true } }),
+  ]);
   if (devices.length === 0) return;
+  if (!allowsPush(readSettings(user?.settings), input.category)) return;
 
   const unread = await prisma.notification.count({ where: { userId: input.userId, readAt: null } });
   const messages: ExpoPushMessage[] = devices

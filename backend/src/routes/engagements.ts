@@ -170,6 +170,34 @@ engagementsRouter.patch("/:id", async (req, res) => {
   res.json(await present(e, user.id));
 });
 
+/**
+ * POST /api/engagements/:id/extension-request { sessions, note? }
+ * Ajukan perpanjangan kontrak; pihak lain (orang tua ↔ teacher) mendapat notifikasi untuk dibahas di chat.
+ */
+engagementsRouter.post("/:id/extension-request", async (req, res) => {
+  const user = me(req);
+  const e = await loadEngagement(param(req, "id"), user.id);
+  if (e.status !== "ACTIVE") throw new HttpError(400, "Hanya kontrak yang masih aktif yang bisa diperpanjang");
+  const body = parse(
+    z.object({ sessions: z.number().int().min(1).max(48), note: z.string().trim().max(300).optional() }),
+    req.body,
+  );
+  const fromTeacher = user.id === e.teacherUserId;
+  const requester = fromTeacher ? e.teacher : e.parent;
+  await notify({
+    userId: fromTeacher ? e.parentId : e.teacherUserId,
+    category: "BOOKING",
+    icon: "file-document-edit",
+    tone: "blue",
+    title: "Permintaan perpanjangan kontrak",
+    body: `${requester.nickname ?? requester.fullName} mengajukan perpanjangan ${body.sessions} sesi untuk ${e.child.name}.${body.note ? ` Catatan: ${body.note}` : ""}`,
+    tag: "Kontrak",
+    action: "Lihat Kontrak",
+    link: `/kontrak/${e.id}`,
+  });
+  res.status(201).json({ ok: true, sessions: body.sessions });
+});
+
 /** POST /api/engagements/:id/sessions { sessions: [{ startAt, endAt, location? }] } — jadwalkan sesi */
 engagementsRouter.post("/:id/sessions", async (req, res) => {
   const user = me(req);

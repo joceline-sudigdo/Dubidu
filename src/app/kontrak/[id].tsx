@@ -17,6 +17,7 @@ import { Colors, Fonts, Radius, Shadow } from '@/constants/theme';
 import { findContract, nextSessionDates, termins } from '@/data/contracts';
 import { DAYS, formatRupiah, MONTHS } from '@/data/parent';
 import { loadContract } from '@/lib/contracts-sync';
+import { api, errorMessage } from '@/lib/api';
 import { showAlert } from '@/lib/dialog';
 import { platformFeeRate, usePlus } from '@/lib/membership-store';
 import { getSession } from '@/lib/session';
@@ -63,7 +64,19 @@ export default function DetailKontrakScreen() {
         { text: 'Batal', style: 'cancel' },
         {
           text: 'Ajukan',
-          onPress: () => showAlert('Perpanjangan diajukan', 'Kamu akan mendapat notifikasi setelah disetujui.'),
+          // kontrak contoh (data lokal) tidak ada di server: cukup konfirmasi di aplikasi
+          onPress: () =>
+            (c.id.startsWith('m-') || !/^c[a-z0-9]{20,}$/.test(c.id)
+              ? Promise.resolve()
+              : api(`/engagements/${c.id}/extension-request`, { body: { sessions: c.total } })
+            )
+              .then(() =>
+                showAlert(
+                  'Perpanjangan diajukan',
+                  `${isTeacher ? c.parentName : c.teacherName.split(',')[0]} mendapat notifikasi untuk membahasnya bersamamu di chat.`
+                )
+              )
+              .catch((e) => showAlert('Perpanjangan belum terkirim', errorMessage(e))),
         },
       ]
     );

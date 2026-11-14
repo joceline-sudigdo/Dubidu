@@ -40,6 +40,26 @@ function present(p: PsyRow) {
   };
 }
 
+/**
+ * PATCH /api/psychologists/me { about?, title?, place?, tags? }
+ * Edit profil psikolog dari aplikasi (Tentang Saya & bidang keahlian). Harga & badge tetap diatur admin.
+ */
+psychologistsRouter.patch("/me", requireRole("PSYCHOLOGIST"), async (req, res) => {
+  const body = parse(
+    z.object({
+      about: z.string().trim().max(1000).optional(),
+      title: z.string().trim().min(2).max(80).optional(),
+      place: z.string().trim().max(120).optional(),
+      tags: z.array(z.string().trim().min(1).max(40)).max(10).optional(),
+    }),
+    req.body,
+  );
+  const profile = await prisma.psychologistProfile.findUnique({ where: { userId: me(req).id } });
+  if (!profile) throw notFound("Profil psikolog");
+  const updated = await prisma.psychologistProfile.update({ where: { id: profile.id }, data: body, include: { user: true } });
+  res.json({ ...present(updated), about: updated.about });
+});
+
 /** GET /api/psychologists?category=ADHD */
 psychologistsRouter.get("/", async (req, res) => {
   const category = req.query.category ? String(req.query.category) : undefined;

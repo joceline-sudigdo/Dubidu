@@ -10,6 +10,7 @@ import { writeAudit } from "../lib/audit.js";
 import { forgetUserStatus, me, requireAuth, signToken } from "../lib/auth.js";
 import { HttpError, parse } from "../lib/http.js";
 import { resetPasswordEmail, sendMail } from "../lib/mail.js";
+import { readSettings, settingsSchema } from "../lib/settings.js";
 import { warmMatchesForChild } from "../lib/aiMatching.js";
 import { presentChild, publicUser } from "../lib/present.js";
 import { childInput, createChild } from "./children.js";
@@ -242,6 +243,48 @@ authRouter.post("/change-password", requireAuth, async (req, res) => {
     data: { passwordHash: await bcrypt.hash(body.newPassword, 10) },
   });
   res.json({ ok: true });
+});
+
+/**
+ * POST /api/auth/change-contact { contact, password }
+ * Ganti email atau nomor HP dari halaman Profil. Wajib kata sandi saat ini,
+ * dan email/HP baru tidak boleh dipakai akun lain. `contact` berisi "@" = email, selain itu = nomor HP.
+ */
+authRouter.post("/change-contact", requireAuth, async (req, res) => {
+  const body = parse(z.object({ contact: contactSchema, password: z.string().min(1, "Masukkan kata sandi") }), req.body);
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: me(req).id } });
+  if (user.isDemo) throw new HttpError(403, DEMO_LOCKED);
+  if (!(await bcrypt.compare(body.password, user.passwordHash))) throw new HttpError(400, "Kata sandi salah");
+
+  const { email, phone } = splitContact(body.contact);
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new HttpError(400, "Format email tidak valid");
+  if ((email && email === user.email) || (phone && phone === user.phone)) {
+    throw new HttpError(400, email ? "Email baru sama dengan email saat ini" : "Nomor HP baru sama dengan nomor saat ini");
+  }
+  const taken = await prisma.user.findFirst({ where: email ? { email } : { phone }, select: { id: true } });
+  if (taken) throw new HttpError(409, email ? "Email sudah dipakai akun lain" : "Nomor HP sudah dipakai akun lain");
+
+  const updated = await prisma.user.update({ where: { id: user.id }, data: email ? { email } : { phone } });
+  res.json({ user: publicUser(updated) });
+});
+
+// ---------------------------------------------------------------------------
+//  Preferensi notifikasi (halaman Pengaturan)
+// ---------------------------------------------------------------------------
+
+/** GET /api/auth/me/settings → { notifPush, notifChat, notifReport, notifPromo } */
+authRouter.get("/me/settings", requireAuth, async (req, res) => {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: me(req).id }, select: { settings: true } });
+  res.json(readSettings(user.settings));
+});
+
+/** PATCH /api/auth/me/settings { notifPush?, notifChat?, notifReport?, notifPromo? } */
+authRouter.patch("/me/settings", requireAuth, async (req, res) => {
+  const changes = parse(settingsSchema.partial(), req.body);
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: me(req).id }, select: { settings: true } });
+  const settings = { ...readSettings(user.settings), ...changes };
+  await prisma.user.update({ where: { id: me(req).id }, data: { settings } });
+  res.json(settings);
 });
 
 // ---------------------------------------------------------------------------

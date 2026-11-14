@@ -26,6 +26,7 @@ import { expireStalePayments, paymentsRouter, paymentWebhookRouter, subscription
 import { payoutsRouter } from "./routes/payouts.js";
 import { consultationsRouter, psychologistsRouter } from "./routes/psychologists.js";
 import { reportsRouter } from "./routes/reports.js";
+import { favoritesRouter } from "./routes/favorites.js";
 import { reviewsRouter, teachersRouter } from "./routes/teachers.js";
 
 export function createApp() {
@@ -121,6 +122,7 @@ export function createApp() {
   api.use("/notifications", notificationsRouter);
   api.use("/checkins", checkinsRouter);
   api.use("/doobie", doobieRouter);
+  api.use("/favorites", favoritesRouter);
   api.use("/teachers", teachersRouter);
   api.use("/reviews", reviewsRouter);
   api.use("/payouts", payoutsRouter);

@@ -2,7 +2,7 @@ import Feather from '@expo/vector-icons/Feather';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useRef, useState, type ComponentRef } from 'react';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, LinearTransition } from 'react-native-reanimated';
 
@@ -30,7 +30,7 @@ import {
 } from '@/data/rewards';
 import { rewardPhotos } from '@/data/images';
 import { showAlert } from '@/lib/dialog';
-import { claimMission, hasPoints, redeemReward, usePoints } from '@/lib/points-store';
+import { claimMission, hasPoints, loadMissionClaims, redeemReward, usePoints } from '@/lib/points-store';
 import { getSession } from '@/lib/session';
 
 const FISH = require('@/assets/images/icons/ikan.png');
@@ -42,6 +42,11 @@ export default function RewardsScreen() {
   const store = usePoints();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('Semua');
   const [showHistory, setShowHistory] = useState(false);
+
+  // saldo Madu & misi yang sudah diklaim hari ini dari server
+  useEffect(() => {
+    if (role !== 'psychologist') loadMissionClaims().catch(() => {});
+  }, [role]);
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
 
   if (!hasPoints(role)) {
@@ -63,8 +68,8 @@ export default function RewardsScreen() {
   const doMission = (m: Mission, claimed: boolean) => {
     if (claimed) return;
     if (m.done) {
-      claimMission(m.id, m.title, m.reward);
-      celebrateFish(m.reward, 'Misi selesai!');
+      // Madu baru bertambah setelah server mengonfirmasi klaim
+      claimMission(m.id, m.title, m.reward).then((ok) => ok && celebrateFish(m.reward, 'Misi selesai!'));
     } else if (m.action.share) {
       Share.share({ message: m.action.share });
     } else if (m.action.href) {
